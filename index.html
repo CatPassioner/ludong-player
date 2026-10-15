@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>猫耳律动</title>
+  <meta name="theme-color" content="#cce4fe" />
+  <link rel="icon" href="./logo.jpg" type="image/jpeg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=1.0.28p3" />
+</head>
+<body class="is-auth-screen">
+  <!-- 启动登录（独立浅色小窗构图） -->
+  <div class="auth-layer" id="authLayer" aria-hidden="false">
+    <div class="auth-shell">
+      <header class="auth-brand">
+        <img class="auth-logo" id="authFace" src="./logo.jpg" alt="头像" width="72" height="72" />
+        <h1 class="auth-title">猫耳律动</h1>
+        <p class="auth-face-meta" id="authFaceMeta" hidden></p>
+      </header>
+
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab is-active" id="authTabLogin" data-mode="login">登录</button>
+        <button type="button" class="auth-tab" id="authTabRegister" data-mode="register">注册</button>
+      </div>
+
+      <form class="auth-form" id="authForm" autocomplete="on">
+        <div class="auth-field auth-avatar-field is-login-hidden" id="authAvatarField">
+          <span>头像</span>
+          <div class="avatar-picker" id="authAvatarPicker" role="listbox" aria-label="选择头像"></div>
+          <button type="button" class="avatar-upload-btn" id="authAvatarUploadBtn">上传自定义头像</button>
+          <input type="file" id="authAvatarFile" accept="image/*" hidden />
+          <p class="auth-bind-note">昵称、邮箱、密码绑定同一账号；注册后可在设置里修改。</p>
+        </div>
+        <label class="auth-field" id="authNameField">
+          <span>昵称</span>
+          <input type="text" id="authDisplayName" maxlength="24" placeholder="2～24 个字，注册后绑定本账号" />
+        </label>
+        <label class="auth-field" id="authEmailField">
+          <span>邮箱</span>
+          <div class="auth-email-wrap">
+            <input type="email" id="authEmail" required placeholder="QQ号或邮箱" autocomplete="username" />
+            <div class="auth-email-suggest" id="authEmailSuggest" hidden role="listbox" aria-label="邮箱补全"></div>
+          </div>
+        </label>
+        <label class="auth-field">
+          <span>密码</span>
+          <input type="password" id="authPassword" required minlength="6" placeholder="至少 6 位" autocomplete="current-password" />
+        </label>
+        <p class="auth-hint" id="authHint" aria-live="polite"></p>
+        <button type="submit" class="auth-submit" id="authSubmit">进入播放器</button>
+        <button type="button" class="auth-local-btn" id="authLocalBtn">
+          先听本地歌（无需网络）
+        </button>
+        <p class="auth-local-note">私人曲库在本机，断网也能播；云端/好友需登录后联网使用。</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="app" id="app" hidden>
+    <aside class="sidebar">
+      <div class="sidebar-scroll">
+    <div class="home-settings" id="homeSettings">
+      <button type="button" class="settings-btn" id="settingsBtn" aria-label="设置" aria-expanded="false" title="设置">
+        设置
+      </button>
+      <div class="settings-panel" id="settingsPanel" hidden>
+        <div class="settings-title">设置</div>
+        <label class="settings-row" for="bgLightness">
+          <span class="settings-label">背景色</span>
+          <span class="settings-hint">黑 ← → 白</span>
+        </label>
+        <div class="bg-slider-row">
+          <button type="button" class="bg-preset" id="bgBlack" title="纯黑">黑</button>
+          <input
+            type="range"
+            id="bgLightness"
+            min="0"
+            max="100"
+            value="0"
+            step="1"
+            aria-label="背景明暗"
+          />
+          <button type="button" class="bg-preset" id="bgWhite" title="纯白">白</button>
+        </div>
+        <div class="bg-preview" id="bgPreview" aria-hidden="true"></div>
+
+        <div class="settings-divider"></div>
+        <div class="settings-row">
+          <span class="settings-label">桌面壁纸</span>
+          <span class="settings-hint" id="wallpaperScreenHint">屏幕 —</span>
+        </div>
+        <p class="settings-note">上传到壁纸库后可点选，再设为桌面壁纸。会按屏幕尺寸裁切铺满；首次设置前备份原壁纸，可随时还原。</p>
+        <div class="wallpaper-library" id="wallpaperLibrary">
+          <p class="wallpaper-library-empty" id="wallpaperLibraryEmpty">还没有壁纸，点下方上传</p>
+          <div class="wallpaper-library-grid" id="wallpaperLibraryGrid"></div>
+        </div>
+        <div class="import-actions">
+          <button type="button" class="import-btn" id="wallpaperPickBtn">上传壁纸</button>
+          <button type="button" class="import-btn" id="wallpaperApplyBtn">设为桌面壁纸</button>
+          <button type="button" class="import-btn import-btn-ghost" id="wallpaperRestoreBtn">还原原壁纸</button>
+        </div>
+        <input type="file" id="wallpaperFileInput" accept=".jpg,.jpeg,.png,.webp,.bmp,image/*" hidden />
+        <p class="import-status" id="wallpaperStatus" aria-live="polite"></p>
+
+        <div class="settings-divider"></div>
+        <div class="settings-row">
+          <span class="settings-label">上传到云端共同曲库</span>
+          <a
+            class="settings-link"
+            href="./import-guide.pdf"
+            download="导入歌曲说明.pdf"
+            target="_blank"
+            rel="noopener"
+          >导入说明</a>
+        </div>
+        <p class="settings-note">登录后可上传 MP3，并可同选 LRC/SRT、封面、MP4 视频（建议同名）。所有人都能听、看 MV、评论。视频建议 &lt; 180MB。请勿上传无版权的商业音乐。</p>
+        <div class="import-actions">
+          <button type="button" class="import-btn" id="cloudUploadBtn">上传到共同曲库</button>
+        </div>
+        <input
+          type="file"
+          id="cloudUploadInput"
+          accept=".mp3,.lrc,.srt,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,audio/mpeg,image/*,video/*"
+          multiple
+          hidden
+        />
+        <p class="import-status" id="cloudUploadStatus" aria-live="polite"></p>
+
+        <div class="settings-divider"></div>
+        <div class="settings-row">
+          <span class="settings-label">导入到我的私人空间</span>
+          <a
+            class="settings-link"
+            href="./import-guide.pdf"
+            download="导入歌曲说明.pdf"
+            target="_blank"
+            rel="noopener"
+          >导入说明</a>
+        </div>
+        <p class="settings-note">私人歌只存本机当前账号。可分开上传：同一首歌请用同一绑定名——推荐「歌曲-歌名」（如 歌曲-晴天.mp3 / 歌曲-晴天.lrc / 歌曲-晴天.jpg / 歌曲-晴天.mp4），或统一「歌名 - 歌手」。漏传的文件之后按同名会自动进对应歌曲文件夹。也可一次多选；视频还可命名为 mv / video（需与 MP3 同批或已有该歌）。</p>
+        <div class="import-actions">
+          <button type="button" class="import-btn" id="importMp3Btn">导入 MP3</button>
+          <button type="button" class="import-btn" id="importLrcBtn">导入歌词</button>
+          <button type="button" class="import-btn" id="importVideoBtn">导入视频</button>
+          <button type="button" class="import-btn import-btn-ghost" id="importAnyBtn">一起选</button>
+        </div>
+        <input type="file" id="importMp3Input" accept=".mp3,audio/mpeg" multiple hidden />
+        <input type="file" id="importLrcInput" accept=".lrc,.srt,text/plain" multiple hidden />
+        <input
+          type="file"
+          id="importVideoInput"
+          accept=".mp4,.webm,.mkv,.mov,.m4v,.acc,video/*"
+          multiple
+          hidden
+        />
+        <input
+          type="file"
+          id="importAnyInput"
+          accept=".mp3,.lrc,.srt,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mkv,.mov,.m4v,.acc,audio/mpeg,image/*,video/*"
+          multiple
+          hidden
+        />
+        <p class="import-status" id="importStatus" aria-live="polite"></p>
+
+        <div class="settings-divider"></div>
+        <button
+          type="button"
+          class="settings-nav-btn"
+          id="profileOpenBtn"
+          onclick="window.__ludongOpenProfile&&window.__ludongOpenProfile(event)"
+        >
+          <span class="settings-nav-main">
+            <span class="settings-label">个人信息</span>
+            <span class="settings-hint" id="accountUserNo">用户号 —</span>
+          </span>
+          <span class="settings-nav-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <div class="settings-divider"></div>
+        <div class="settings-row">
+          <span class="settings-label">软件更新</span>
+          <span class="settings-hint" id="appVersionLabel">版本 —</span>
+        </div>
+        <p class="settings-note">启动时会自动检查。有新版本会提示；点立即更新即可覆盖安装，私人歌曲与账号保留。</p>
+        <div class="import-actions">
+          <button type="button" class="import-btn" id="checkUpdateBtn">检查更新</button>
+        </div>
+        <p class="import-status" id="updateStatus" aria-live="polite"></p>
+
+        <div class="settings-divider"></div>
+        <div class="settings-row">
+          <span class="settings-label">账号</span>
+          <span class="settings-hint" id="accountNameLabel">未登录</span>
+        </div>
+        <button type="button" class="import-btn import-btn-ghost" id="logoutBtn">退出登录</button>
+      </div>
+    </div>
+
+      <header class="brand-block">
+        <div class="brand-row">
+          <img class="brand-logo" src="./logo.jpg" alt="猫耳律动" width="48" height="48" />
+          <div class="brand-text">
+            <h1 class="brand">猫耳律动</h1>
+            <p class="tagline">今晚想听什么</p>
+          </div>
+        </div>
+      </header>
+
+      <form class="search" id="searchForm" autocomplete="off">
+        <input
+          type="search"
+          id="searchInput"
+          placeholder="搜索歌名、歌手…"
+          enterkeyhint="search"
+        />
+        <button type="submit" id="searchBtn" aria-label="搜索">搜索</button>
+        <div class="search-suggest" id="searchSuggest" hidden></div>
+      </form>
+      <p class="search-hint" id="searchHint"></p>
+
+      <section class="rank-row" id="rankRow" aria-label="听歌次数排行">
+        <div class="rank-head">
+          <span class="rank-title">听歌排行</span>
+          <span class="rank-sub" id="rankSub">按播放次数</span>
+        </div>
+        <div class="rank-track" id="rankTrack">
+          <div class="rank-empty" id="rankEmpty">播过的歌会出现在这里</div>
+        </div>
+      </section>
+
+      <button type="button" class="likes-entry" id="likesEntry" aria-label="打开我喜欢">
+        <span class="likes-entry-heart" aria-hidden="true"></span>
+        <span class="likes-entry-text">
+          <span class="likes-entry-title">我喜欢</span>
+          <span class="likes-entry-sub" id="likesCountLabel">0 首</span>
+        </span>
+        <span class="likes-entry-arrow" aria-hidden="true"></span>
+      </button>
+
+      <button type="button" class="likes-entry chat-entry" id="chatEntry" aria-label="打开私聊">
+        <span class="chat-entry-ico" aria-hidden="true"></span>
+        <span class="likes-entry-text">
+          <span class="likes-entry-title">私聊</span>
+          <span class="likes-entry-sub" id="chatEntrySub">和好友聊天</span>
+        </span>
+        <span class="chat-entry-badge" id="chatEntryBadge" hidden>0</span>
+        <span class="likes-entry-arrow" aria-hidden="true"></span>
+      </button>
+
+      <div class="section-head">
+        <span>歌单</span>
+        <span class="section-head-actions">
+          <button type="button" class="playlist-new-btn" id="newPlaylistBtn">新建歌单</button>
+          <span class="count" id="songCount">0 首</span>
+        </span>
+      </div>
+
+      <ul class="playlist" id="playlist"></ul>
+      </div>
+      <div class="now-card" id="nowCard" hidden>
+        <div class="now-main">
+          <img class="now-cover" id="nowCover" alt="" />
+          <div class="now-meta">
+            <div class="now-title" id="nowTitle"></div>
+            <div class="now-artist" id="nowArtist"></div>
+          </div>
+          <div class="now-controls">
+            <button type="button" class="now-skip now-prev" id="nowPrev" aria-label="上一首" title="上一首"></button>
+            <button type="button" class="icon-btn now-toggle" id="nowToggle" aria-label="播放/暂停"></button>
+            <button type="button" class="now-skip now-next" id="nowNext" aria-label="下一首" title="下一首"></button>
+          </div>
+        </div>
+        <div class="now-progress" id="nowProgress">
+          <div class="now-seek-wrap" id="nowSeekWrap">
+            <div class="now-seek-track">
+              <div class="now-seek-fill" id="nowSeekFill"></div>
+            </div>
+            <input
+              type="range"
+              id="nowSeek"
+              min="0"
+              max="1000"
+              value="0"
+              step="1"
+              aria-label="播放进度"
+            />
+          </div>
+          <div class="now-time-row">
+            <span id="nowCurrentTime">0:00</span>
+            <span id="nowDuration">0:00</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- 二级窗口：唱片 / 歌词播放页 -->
+  <div class="player-layer" id="playerLayer" aria-hidden="true">
+    <div class="player-backdrop" id="playerBackdrop"></div>
+    <section class="player-window" id="playerWindow" role="dialog" aria-modal="true" aria-label="播放详情">
+      <div class="player-ambient" aria-hidden="true">
+        <img class="player-ambient-img" id="playerAmbientImg" alt="" />
+        <div class="player-ambient-dim"></div>
+      </div>
+      <div class="player-fit" id="playerFit">
+        <div class="player-board" id="playerBoard">
+          <header class="player-window-bar">
+            <button type="button" class="player-close" id="playerClose" aria-label="返回歌单">
+              <span class="player-close-ico"></span>
+              返回歌单
+            </button>
+            <button type="button" class="player-cover-btn" id="mvToggleBtn" hidden>视频</button>
+            <button type="button" class="player-cover-btn" id="coverPickBtn">自定义封面</button>
+          </header>
+
+          <main class="player">
+            <div class="stage" id="stage">
+              <div class="disc-view" id="discView">
+                <div class="disc" id="disc" title="查看歌词">
+                  <div class="disc-spin">
+                    <div class="disc-ring"></div>
+                    <img class="cover" id="cover" alt="封面" />
+                    <div class="hole"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="lyrics-view" id="lyricsView">
+                <div class="lyrics-ambient" aria-hidden="true">
+                  <img class="lyrics-ambient-img" id="lyricsAmbientImg" alt="" />
+                  <div class="lyrics-ambient-dim"></div>
+                </div>
+                <div class="lyrics-art" id="lyricsArt">
+                  <img class="lyrics-bg-img" id="lyricsBgImg" alt="" />
+                </div>
+                <div class="lyrics-side" id="lyricsSide">
+                  <div class="lyrics-board" id="lyricsBoard">
+                    <div class="lyrics-window" id="lyricsWindow">
+                      <div class="lyrics-track" id="lyricsTrack"></div>
+                    </div>
+                  </div>
+                  <div class="lyric-empty" id="lyricEmpty" hidden>暂无歌词</div>
+                </div>
+              </div>
+
+              <div class="mv-view" id="mvView" hidden>
+                <div class="mv-frame" id="mvFrame">
+                  <video
+                    id="mvVideo"
+                    class="mv-video"
+                    playsinline
+                    preload="metadata"
+                    controlslist="nodownload noplaybackrate noremoteplayback"
+                    disablepictureinpicture
+                  ></video>
+                  <div class="mv-lyric" id="mvLyric" aria-live="polite">
+                    <div class="mv-lyric-line is-current" id="mvLyricCurrent"></div>
+                  </div>
+                  <p class="mv-empty" id="mvEmpty" hidden>暂无 MV，可把同名视频放到歌曲文件夹</p>
+                </div>
+                <div class="mv-tools">
+                  <button
+                    type="button"
+                    class="mv-cc-btn is-on"
+                    id="mvCcBtn"
+                    title="关闭字幕"
+                    aria-label="字幕"
+                    aria-pressed="true"
+                  >
+                    <svg class="mv-cc-svg" viewBox="0 0 36 30" width="28" height="24" aria-hidden="true">
+                      <path
+                        class="mv-cc-frame"
+                        d="M11 3.2 L14 6.4 M25 3.2 L22 6.4 M8.5 7.2 h19 a2.6 2.6 0 0 1 2.6 2.6 v12.2 a2.6 2.6 0 0 1 -2.6 2.6 h-19 a2.6 2.6 0 0 1 -2.6 -2.6 V9.8 a2.6 2.6 0 0 1 2.6 -2.6 z"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.1"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <text
+                        class="mv-cc-glyph"
+                        x="18"
+                        y="19.2"
+                        text-anchor="middle"
+                        font-size="11.5"
+                        font-weight="700"
+                        fill="currentColor"
+                        font-family="Segoe UI, Microsoft YaHei, sans-serif"
+                      >字</text>
+                      <path
+                        class="mv-cc-check"
+                        d="M24.2 20.2 l2.4 2.5 4.6 -5.2"
+                        fill="none"
+                        stroke="#3b9bff"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="info">
+              <h2 class="title" id="title">选择一首歌开始</h2>
+              <p class="artist" id="artist">—</p>
+            </div>
+
+            <div class="progress">
+              <div class="seek-wrap" id="seekWrap">
+                <div class="seek-track">
+                  <div class="seek-fill" id="seekFill"></div>
+                  <div class="seek-thumb" id="seekThumb" aria-hidden="true">
+                    <img
+                      class="seek-thumb-gif"
+                      id="seekThumbGif"
+                      src="./emoji/momo.gif"
+                      alt=""
+                      draggable="false"
+                    />
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  id="seek"
+                  min="0"
+                  max="1000"
+                  value="0"
+                  step="1"
+                  aria-label="播放进度"
+                />
+              </div>
+              <div class="time-row">
+                <span id="currentTime">0:00</span>
+                <span id="duration">0:00</span>
+              </div>
+            </div>
+
+            <div class="modes" id="modes" role="group" aria-label="播放模式">
+              <button type="button" class="mode-btn is-active" data-mode="list">顺序</button>
+              <button type="button" class="mode-btn" data-mode="loop">单曲</button>
+              <button type="button" class="mode-btn" data-mode="shuffle">随机</button>
+            </div>
+
+            <div class="controls">
+              <button type="button" class="ctrl-side player-like" id="playerLike" aria-label="喜欢" title="喜欢"></button>
+              <div class="controls-core">
+                <button class="ctrl" id="prevBtn" type="button" aria-label="上一首">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M6 6h2v12H6V6zm3.5 6 8.5 6V6l-8.5 6z"/></svg>
+                </button>
+                <button class="play" id="playBtn" type="button" aria-label="开始播放" title="开始播放">
+                  <svg class="ico-play" viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7L8 5z"/></svg>
+                  <svg class="ico-pause" viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z"/></svg>
+                </button>
+                <button class="ctrl" id="nextBtn" type="button" aria-label="下一首">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M16 6h2v12h-2V6zM5 18l8.5-6L5 6v12z"/></svg>
+                </button>
+              </div>
+              <div class="controls-side-right">
+                <button type="button" class="ctrl-side player-comment" id="playerComment" aria-label="评论" title="评论"></button>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+      <div class="cover-pick-layer" id="coverPickLayer" hidden>
+        <div class="cover-pick-card" role="dialog" aria-modal="true" aria-labelledby="coverPickTitle">
+          <h3 class="cover-pick-title" id="coverPickTitle">自定义封面</h3>
+          <p class="cover-pick-note">可选内置图、我上传的封面，或改回歌曲封面。上传后会出现在下方列表里，点选再保存。</p>
+          <div class="cover-pick-grid" id="coverPickGrid"></div>
+          <div class="cover-pick-extra">
+            <button type="button" class="cover-pick-extra-btn" id="coverPickUploadBtn">上传封面</button>
+            <button type="button" class="cover-pick-extra-btn" id="coverPickSongBtn">使用歌曲封面</button>
+            <input id="coverPickFile" type="file" accept="image/*" hidden />
+          </div>
+          <div class="cover-pick-footer">
+            <button type="button" class="cover-pick-cancel" id="coverPickCancel">取消</button>
+            <button type="button" class="cover-pick-save" id="coverPickSave">保存</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <audio id="audio" preload="metadata"></audio>
+
+  <div class="confirm-layer" id="updateLayer" hidden aria-hidden="true">
+    <div class="confirm-backdrop" id="updateBackdrop"></div>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="updateTitle">
+      <h3 class="confirm-title" id="updateTitle">发现新版本</h3>
+      <p class="confirm-msg" id="updateMsg">有可用更新。</p>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-btn confirm-cancel" id="updateLaterBtn">稍后</button>
+        <button type="button" class="confirm-btn confirm-ok" id="updateNowBtn">立即更新</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="playlist-pick-layer" id="playlistPickLayer" hidden>
+    <div class="playlist-pick-card" role="dialog" aria-modal="true">
+      <div class="playlist-pick-title" id="playlistPickTitle">保存到歌单</div>
+      <div class="playlist-pick-list" id="playlistPickList"></div>
+      <button type="button" class="playlist-pick-cancel" id="playlistPickCancel">取消</button>
+    </div>
+  </div>
+
+  <div class="confirm-layer" id="confirmLayer" hidden aria-hidden="true">
+    <div class="confirm-backdrop" id="confirmBackdrop"></div>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h3 class="confirm-title" id="confirmTitle">确定删除这首歌？</h3>
+      <p class="confirm-msg" id="confirmMsg">将删除对应的 MP3、歌词和封面文件，删除后无法恢复。</p>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-btn confirm-cancel" id="confirmCancel">取消</button>
+        <button type="button" class="confirm-btn confirm-ok" id="confirmOk">确定删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 个人信息页 -->
+  <div class="profile-layer" id="profileLayer" aria-hidden="true">
+    <div
+      class="profile-backdrop"
+      id="profileBackdrop"
+      onclick="window.__ludongCloseProfile&&window.__ludongCloseProfile(event)"
+    ></div>
+    <section class="profile-panel" role="dialog" aria-modal="true" aria-labelledby="profilePanelTitle">
+      <header class="profile-panel-bar">
+        <button
+          type="button"
+          class="likes-back"
+          id="profileBackBtn"
+          aria-label="返回"
+          onclick="window.__ludongCloseProfile&&window.__ludongCloseProfile(event)"
+        >
+          <span class="likes-back-ico"></span>
+          返回
+        </button>
+        <h2 class="likes-panel-title" id="profilePanelTitle">个人信息</h2>
+        <span class="profile-panel-spacer" aria-hidden="true"></span>
+      </header>
+      <div class="profile-edit" id="profileEdit">
+        <div class="profile-edit-head">
+          <img class="profile-edit-avatar" id="profileEditAvatar" src="./logo.jpg" alt="" />
+          <div class="profile-edit-meta">
+            <div class="profile-edit-name" id="profileEditName">未登录</div>
+            <div class="profile-edit-sub" id="profileEditSub">登录后可改头像、昵称、密码</div>
+          </div>
+        </div>
+        <div class="avatar-picker is-compact" id="profileAvatarPicker" role="listbox" aria-label="更换头像"></div>
+        <button type="button" class="avatar-upload-btn" id="profileAvatarUploadBtn">上传自定义头像</button>
+        <input type="file" id="profileAvatarFile" accept="image/*" hidden />
+        <label class="profile-field">
+          <span>昵称</span>
+          <input type="text" id="profileNameInput" maxlength="24" placeholder="新昵称" />
+        </label>
+        <label class="profile-field" id="profileTitleField" hidden>
+          <span>专属头衔</span>
+          <input type="text" id="profileTitleInput" maxlength="12" placeholder="为自己起个头衔" />
+        </label>
+        <button type="button" class="import-btn" id="profileSaveBtn">保存头像与昵称</button>
+        <label class="profile-field">
+          <span>当前密码</span>
+          <input type="password" id="profileOldPassword" maxlength="64" placeholder="验证身份" autocomplete="current-password" />
+        </label>
+        <label class="profile-field">
+          <span>新密码</span>
+          <input type="password" id="profileNewPassword" maxlength="64" placeholder="至少 6 位" autocomplete="new-password" />
+        </label>
+        <label class="profile-field">
+          <span>确认新密码</span>
+          <input type="password" id="profileNewPassword2" maxlength="64" placeholder="再输入一次" autocomplete="new-password" />
+        </label>
+        <button type="button" class="import-btn import-btn-ghost" id="profilePasswordBtn">修改密码</button>
+        <p class="import-status" id="profileStatus" aria-live="polite"></p>
+      </div>
+    </section>
+  </div>
+
+  <!-- 我喜欢列表页 -->
+  <div class="likes-layer" id="likesLayer" aria-hidden="true">
+    <div class="likes-backdrop" id="likesBackdrop"></div>
+    <section class="likes-panel" role="dialog" aria-modal="true" aria-label="我喜欢">
+      <header class="likes-panel-bar">
+        <button type="button" class="likes-back" id="likesBack" aria-label="返回">
+          <span class="likes-back-ico"></span>
+          返回
+        </button>
+        <h2 class="likes-panel-title">我喜欢</h2>
+        <span class="likes-panel-count" id="likesPanelCount">0 首</span>
+      </header>
+      <ul class="likes-list" id="likesList"></ul>
+    </section>
+  </div>
+
+  <!-- 评论页 -->
+  <div class="comments-layer" id="commentsLayer" aria-hidden="true">
+    <div class="comments-backdrop" id="commentsBackdrop"></div>
+    <section class="comments-panel" role="dialog" aria-modal="true" aria-label="评论">
+      <header class="comments-panel-bar">
+        <button type="button" class="likes-back" id="commentsBack" aria-label="返回">
+          <span class="likes-back-ico"></span>
+          返回
+        </button>
+        <div class="comments-panel-meta">
+          <h2 class="likes-panel-title">评论</h2>
+          <p class="comments-song" id="commentsSongLabel">—</p>
+        </div>
+        <div class="comments-header-right">
+          <div class="comments-sort" role="tablist" aria-label="评论排序">
+            <button type="button" class="comments-sort-btn is-active" id="commentsSortTime" data-comments-sort="time">按时间</button>
+            <button type="button" class="comments-sort-btn" id="commentsSortLikes" data-comments-sort="likes">按点赞</button>
+          </div>
+          <span class="likes-panel-count" id="commentsCountLabel">0 条</span>
+        </div>
+      </header>
+      <ul class="comments-list" id="commentsList"></ul>
+      <div class="comment-user-menu" id="commentUserMenu" hidden>
+        <button type="button" class="comment-user-menu-item" data-menu="add">加好友</button>
+        <button type="button" class="comment-user-menu-item" data-menu="chat">私聊</button>
+      </div>
+      <form class="comments-compose" id="commentsForm">
+        <div class="comments-reply-bar" id="commentsReplyBar" hidden>
+          <span class="comments-reply-label" id="commentsReplyLabel">回复评论</span>
+          <button type="button" class="comments-reply-cancel" id="commentsReplyCancel" aria-label="取消回复">取消</button>
+        </div>
+        <textarea
+          id="commentsInput"
+          rows="3"
+          maxlength="500"
+          placeholder="写下你的想法…"
+          enterkeyhint="send"
+        ></textarea>
+        <div class="comments-compose-row">
+          <button type="button" class="comments-emoji-btn" id="commentsEmojiBtn" title="表情" aria-label="表情">☺</button>
+          <span class="comments-hint" id="commentsHint"></span>
+          <button type="submit" class="comments-send" id="commentsSend">发送</button>
+        </div>
+        <div class="comments-emoji-panel" id="commentsEmojiPanel" hidden>
+          <div class="chat-emoji-tabs" role="tablist">
+            <button type="button" class="chat-emoji-tab is-active" data-comments-emoji-tab="emoji">表情</button>
+            <button type="button" class="chat-emoji-tab" data-comments-emoji-tab="kaomoji">颜文字</button>
+            <button type="button" class="chat-emoji-tab" data-comments-emoji-tab="sticker">表情包</button>
+            <button type="button" class="chat-emoji-tab" data-comments-emoji-tab="mine">我的</button>
+          </div>
+          <div class="chat-emoji-body" id="commentsEmojiBody"></div>
+        </div>
+      </form>
+      <input type="file" id="commentsStickerFile" accept="image/*,.gif,.png,.jpg,.jpeg,.webp" hidden />
+    </section>
+  </div>
+
+  <!-- 私聊页 -->
+  <div class="chat-layer" id="chatLayer" aria-hidden="true">
+    <div class="chat-backdrop" id="chatBackdrop"></div>
+    <section class="chat-panel" role="dialog" aria-modal="true" aria-label="私聊">
+      <header class="chat-panel-bar">
+        <button type="button" class="likes-back" id="chatBack" aria-label="返回">
+          <span class="likes-back-ico"></span>
+          返回
+        </button>
+        <h2 class="likes-panel-title" id="chatTitle">私聊</h2>
+        <span class="chat-peer-status" id="chatPeerStatus" hidden></span>
+        <span class="likes-panel-count" id="chatPeerCount">0 好友</span>
+      </header>
+      <div class="chat-body">
+        <aside class="chat-side" aria-label="好友与申请">
+          <div class="chat-tabs" role="tablist">
+            <button type="button" class="chat-tab is-active" id="chatTabFriends" data-tab="friends">好友</button>
+            <button type="button" class="chat-tab" id="chatTabAdd" data-tab="add">
+              加好友
+              <span class="chat-tab-badge" id="chatRequestBadge" hidden>0</span>
+            </button>
+          </div>
+          <div class="chat-tab-panel is-active" id="chatPanelFriends">
+            <div class="chat-side-actions">
+              <button type="button" class="chat-new-group-btn" id="chatNewGroupBtn">新建群聊</button>
+            </div>
+            <div class="chat-peers" id="chatPeers" aria-label="好友与群聊"></div>
+          </div>
+          <div class="chat-tab-panel" id="chatPanelAdd" hidden>
+            <form class="chat-search" id="chatSearchForm">
+              <input
+                type="search"
+                id="chatSearchInput"
+                maxlength="40"
+                placeholder="搜昵称或邮箱…"
+                autocomplete="off"
+              />
+              <button type="submit" class="chat-search-btn" id="chatSearchBtn">搜</button>
+            </form>
+            <div class="chat-search-results" id="chatSearchResults"></div>
+            <div class="chat-req-head">好友申请</div>
+            <div class="chat-requests" id="chatRequests" aria-label="好友申请"></div>
+          </div>
+        </aside>
+        <div class="chat-thread">
+          <div class="chat-messages" id="chatMessages">
+            <div class="empty-tip">选择好友开始聊天</div>
+          </div>
+          <form class="chat-compose" id="chatForm">
+            <input
+              type="text"
+              id="chatInput"
+              maxlength="1000"
+              placeholder="输入消息，可粘贴截图…"
+              autocomplete="off"
+              enterkeyhint="send"
+              disabled
+            />
+            <button type="button" class="chat-emoji-btn" id="chatEmojiBtn" title="表情" disabled aria-label="表情">☺</button>
+            <button type="submit" class="chat-send" id="chatSend" disabled>发送</button>
+          </form>
+          <div class="chat-emoji-panel" id="chatEmojiPanel" hidden>
+            <div class="chat-emoji-tabs" role="tablist">
+              <button type="button" class="chat-emoji-tab is-active" data-emoji-tab="emoji">表情</button>
+              <button type="button" class="chat-emoji-tab" data-emoji-tab="kaomoji">颜文字</button>
+              <button type="button" class="chat-emoji-tab" data-emoji-tab="sticker">表情包</button>
+              <button type="button" class="chat-emoji-tab" data-emoji-tab="mine">我的</button>
+            </div>
+            <div class="chat-emoji-body" id="chatEmojiBody"></div>
+          </div>
+          <p class="chat-hint" id="chatHint" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+    <div class="friend-ctx-menu" id="friendCtxMenu" hidden>
+      <button type="button" class="friend-ctx-item" data-act="remark" data-for="dm">设置备注</button>
+      <button type="button" class="friend-ctx-item" data-act="rename-group" data-for="group">修改群名</button>
+      <button type="button" class="friend-ctx-item" data-act="invite-group" data-for="group">邀请好友</button>
+      <button type="button" class="friend-ctx-item is-danger" data-act="dissolve-group" data-for="group" data-owner-only="1">解散群聊</button>
+      <button type="button" class="friend-ctx-item" data-act="chat">打开聊天</button>
+    </div>
+    <div class="chat-group-layer" id="chatGroupLayer" hidden>
+      <div class="chat-group-card" role="dialog" aria-modal="true" aria-labelledby="chatGroupModalTitle">
+        <div class="chat-group-title" id="chatGroupModalTitle">新建群聊</div>
+        <input
+          type="text"
+          class="chat-group-name-input"
+          id="chatGroupNameInput"
+          maxlength="24"
+          placeholder="群名称（必填）"
+          autocomplete="off"
+        />
+        <div class="chat-group-pick-hint" id="chatGroupPickHint">勾选要拉进群的好友</div>
+        <div class="chat-group-pick-list" id="chatGroupPickList"></div>
+        <p class="chat-group-error" id="chatGroupError" hidden></p>
+        <div class="chat-group-actions">
+          <button type="button" class="chat-group-cancel" id="chatGroupCancel">取消</button>
+          <button type="button" class="chat-group-confirm" id="chatGroupConfirm">创建</button>
+        </div>
+      </div>
+    </div>
+    <div class="friend-ctx-menu" id="msgCtxMenu" hidden>
+      <button type="button" class="friend-ctx-item" data-act="recall">撤回</button>
+      <button type="button" class="friend-ctx-item" data-act="copy">复制</button>
+      <button type="button" class="friend-ctx-item" data-act="forward">转发</button>
+      <button type="button" class="friend-ctx-item" data-act="save-sticker" hidden>保存表情</button>
+    </div>
+    <div class="chat-forward-layer" id="chatForwardLayer" hidden>
+      <div class="chat-forward-card">
+        <div class="chat-forward-title">转发给好友</div>
+        <div class="chat-forward-list" id="chatForwardList"></div>
+        <button type="button" class="chat-forward-cancel" id="chatForwardCancel">取消</button>
+      </div>
+    </div>
+    <input type="file" id="chatStickerFile" accept="image/*,.gif,.png,.jpg,.jpeg,.webp" hidden />
+  </div>
+
+  <script>
+    /* 多窗口协调：新实例可通知旧窗口关闭（更新后防残留） */
+    (function () {
+      try {
+        var myId =
+          "w-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+        window.__ludongWindowId = myId;
+        var bc = new BroadcastChannel("ludong-player-v1");
+        bc.onmessage = function (ev) {
+          var d = ev && ev.data;
+          if (!d || d.type !== "shutdown") return;
+          if (d.from && d.from === myId) return;
+          try {
+            window.close();
+          } catch (e) {}
+          try {
+            location.replace("about:blank");
+          } catch (e2) {}
+        };
+        window.__ludongBc = bc;
+      } catch (err) {}
+    })();
+    /* 个人信息侧页：盖在设置上，返回只关侧页、回到设置 */
+    window.__ludongOpenProfile = function (e) {
+      try {
+        if (e) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+        }
+        var layer = document.getElementById("profileLayer");
+        if (!layer) return;
+        layer.hidden = false;
+        layer.classList.add("is-open");
+        layer.setAttribute("aria-hidden", "false");
+        if (typeof window.__ludongOnProfileOpened === "function") {
+          try {
+            window.__ludongOnProfileOpened();
+          } catch (err) {}
+        }
+      } catch (err2) {}
+    };
+    window.__ludongCloseProfile = function (e) {
+      try {
+        if (e) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+        }
+        var layer = document.getElementById("profileLayer");
+        if (!layer) return;
+        layer.hidden = true;
+        layer.classList.remove("is-open");
+        layer.setAttribute("aria-hidden", "true");
+        if (typeof window.__ludongOnProfileClosed === "function") {
+          try {
+            window.__ludongOnProfileClosed();
+          } catch (err) {}
+        } else {
+          var panel = document.getElementById("settingsPanel");
+          var sbtn = document.getElementById("settingsBtn");
+          if (panel) panel.hidden = false;
+          if (sbtn) {
+            sbtn.classList.add("is-open");
+            sbtn.setAttribute("aria-expanded", "true");
+          }
+        }
+      } catch (err2) {}
+    };
+  </script>
+  <script src="cloud-config.js"></script>
+  <script src="cloud-comments.js"></script>
+  <script src="app.js?v=1.0.28p3"></script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<view class="page">
+  <view class="hero">
+    <view class="hero-glow"></view>
+    <text class="brand">律动</text>
+    <text class="tagline">今晚想听什么</text>
+  </view>
+
+  <view class="now-playing" wx:if="{{currentSong}}" bindtap="goPlayer">
+    <image class="now-cover" src="{{currentSong.cover}}" mode="aspectFill" />
+    <view class="now-meta">
+      <text class="now-title">{{currentSong.title}}</text>
+      <text class="now-artist">{{currentSong.artist}}</text>
+    </view>
+    <view class="now-btn {{playing ? 'is-playing' : ''}}" catchtap="togglePlay">
+      <view class="icon-play" wx:if="{{!playing}}"></view>
+      <view class="icon-pause" wx:else>
+        <view class="bar"></view>
+        <view class="bar"></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-head">
+    <text class="section-title">歌单</text>
+    <text class="section-count">{{playlist.length}} 首</text>
+  </view>
+
+  <scroll-view class="list" scroll-y enhanced show-scrollbar="{{false}}">
+    <view
+      class="song {{currentIndex === index ? 'active' : ''}}"
+      wx:for="{{playlist}}"
+      wx:key="id"
+      data-index="{{index}}"
+      bindtap="playSong"
+    >
+      <text class="song-index">{{index + 1 < 10 ? '0' : ''}}{{index + 1}}</text>
+      <image class="song-cover" src="{{item.cover}}" mode="aspectFill" />
+      <view class="song-meta">
+        <text class="song-title">{{item.title}}</text>
+        <text class="song-artist">{{item.artist}}</text>
+      </view>
+      <text class="song-duration">{{item.durationText}}</text>
+      <view class="eq" wx:if="{{currentIndex === index && playing}}">
+        <view class="eq-bar"></view>
+        <view class="eq-bar"></view>
+        <view class="eq-bar"></view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

@@ -1,0 +1,275 @@
+.page {
+  min-height: 100vh;
+  padding: 0 48rpx 64rpx;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -5%, rgba(232, 165, 75, 0.2), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 0% 80%, rgba(60, 100, 140, 0.15), transparent 50%),
+    linear-gradient(180deg, #121820 0%, #0c0f14 45%, #090b10 100%);
+}
+
+.nav {
+  margin: 0 -48rpx;
+  padding-left: 24rpx;
+  padding-right: 24rpx;
+}
+
+.nav-inner {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chevron {
+  width: 20rpx;
+  height: 20rpx;
+  border-left: 4rpx solid #f2efe8;
+  border-bottom: 4rpx solid #f2efe8;
+  transform: rotate(45deg);
+  margin-left: 8rpx;
+}
+
+.nav-title {
+  font-size: 30rpx;
+  color: #c8cdd4;
+  letter-spacing: 2rpx;
+}
+
+.nav-spacer {
+  width: 64rpx;
+}
+
+.stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx 0 20rpx;
+  min-height: 480rpx;
+}
+
+.disc-wrap {
+  position: relative;
+  width: 520rpx;
+  height: 520rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 40rpx 80rpx rgba(0, 0, 0, 0.45),
+    0 0 0 12rpx rgba(255, 255, 255, 0.04);
+}
+
+.disc-wrap.spinning {
+  animation: spin 18s linear infinite;
+}
+
+.disc-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(
+      circle at center,
+      #1a1f28 0,
+      #1a1f28 6rpx,
+      #12161d 7rpx,
+      #12161d 12rpx
+    );
+}
+
+.cover {
+  position: relative;
+  z-index: 1;
+  width: 360rpx;
+  height: 360rpx;
+  border-radius: 50%;
+  border: 6rpx solid rgba(0, 0, 0, 0.35);
+}
+
+.disc-hole {
+  position: absolute;
+  z-index: 2;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #0c0f14;
+  box-shadow: inset 0 0 0 8rpx #e8a54b;
+}
+
+.info {
+  text-align: center;
+  margin-bottom: 48rpx;
+  animation: fadeIn 0.6s ease both;
+}
+
+.title {
+  display: block;
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #f5f0e6;
+  letter-spacing: 2rpx;
+}
+
+.artist {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 28rpx;
+  color: #8b93a0;
+}
+
+.progress-block {
+  margin-bottom: 40rpx;
+}
+
+.slider {
+  margin: 0;
+}
+
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #6b7380;
+  font-variant-numeric: tabular-nums;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8rpx 24rpx;
+}
+
+.mode {
+  width: 80rpx;
+  text-align: center;
+}
+
+.mode.placeholder {
+  visibility: hidden;
+}
+
+.mode-text {
+  font-size: 22rpx;
+  color: #e8a54b;
+  letter-spacing: 1rpx;
+}
+
+.ctrl-btn {
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prev-icon,
+.next-icon {
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.prev-icon {
+  border-width: 16rpx 22rpx 16rpx 0;
+  border-color: transparent #f2efe8 transparent transparent;
+  position: relative;
+}
+
+.prev-icon::after {
+  content: '';
+  position: absolute;
+  left: 18rpx;
+  top: -16rpx;
+  width: 6rpx;
+  height: 32rpx;
+  background: #f2efe8;
+  border-radius: 2rpx;
+}
+
+.next-icon {
+  border-width: 16rpx 0 16rpx 22rpx;
+  border-color: transparent transparent transparent #f2efe8;
+  position: relative;
+}
+
+.next-icon::after {
+  content: '';
+  position: absolute;
+  right: 18rpx;
+  top: -16rpx;
+  width: 6rpx;
+  height: 32rpx;
+  background: #f2efe8;
+  border-radius: 2rpx;
+}
+
+.play-btn {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f0b45e, #d4923a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 16rpx 40rpx rgba(232, 165, 75, 0.35);
+  transition: transform 0.2s ease;
+}
+
+.play-btn:active {
+  transform: scale(0.94);
+}
+
+.icon-play {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 22rpx 0 22rpx 36rpx;
+  border-color: transparent transparent transparent #1a1408;
+  margin-left: 8rpx;
+}
+
+.icon-pause {
+  display: flex;
+  gap: 12rpx;
+}
+
+.icon-pause .bar {
+  width: 10rpx;
+  height: 40rpx;
+  background: #1a1408;
+  border-radius: 3rpx;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

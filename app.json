@@ -1,0 +1,17 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/player/player"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#0c0f14",
+    "navigationBarTitleText": "猫耳律动",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0c0f14",
+    "backgroundTextStyle": "light"
+  },
+  "requiredBackgroundModes": ["audio"],
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

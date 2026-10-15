@@ -1,0 +1,66 @@
+<view class="page">
+  <view class="nav" style="padding-top: {{statusBarHeight}}px">
+    <view class="nav-inner">
+      <view class="back" bindtap="goBack">
+        <view class="chevron"></view>
+      </view>
+      <text class="nav-title">正在播放</text>
+      <view class="nav-spacer"></view>
+    </view>
+  </view>
+
+  <view class="stage">
+    <view class="disc-wrap {{playing ? 'spinning' : ''}}">
+      <view class="disc-ring"></view>
+      <image class="cover" src="{{song.cover}}" mode="aspectFill" />
+      <view class="disc-hole"></view>
+    </view>
+  </view>
+
+  <view class="info">
+    <text class="title">{{song.title}}</text>
+    <text class="artist">{{song.artist}}</text>
+  </view>
+
+  <view class="progress-block">
+    <slider
+      class="slider"
+      value="{{progress}}"
+      max="100"
+      block-size="12"
+      activeColor="#e8a54b"
+      backgroundColor="rgba(255,255,255,0.12)"
+      block-color="#f2efe8"
+      bindchanging="onSeekChanging"
+      bindchange="onSeekChange"
+    />
+    <view class="time-row">
+      <text>{{currentTimeText}}</text>
+      <text>{{durationText}}</text>
+    </view>
+  </view>
+
+  <view class="controls">
+    <view class="mode" bindtap="toggleMode">
+      <text class="mode-text">{{modeLabel}}</text>
+    </view>
+
+    <view class="ctrl-btn" bindtap="playPrev">
+      <view class="prev-icon"></view>
+    </view>
+
+    <view class="play-btn {{playing ? 'is-playing' : ''}}" bindtap="togglePlay">
+      <view class="icon-play" wx:if="{{!playing}}"></view>
+      <view class="icon-pause" wx:else>
+        <view class="bar"></view>
+        <view class="bar"></view>
+      </view>
+    </view>
+
+    <view class="ctrl-btn" bindtap="playNext">
+      <view class="next-icon"></view>
+    </view>
+
+    <view class="mode placeholder"></view>
+  </view>
+</view>

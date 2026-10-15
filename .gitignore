@@ -1,0 +1,51 @@
+# --- 构建与发版产物（体积大，不要上传）---
+build/
+dist/
+release/
+*.spec
+*.exe
+*.zip
+
+# --- 本地运行缓存 / 浏览器配置 ---
+.browser-profile/
+__pycache__/
+*.py[cod]
+*.log
+.DS_Store
+Thumbs.db
+*.lnk
+desktop_app.log
+
+# --- 本机运行时数据（会在使用中重新生成）---
+comments.json
+likes.json
+play_stats.json
+
+# --- 本机私人曲库与用户数据（勿上传他人音乐/账号数据）---
+music/
+userdata/
+**/userdata/
+.ludong*/
+song-bind.json
+
+# --- 大媒体素材（壁纸视频等，请本地自备）---
+*.mp4
+*.webm
+*.mkv
+*.mov
+*.avi
+4k*.mp4
+2k*.mp4
+
+# --- 可选本地覆盖（若以后拆私密配置）---
+cloud-config.local.js
+.env
+.env.*
+!.env.example
+
+# --- 临时文件 ---
+_*.py
+_*.txt
+body.txt
+*.tmp
+~$*

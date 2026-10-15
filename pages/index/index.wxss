@@ -1,0 +1,269 @@
+.page {
+  min-height: 100vh;
+  padding: 24rpx 40rpx 48rpx;
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(232, 165, 75, 0.16), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(72, 120, 160, 0.12), transparent 50%),
+    linear-gradient(180deg, #10151c 0%, #0c0f14 40%, #0a0d12 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+.hero {
+  position: relative;
+  padding: 48rpx 0 40rpx;
+  overflow: hidden;
+}
+
+.hero-glow {
+  position: absolute;
+  width: 280rpx;
+  height: 280rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232, 165, 75, 0.25), transparent 70%);
+  top: -60rpx;
+  left: -40rpx;
+  animation: drift 8s ease-in-out infinite alternate;
+}
+
+.brand {
+  display: block;
+  font-size: 72rpx;
+  font-weight: 700;
+  letter-spacing: 8rpx;
+  color: #f5f0e6;
+  line-height: 1.1;
+}
+
+.tagline {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 28rpx;
+  color: #8b93a0;
+  letter-spacing: 2rpx;
+}
+
+.now-playing {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 24rpx;
+  margin-bottom: 40rpx;
+  background: linear-gradient(135deg, rgba(26, 34, 45, 0.95), rgba(20, 26, 34, 0.8));
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 24rpx;
+  animation: fadeUp 0.5s ease both;
+}
+
+.now-cover {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 16rpx;
+  flex-shrink: 0;
+}
+
+.now-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.now-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #f2efe8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.now-artist {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #8b93a0;
+}
+
+.now-btn {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #e8a54b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.now-btn:active {
+  transform: scale(0.92);
+}
+
+.icon-play {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 12rpx 0 12rpx 20rpx;
+  border-color: transparent transparent transparent #1a1408;
+  margin-left: 4rpx;
+}
+
+.icon-pause {
+  display: flex;
+  gap: 8rpx;
+}
+
+.icon-pause .bar {
+  width: 6rpx;
+  height: 24rpx;
+  background: #1a1408;
+  border-radius: 2rpx;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.section-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #f2efe8;
+}
+
+.section-count {
+  font-size: 24rpx;
+  color: #6b7380;
+}
+
+.list {
+  flex: 1;
+  height: 0;
+  min-height: 600rpx;
+}
+
+.song {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 22rpx 8rpx;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.05);
+  transition: background 0.2s ease;
+}
+
+.song:active {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.song.active .song-title {
+  color: #e8a54b;
+}
+
+.song.active .song-index {
+  color: #e8a54b;
+}
+
+.song-index {
+  width: 48rpx;
+  font-size: 24rpx;
+  color: #5a6270;
+  font-variant-numeric: tabular-nums;
+}
+
+.song-cover {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 14rpx;
+  flex-shrink: 0;
+  background: #1a222d;
+}
+
+.song-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.song-title {
+  display: block;
+  font-size: 30rpx;
+  color: #f2efe8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-artist {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #8b93a0;
+}
+
+.song-duration {
+  font-size: 22rpx;
+  color: #5a6270;
+  font-variant-numeric: tabular-nums;
+}
+
+.eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 4rpx;
+  height: 28rpx;
+  margin-left: 8rpx;
+}
+
+.eq-bar {
+  width: 5rpx;
+  background: #e8a54b;
+  border-radius: 2rpx;
+  animation: bounce 0.8s ease-in-out infinite;
+}
+
+.eq-bar:nth-child(1) {
+  height: 12rpx;
+  animation-delay: 0s;
+}
+
+.eq-bar:nth-child(2) {
+  height: 24rpx;
+  animation-delay: 0.15s;
+}
+
+.eq-bar:nth-child(3) {
+  height: 16rpx;
+  animation-delay: 0.3s;
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(40rpx, 20rpx);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

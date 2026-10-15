@@ -1,0 +1,22 @@
+page {
+  --bg: #0c0f14;
+  --bg-soft: #141a22;
+  --surface: #1a222d;
+  --text: #f2efe8;
+  --text-muted: #8b93a0;
+  --accent: #e8a54b;
+  --accent-soft: rgba(232, 165, 75, 0.18);
+  --line: rgba(255, 255, 255, 0.08);
+  background: var(--bg);
+  color: var(--text);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+view,
+text,
+image,
+scroll-view {
+  box-sizing: border-box;
+}
