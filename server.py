@@ -13,6 +13,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 from app_paths import get_root, get_userdata_root, sanitize_user_id
 
 ROOT = get_root()
+# 与 desktop_app 一致：http://127.0.0.1:5500/maoerludong/
+APP_WEB_PATH = "maoerludong"
 
 
 def _load_disk_module(mod_name: str, file_name: str):
@@ -88,6 +90,10 @@ class UTF8Handler(SimpleHTTPRequestHandler):
         path = unquote(path, encoding="utf-8", errors="replace")
         path = path.split("?", 1)[0].split("#", 1)[0]
         rel = path.lstrip("/")
+        # /maoerludong/... → 项目根目录文件
+        prefix = APP_WEB_PATH + "/"
+        if rel == APP_WEB_PATH or rel.startswith(prefix):
+            rel = "" if rel == APP_WEB_PATH else rel[len(prefix) :]
 
         # 私人文件：/userdata/<uid>/... → %LOCALAPPDATA%/猫耳律动/userdata/<uid>/...
         if rel.startswith("userdata/") or rel.startswith("userdata\\"):
@@ -135,6 +141,19 @@ class UTF8Handler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = unquote(parsed.path, encoding="utf-8", errors="replace")
         uid = self._user_id_from_qs(parsed)
+
+        # 根路径与无斜杠入口 → /maoerludong/
+        if path in ("", "/"):
+            self.send_response(302)
+            self.send_header("Location", f"/{APP_WEB_PATH}/")
+            self.end_headers()
+            return
+        if path.rstrip("/") == f"/{APP_WEB_PATH}" and not path.endswith("/"):
+            q = f"?{parsed.query}" if parsed.query else ""
+            self.send_response(302)
+            self.send_header("Location", f"/{APP_WEB_PATH}/{q}")
+            self.end_headers()
+            return
 
         if path.rstrip("/") == "/api/playlist":
             try:
@@ -662,7 +681,7 @@ def main() -> None:
 
     handler = partial(UTF8Handler, directory=str(ROOT))
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
-    print(f"猫耳律动已启动: http://127.0.0.1:{args.port}/")
+    print(f"猫耳律动已启动: http://127.0.0.1:{args.port}/{APP_WEB_PATH}/")
     print(f"私人曲库目录: {get_userdata_root()}")
     print("支持中英文歌曲文件名，关闭本窗口即停止服务。")
     try:

@@ -18,7 +18,9 @@ from app_paths import get_root
 ROOT = get_root()
 HOST = "127.0.0.1"
 PORT = 5500
-URL = f"http://{HOST}:{PORT}/"
+# 地址栏友好路径：猫耳律动拼音
+APP_WEB_PATH = "maoerludong"
+URL = f"http://{HOST}:{PORT}/{APP_WEB_PATH}/"
 LOG = ROOT / "desktop_app.log"
 
 
