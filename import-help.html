@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>猫耳律动 · 导入音乐说明</title>
+    <link rel="stylesheet" href="styles.css?v=1.0.28p3" />
+    <style>
+      body.import-help-page {
+        margin: 0;
+        min-height: 100vh;
+        padding: 28px 20px 48px;
+        background:
+          radial-gradient(1200px 600px at 10% -10%, rgba(120, 170, 230, 0.18), transparent 55%),
+          radial-gradient(900px 500px at 100% 0%, rgba(80, 120, 160, 0.12), transparent 50%),
+          #0e1218;
+        color: #e8eef6;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .help-wrap {
+        max-width: 720px;
+        margin: 0 auto;
+      }
+      .help-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .help-brand img {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        object-fit: cover;
+      }
+      .help-brand h1 {
+        margin: 0;
+        font-size: 1.45rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+      .help-brand p {
+        margin: 4px 0 0;
+        color: #9aa8b8;
+        font-size: 0.92rem;
+      }
+      .help-card {
+        margin-top: 16px;
+        padding: 18px 18px 16px;
+        border: 1px solid rgba(140, 160, 190, 0.22);
+        border-radius: 14px;
+        background: rgba(20, 28, 38, 0.72);
+      }
+      .help-card h2 {
+        margin: 0 0 10px;
+        font-size: 1.05rem;
+      }
+      .help-card p,
+      .help-card li {
+        color: #c5d0dc;
+        line-height: 1.65;
+        font-size: 0.95rem;
+      }
+      .help-card ul {
+        margin: 8px 0 0;
+        padding-left: 1.2em;
+      }
+      .help-card a {
+        color: #8ec5ff;
+        text-decoration: none;
+      }
+      .help-card a:hover {
+        text-decoration: underline;
+      }
+      .help-cta {
+        display: inline-flex;
+        margin-top: 10px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: rgba(100, 160, 230, 0.18);
+        border: 1px solid rgba(140, 180, 230, 0.35);
+        color: #d7ebff !important;
+        font-weight: 600;
+      }
+      code {
+        padding: 1px 6px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body class="import-help-page">
+    <main class="help-wrap">
+      <header class="help-brand">
+        <img src="./logo.jpg" alt="猫耳律动" width="48" height="48" />
+        <div>
+          <h1>导入音乐说明</h1>
+          <p>提取素材 → 命名绑定 → 导入私人空间或共同曲库</p>
+        </div>
+      </header>
+
+      <section class="help-card">
+        <h2>1. 如何从视频提取音频 / 视频 / 歌词 / 弹幕</h2>
+        <p>
+          请先观看这位 UP 主的教程，按视频步骤提取需要的文件（MP3、MP4、歌词、弹幕等）：
+        </p>
+        <p>
+          <a
+            class="help-cta"
+            href="https://www.bilibili.com/video/BV1x1b76qEL9/"
+            target="_blank"
+            rel="noopener"
+          >打开 B 站提取教程（BV1x1b76qEL9）</a>
+        </p>
+        <p>
+          直链：
+          <a href="https://www.bilibili.com/video/BV1x1b76qEL9/" target="_blank" rel="noopener"
+            >https://www.bilibili.com/video/BV1x1b76qEL9/</a
+          >
+        </p>
+      </section>
+
+      <section class="help-card">
+        <h2>2. 导入到猫耳律动时怎么命名</h2>
+        <p>同一首歌的文件请使用同一绑定名，分开上传也能归到同一文件夹：</p>
+        <ul>
+          <li>推荐：<code>歌曲-歌名.mp3</code> / <code>.lrc</code> / <code>.jpg</code> / <code>.mp4</code></li>
+          <li>或统一：<code>歌名 - 歌手</code>（各扩展名保持同名）</li>
+        </ul>
+        <p>在软件「设置」里可上传到<strong>云端共同曲库</strong>，或导入到<strong>我的私人空间</strong>。</p>
+      </section>
+
+      <section class="help-card">
+        <h2>3. 注意</h2>
+        <ul>
+          <li>请勿上传无版权的商业音乐到共同曲库。</li>
+          <li>视频建议小于 180MB；私人空间仅保存在本机当前账号。</li>
+          <li>更多 PDF 说明见：<a href="./import-guide.pdf" download="导入歌曲说明.pdf">import-guide.pdf</a></li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
