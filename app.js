@@ -3760,6 +3760,25 @@ async function pushPlayStatsAhead(serverSongs, mergedSongs) {
   if (jobs.length) await Promise.all(jobs);
 }
 
+async function readDesktopPlayStats() {
+  if (typeof IS_WEB_SITE !== "undefined" && IS_WEB_SITE) return {};
+  const uid = currentLibraryUserId();
+  if (!uid) return {};
+  try {
+    const res = await fetch(withUserQuery("/api/play-stats"), { cache: "no-store" });
+    if (!res.ok) return {};
+    const data = await res.json();
+    if (data?.userId && String(data.userId) !== String(uid)) return {};
+    const songs = data?.songs && typeof data.songs === "object" ? data.songs : {};
+    for (const item of Object.values(songs)) {
+      if (item && item.cover) item.cover = normalizeCoverRel(item.cover);
+    }
+    return songs;
+  } catch {
+    return {};
+  }
+}
+
 async function loadPlayStats() {
   const uid = currentLibraryUserId();
   // 云端模式下必须已登录且拿到账号 ID
@@ -3771,29 +3790,15 @@ async function loadPlayStats() {
   // 只信「当前账号」本地桶 + 带 userId 的服务端，不读公共文件
   let local = readLocalPlayStats();
   let serverSongs = {};
-  let serverReady = false;
   for (const item of Object.values(local.songs || {})) {
     if (item && item.cover) item.cover = normalizeCoverRel(item.cover);
   }
-  try {
-    const res = await fetch(withUserQuery("/api/play-stats"), { cache: "no-store" });
-    if (res.ok) {
-      const data = await res.json();
-      const sameUser = !data?.userId || !uid || String(data.userId) === String(uid);
-      if (sameUser) {
-        serverReady = true;
-        serverSongs = data.songs || {};
-        for (const item of Object.values(serverSongs)) {
-          if (item && item.cover) item.cover = normalizeCoverRel(item.cover);
-        }
-        local.songs = mergePlaySongs(local.songs, serverSongs);
-      }
-    }
-  } catch {
-    /* 仅用本地 */
+  serverSongs = await readDesktopPlayStats();
+  if (Object.keys(serverSongs).length) {
+    local.songs = mergePlaySongs(local.songs, serverSongs);
   }
   writeLocalPlayStats(local);
-  if (serverReady) await pushPlayStatsAhead(serverSongs, local.songs);
+  if (Object.keys(serverSongs).length) await pushPlayStatsAhead(serverSongs, local.songs);
   renderRankRow(rankingFromSongs(local.songs));
 }
 
@@ -3961,6 +3966,7 @@ async function pushUserSync() {
   }
   const local = readLocalPlayStats();
   local.songs = mergePlaySongs(local.songs, remote?.play_stats || {});
+  local.songs = mergePlaySongs(local.songs, await readDesktopPlayStats());
   userSyncing = true;
   writeLocalPlayStats(local);
   userSyncing = false;
@@ -3992,6 +3998,7 @@ async function syncAccountLibrary() {
   try {
     const local = readLocalPlayStats();
     local.songs = mergePlaySongs(local.songs, remote?.play_stats || {});
+    local.songs = mergePlaySongs(local.songs, await readDesktopPlayStats());
     writeLocalPlayStats(local);
     renderRankRow(rankingFromSongs(local.songs));
 
