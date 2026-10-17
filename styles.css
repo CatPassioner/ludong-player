@@ -4275,6 +4275,20 @@ html[data-bg-light="1"] .confirm-backdrop {
   display: none;
 }
 
+/* 评论页不显示视频，但元素仍在，沉浸/听页回来时接着播 */
+.player-window.is-view-song .stage.is-mv {
+  display: block !important;
+  position: absolute;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  flex: 0 0 0;
+}
+
 .player-comments-host {
   flex: 1 1 auto;
   min-height: 0;

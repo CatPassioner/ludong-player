@@ -261,7 +261,7 @@ let audiusHost = null;
 let showLyrics = false;
 let showMv = false;
 let mvPreferSong = false;
-const DEFAULT_MV_URL = "./mv/default.mp4";
+const DEFAULT_MV_URL = "./mv/default.mp4?v=2k";
 try {
   mvPreferSong = localStorage.getItem("ludong-mv-source") === "song";
 } catch {
