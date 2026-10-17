@@ -1867,6 +1867,55 @@
   const MAX_LRC_BYTES = 1 * 1024 * 1024;
   const MAX_VIDEO_BYTES = 180 * 1024 * 1024;
 
+  function userSyncMissing(err) {
+    const msg = String(err?.message || "");
+    if (/user_sync|schema cache|relation|does not exist/i.test(msg)) {
+      return "账号同步还没开通：请在 Supabase 执行 supabase_user_sync.sql";
+    }
+    return msg || "账号同步失败";
+  }
+
+  async function fetchUserSync() {
+    if (!cloudEnabled()) return null;
+    const me = await currentUserId();
+    try {
+      const rows = await rest(
+        `user_sync?user_id=eq.${encodeURIComponent(me)}&select=play_stats,playlists,playlists_rev,likes,likes_rev&limit=1`
+      );
+      return Array.isArray(rows) && rows[0] ? rows[0] : null;
+    } catch (err) {
+      throw new Error(userSyncMissing(err));
+    }
+  }
+
+  async function saveUserSync({
+    playStats,
+    playlists,
+    playlistsRev,
+    likes,
+    likesRev
+  } = {}) {
+    if (!cloudEnabled()) return;
+    const me = await currentUserId();
+    try {
+      await rest("user_sync?on_conflict=user_id", {
+        method: "POST",
+        prefer: "resolution=merge-duplicates,return=minimal",
+        body: {
+          user_id: me,
+          play_stats: playStats && typeof playStats === "object" ? playStats : {},
+          playlists: Array.isArray(playlists) ? playlists : [],
+          playlists_rev: Number(playlistsRev) || 0,
+          likes: likes && typeof likes === "object" ? likes : {},
+          likes_rev: Number(likesRev) || 0,
+          updated_at: new Date().toISOString()
+        }
+      });
+    } catch (err) {
+      throw new Error(userSyncMissing(err));
+    }
+  }
+
   function makeSongKey(title, artist) {
     return `${String(title || "").trim().toLowerCase()}|${String(artist || "")
       .trim()
@@ -2581,6 +2630,8 @@
     listGroupRecallUpdates,
     recallGroupMessage,
     getGroupUnreadSummary,
+    fetchUserSync,
+    saveUserSync,
     makeSongKey,
     wishMatchesSong,
     parseSongFileName,

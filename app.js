@@ -306,6 +306,35 @@ function currentLibraryUserId() {
   return "";
 }
 
+const PLAYLISTS_REV_KEY = "ludong-playlists-rev";
+const LIKES_REV_KEY = "ludong-likes-rev";
+const SYNC_SEEDED_KEY = "ludong-sync-seeded";
+let userSyncing = false;
+let userSyncTimer = 0;
+
+function readSyncRev(key) {
+  const n = Number(localStorage.getItem(scopedStorageKey(key)) || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function bumpSyncRev(key) {
+  const n = Date.now();
+  try {
+    localStorage.setItem(scopedStorageKey(key), String(n));
+  } catch {
+    /* ignore */
+  }
+  return n;
+}
+
+function scheduleUserSync() {
+  if (userSyncing || !currentLibraryUserId()) return;
+  clearTimeout(userSyncTimer);
+  userSyncTimer = setTimeout(() => {
+    pushUserSync().catch(() => {});
+  }, 700);
+}
+
 function scopedStorageKey(base) {
   const uid = currentLibraryUserId();
   // 始终带账号后缀，避免未登录/切换瞬间写进公共桶导致串号
@@ -593,6 +622,10 @@ function writeLocalLikes(songs) {
     );
   } catch {
     /* ignore */
+  }
+  if (!userSyncing) {
+    bumpSyncRev(LIKES_REV_KEY);
+    scheduleUserSync();
   }
 }
 
@@ -3489,6 +3522,7 @@ function writeLocalPlayStats(data) {
   } catch {
     /* ignore quota */
   }
+  if (!userSyncing) scheduleUserSync();
 }
 
 
@@ -3871,6 +3905,143 @@ function writeUserPlaylists(lists) {
   } catch {
     /* ignore */
   }
+  if (!userSyncing) {
+    bumpSyncRev(PLAYLISTS_REV_KEY);
+    scheduleUserSync();
+  }
+}
+
+function normalizePlaylistRows(lists) {
+  return (Array.isArray(lists) ? lists : [])
+    .map((p) => ({
+      id: String(p?.id || ""),
+      name: String(p?.name || "未命名歌单").slice(0, 24),
+      songIds: [...new Set((p?.songIds || []).map(String).filter(Boolean))]
+    }))
+    .filter((p) => p.id);
+}
+
+function mergePlaylistRows(localLists, cloudLists) {
+  const map = new Map();
+  normalizePlaylistRows(cloudLists).forEach((p) => map.set(p.id, p));
+  normalizePlaylistRows(localLists).forEach((p) => {
+    const other = map.get(p.id);
+    if (!other) {
+      map.set(p.id, p);
+      return;
+    }
+    const songIds = [...p.songIds];
+    other.songIds.forEach((id) => {
+      if (!songIds.includes(id)) songIds.push(id);
+    });
+    map.set(p.id, { id: p.id, name: p.name || other.name, songIds });
+  });
+  return [...map.values()];
+}
+
+function mergeLikeRows(localSongs, cloudSongs) {
+  const out = { ...(cloudSongs || {}) };
+  for (const [key, item] of Object.entries(localSongs || {})) {
+    const other = out[key];
+    if (!other || (Number(item?.likedAt) || 0) >= (Number(other.likedAt) || 0)) {
+      out[key] = item;
+    }
+  }
+  return out;
+}
+
+async function pushUserSync() {
+  const cloud = window.LudongCloud;
+  if (!cloud?.saveUserSync || !currentLibraryUserId() || userSyncing) return;
+  let remote = null;
+  try {
+    remote = await cloud.fetchUserSync();
+  } catch {
+    return;
+  }
+  const local = readLocalPlayStats();
+  local.songs = mergePlaySongs(local.songs, remote?.play_stats || {});
+  userSyncing = true;
+  writeLocalPlayStats(local);
+  userSyncing = false;
+  renderRankRow(rankingFromSongs(local.songs));
+  try {
+    await cloud.saveUserSync({
+      playStats: local.songs,
+      playlists: readUserPlaylists(),
+      playlistsRev: readSyncRev(PLAYLISTS_REV_KEY),
+      likes: likedSongs,
+      likesRev: readSyncRev(LIKES_REV_KEY)
+    });
+  } catch {
+    /* 表未建时保持本地 */
+  }
+}
+
+async function syncAccountLibrary() {
+  const cloud = window.LudongCloud;
+  if (!cloud?.fetchUserSync || !currentLibraryUserId()) return;
+  let remote = null;
+  try {
+    remote = await cloud.fetchUserSync();
+  } catch {
+    return;
+  }
+  userSyncing = true;
+  clearTimeout(userSyncTimer);
+  try {
+    const local = readLocalPlayStats();
+    local.songs = mergePlaySongs(local.songs, remote?.play_stats || {});
+    writeLocalPlayStats(local);
+    renderRankRow(rankingFromSongs(local.songs));
+
+    const seeded = localStorage.getItem(scopedStorageKey(SYNC_SEEDED_KEY)) === "1";
+    let lists = readUserPlaylists();
+    let likes = readLocalLikes();
+    let listsRev = readSyncRev(PLAYLISTS_REV_KEY);
+    let likesRev = readSyncRev(LIKES_REV_KEY);
+    const cloudListsRev = Number(remote?.playlists_rev) || 0;
+    const cloudLikesRev = Number(remote?.likes_rev) || 0;
+    if (!seeded) {
+      lists = mergePlaylistRows(lists, remote?.playlists || []);
+      likes = mergeLikeRows(likes, remote?.likes || {});
+      listsRev = Math.max(listsRev, cloudListsRev, Date.now());
+      likesRev = Math.max(likesRev, cloudLikesRev, Date.now());
+      localStorage.setItem(scopedStorageKey(PLAYLISTS_REV_KEY), String(listsRev));
+      localStorage.setItem(scopedStorageKey(LIKES_REV_KEY), String(likesRev));
+      localStorage.setItem(scopedStorageKey(SYNC_SEEDED_KEY), "1");
+    } else {
+      if (cloudListsRev > listsRev) {
+        lists = normalizePlaylistRows(remote?.playlists || []);
+        listsRev = cloudListsRev;
+        localStorage.setItem(scopedStorageKey(PLAYLISTS_REV_KEY), String(listsRev));
+      }
+      if (cloudLikesRev > likesRev) {
+        likes = remote?.likes && typeof remote.likes === "object" ? remote.likes : {};
+        likesRev = cloudLikesRev;
+        localStorage.setItem(scopedStorageKey(LIKES_REV_KEY), String(likesRev));
+      }
+    }
+    writeUserPlaylists(lists);
+    likedSongs = likes;
+    writeLocalLikes(likedSongs);
+    updateLikesCountLabel();
+    if (els.likesLayer?.classList.contains("is-open")) renderLikesList();
+  } finally {
+    userSyncing = false;
+  }
+  try {
+    await window.LudongCloud.saveUserSync({
+      playStats: readLocalPlayStats().songs,
+      playlists: readUserPlaylists(),
+      playlistsRev: readSyncRev(PLAYLISTS_REV_KEY),
+      likes: likedSongs,
+      likesRev: readSyncRev(LIKES_REV_KEY)
+    });
+  } catch {
+    /* 表未建时保持本地 */
+  }
+  renderList();
 }
 
 function forgetSongFromUserPlaylists(song) {
@@ -7257,6 +7428,7 @@ async function initPlayer() {
     await loadLikes();
     DEFAULT_PLAYLIST = await loadLocalPlaylist();
     playlist = [...DEFAULT_PLAYLIST];
+    await syncAccountLibrary();
     renderList();
 
     if (!playlist.length) {
