@@ -6222,6 +6222,16 @@ html.theme-manga .now-toggle {
   box-shadow: 3px 3px 0 #1a1612 !important;
 }
 
+html.theme-manga .icon-btn::before {
+  border-left-color: #fffdf8;
+}
+
+html.theme-manga .icon-btn.playing::before {
+  background:
+    linear-gradient(#fffdf8, #fffdf8) 0 0 / 4px 100% no-repeat,
+    linear-gradient(#fffdf8, #fffdf8) 8px 0 / 4px 100% no-repeat;
+}
+
 html.theme-manga .disc {
   box-shadow: 0 0 0 3px #1a1612;
 }

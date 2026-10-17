@@ -8273,6 +8273,8 @@ function applyBgLightness(value, hue) {
     "--scroll-thumb",
     t < 0.5 ? "rgba(204, 228, 254, 0.45)" : "rgba(127, 168, 210, 0.4)"
   );
+  root.style.removeProperty("--accent");
+  root.style.removeProperty("--accent-deep");
   syncWindowThemeColor();
   if (els.bgLightness) els.bgLightness.value = String(Math.round(t * 100));
   if (els.bgPreview) {
