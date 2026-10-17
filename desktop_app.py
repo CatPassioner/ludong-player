@@ -18,8 +18,9 @@ from app_paths import get_root
 ROOT = get_root()
 HOST = "127.0.0.1"
 PORT = 5500
-# 地址栏友好路径：猫耳律动拼音
+# 地址栏友好路径：猫耳律动拼音（页面）；API 仍在站点根路径
 APP_WEB_PATH = "maoerludong"
+API_BASE = f"http://{HOST}:{PORT}/"
 URL = f"http://{HOST}:{PORT}/{APP_WEB_PATH}/"
 LOG = ROOT / "desktop_app.log"
 
@@ -98,7 +99,7 @@ def wait_ready(timeout: float = 10.0) -> bool:
 def server_matches_this_install() -> bool:
     """避免复用其它安装目录残留在 5500 的旧服务（搬家/重装后常见）。"""
     try:
-        with urllib.request.urlopen(f"{URL}api/version", timeout=0.8) as res:
+        with urllib.request.urlopen(f"{API_BASE}api/version", timeout=0.8) as res:
             raw = res.read().decode("utf-8", "replace")
         data = json.loads(raw) if raw else {}
         remote = str((data or {}).get("installDir") or "").strip()
@@ -112,17 +113,30 @@ def server_matches_this_install() -> bool:
 def _wallpaper_api_ready() -> bool:
     try:
         with urllib.request.urlopen(
-            f"http://127.0.0.1:{PORT}/api/wallpaper/status", timeout=1.2
+            f"{API_BASE}api/wallpaper/status", timeout=1.2
         ) as res:
             return int(getattr(res, "status", 0) or 0) == 200
     except Exception:
         return False
 
 
+def _app_web_ready() -> bool:
+    """新地址 /maoerludong/ 必须能打开，否则判定为旧服务。"""
+    try:
+        with urllib.request.urlopen(URL, timeout=1.0) as res:
+            return int(getattr(res, "status", 0) or 0) == 200
+    except Exception:
+        return False
+
+
 def start_server() -> None:
-    # 旧进程若没有壁纸等新接口，强制重启，避免一直复用过期服务
+    # 旧进程若没有壁纸/拼音路径等新接口，强制重启，避免一直复用过期服务
     if port_open():
-        if server_matches_this_install() and _wallpaper_api_ready():
+        if (
+            server_matches_this_install()
+            and _wallpaper_api_ready()
+            and _app_web_ready()
+        ):
             log("server already ready, reuse")
             return
         log("port busy by stale/other server, restarting")

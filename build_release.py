@@ -103,7 +103,7 @@ def write_update_manifest(setup_exe: Path, patch_zip: Path | None = None) -> Pat
     )
     manifest = {
         "version": APP_VERSION,
-        "notes": "支持小补丁更新（适配免费版 50MB）；登录 QQ 号可补全 @qq.com；头像同步修复。",
+        "notes": "2.0：歌词页跟着封面色走，评论页，播放模式会记住，切歌动画可以关掉。",
         "patchUrl": public_patch if patch_zip and patch_zip.is_file() else "",
         "installerUrl": "",
         "mandatory": False,

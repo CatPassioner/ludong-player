@@ -2,7 +2,7 @@
 
 本机桌面音乐播放器（HTTP 本地服务 + Edge/Chrome 应用窗口 + Supabase 云端能力）。
 
-当前版本见 `app_version.py`（现为 **1.0.28**）。
+当前版本见 `app_version.py`（现为 **2.0.01**）。
 
 ## 功能概要
 
@@ -26,7 +26,17 @@ python server.py
 python desktop_app.py
 ```
 
-浏览器打开提示的地址（默认 `http://127.0.0.1:5500/maoerludong/`）。
+浏览器打开提示的地址（默认 `http://127.0.0.1:5500/maoerludong/`）。这是本机入口，私人曲库、壁纸、软件更新都走这里。
+
+## 公网网站版
+
+同一套前端也可以挂到 GitHub Pages 等静态托管上，给别人用浏览器打开：
+
+- 公网地址：登录 + 云端共同曲库 + 评论
+- `http://127.0.0.1:5500/maoerludong/`：本机桌面版完整功能
+
+开启方式：仓库 Settings → Pages → Source 选 `main` 分支、根目录 `/`。地址形如  
+`https://catpassioner.github.io/ludong-player/`
 
 ## 云端配置
 

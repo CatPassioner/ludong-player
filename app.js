@@ -1,6 +1,18 @@
 const APP_NAME = "LudongPlayer";
 let DEFAULT_PLAYLIST = [];
 
+/** 本机桌面/127.0.0.1：完整功能；公网网站：登录 + 云端曲库 */
+const IS_LOCAL_HOST = (() => {
+  const host = String(location.hostname || "").toLowerCase();
+  return (
+    host === "127.0.0.1" ||
+    host === "localhost" ||
+    host === "::1" ||
+    host === ""
+  );
+})();
+const IS_WEB_SITE = !IS_LOCAL_HOST;
+
 const audio = document.getElementById("audio");
 const els = {
   playlist: document.getElementById("playlist"),
@@ -508,6 +520,9 @@ async function loadCloudPlaylist() {
 }
 
 async function loadLocalPlaylist() {
+  if (IS_WEB_SITE) {
+    return loadCloudPlaylist();
+  }
   const [disk, cloud] = await Promise.all([
     loadDiskPlaylist().catch(() => []),
     loadCloudPlaylist()
@@ -515,6 +530,19 @@ async function loadLocalPlaylist() {
   const cloudKeys = new Set(cloud.map((s) => playStatKey(s)));
   const filteredDisk = disk.filter((s) => !cloudKeys.has(playStatKey(s)));
   return [...cloud, ...filteredDisk];
+}
+
+function applyWebSiteMode() {
+  if (!IS_WEB_SITE) return;
+  document.body.classList.add("is-web-site");
+  if (els.authLocalBtn) {
+    els.authLocalBtn.textContent = "先听云端歌（无需登录）";
+  }
+  const note = document.querySelector(".auth-local-note");
+  if (note) {
+    note.textContent =
+      "网站版只播云端共同曲库；私人歌、壁纸和软件更新请用本机桌面版。";
+  }
 }
 
 function formatTime(seconds) {
@@ -1041,7 +1069,7 @@ function renderCommentsList(rows) {
   }
   if (!roots.length) {
     els.commentsList.innerHTML =
-      '<li class="empty-tip">还没有评论<br/>来说说你的感受吧</li>';
+      '<li class="empty-tip">还没有人写</li>';
     return;
   }
   els.commentsList.innerHTML = roots.map((item) => renderOneComment(item)).join("");
@@ -1224,9 +1252,7 @@ async function openCommentsLayer() {
     setHint("请先选择一首歌", true);
     return;
   }
-  if (els.commentsSongLabel) {
-    els.commentsSongLabel.textContent = `${song.title} · ${song.artist}`;
-  }
+  paintCommentsHeading(song);
   setCommentsHint("");
   clearCommentReplyTarget();
   // 切歌时收起展开状态，避免串楼
@@ -1251,7 +1277,13 @@ async function openCommentsLayer() {
   }
 }
 
+let commentsDocked = false;
+
 function closeCommentsLayer() {
+  if (commentsDocked) {
+    setPlayerView("listen");
+    return;
+  }
   hideCommentUserMenu();
   clearCommentReplyTarget();
   closeCommentsEmojiPanel();
@@ -3448,6 +3480,94 @@ function writeLocalPlayStats(data) {
   }
 }
 
+
+const RESUME_KEY = "ludong-resume-v1";
+let resumeSavedAt = 0;
+
+function readResume() {
+  try {
+    const data = JSON.parse(localStorage.getItem(RESUME_KEY) || "null");
+    return data && typeof data === "object" ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+function resumeIndex() {
+  const saved = readResume();
+  if (!saved || !playlist.length) return 0;
+  let idx = -1;
+  if (saved.id) {
+    idx = playlist.findIndex((song) => String(song.id) === String(saved.id));
+  }
+  if (idx < 0 && saved.key) {
+    idx = playlist.findIndex((song) => playStatKey(song) === saved.key);
+  }
+  return idx >= 0 ? idx : 0;
+}
+
+function saveResume() {
+  const song = playlist[currentIndex];
+  if (!song || !audio) return;
+  const bound = audio.getAttribute("data-id") || "";
+  if (bound && String(song.id || "") !== bound) return;
+  const time = Number(audio.currentTime);
+  if (!Number.isFinite(time)) return;
+  try {
+    localStorage.setItem(
+      RESUME_KEY,
+      JSON.stringify({
+        id: String(song.id || ""),
+        key: playStatKey(song),
+        time: Math.max(0, time)
+      })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function chartRows() {
+  const local = readLocalPlayStats();
+  return rankingFromSongs(local.songs || {}, 16);
+}
+
+function renderRankChart() {
+  const list = document.getElementById("rankChartList");
+  const note = document.getElementById("rankChartNote");
+  if (!list) return;
+  const rows = chartRows();
+  const top = rows[0]?.count || 1;
+  const total = rows.reduce((n, row) => n + (Number(row.count) || 0), 0);
+  if (note) note.textContent = rows.length ? `共 ${total} 次播放 · 移到歌名上可看次数` : "还没有播放记录";
+  if (!rows.length) {
+    list.innerHTML = '<li class="rank-chart-empty">播过歌之后会显示在这里</li>';
+    return;
+  }
+  list.innerHTML = rows
+    .map((item, i) => {
+      const width = Math.max(8, Math.round((item.count / top) * 100));
+      const label = `${item.title} · ${item.artist}`;
+      return `<li class="rank-bar-row">
+        <div class="rank-bar-top">
+          <span class="rank-bar-no">${String(i + 1).padStart(2, "0")}</span>
+          <span class="rank-bar-name">${escapeHtml(item.title)}</span>
+          <span class="rank-bar-count">${escapeHtml(label)} · ${item.count} 次</span>
+        </div>
+        <span class="rank-bar-track"><span class="rank-bar-fill" style="width:${width}%"></span></span>
+      </li>`;
+    })
+    .join("");
+}
+
+function setRankChartOpen(on) {
+  const layer = document.getElementById("rankChartLayer");
+  if (!layer) return;
+  layer.hidden = !on;
+  layer.setAttribute("aria-hidden", on ? "false" : "true");
+  if (on) renderRankChart();
+}
+
 function rankingFromSongs(songs, limit = 8) {
   return Object.entries(songs || {})
     .map(([key, item]) => ({
@@ -3998,6 +4118,7 @@ function updateActive() {
 
 function updateUI(song) {
   if (!song) return;
+  renderPlayerQueue();
   els.title.textContent = song.title;
   els.artist.textContent = song.artist + (song.preview ? "（试听）" : "");
   els.cover.src = song.cover;
@@ -4010,14 +4131,44 @@ function updateUI(song) {
     els.nowDuration.textContent = formatTime(song.duration);
   }
   updateActive();
-  applyPlayerAtmosphere(song.cover);
+  const atmosphereSrc = (showLyrics ? lyricsCoverUrl(null, song) : "") || song.cover;
+  applyPlayerAtmosphere(atmosphereSrc);
   loadLyricsForSong(song);
   syncPlayerLikeButton(song);
   if (showLyrics) applyLyricsSideCover(song);
   if (showLyrics) applyMvForSong(song);
+  if (commentsDocked) showPlayerComments();
 }
 
 let coverAccentToken = 0;
+
+function vividCoverRgb(r, g, b, hueShift = 0, sat = 0.7, light = 0.58) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  const d = max - min;
+  if (d) {
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  h = (h + hueShift) % 1;
+  const q = light < 0.5 ? light * (1 + sat) : light + sat - light * sat;
+  const p = 2 * light - q;
+  const hue = (t) => {
+    let x = t;
+    if (x < 0) x += 1;
+    if (x > 1) x -= 1;
+    if (x < 1 / 6) return p + (q - p) * 6 * x;
+    if (x < 1 / 2) return q;
+    if (x < 2 / 3) return p + (q - p) * (2 / 3 - x) * 6;
+    return p;
+  };
+  return [hue(h + 1 / 3), hue(h), hue(h - 1 / 3)].map((c) => Math.round(c * 255));
+}
 
 function clearPlayerAtmosphere() {
   const win = els.playerWindow;
@@ -4025,6 +4176,9 @@ function clearPlayerAtmosphere() {
     win.style.removeProperty("--cover-accent");
     win.style.removeProperty("--cover-accent-deep");
     win.style.removeProperty("--cover-ink");
+    win.style.removeProperty("--lyric-ink");
+    win.style.removeProperty("--lyric-glow");
+    win.style.removeProperty("--lyric-wash");
   }
   if (els.playerAmbientImg) {
     els.playerAmbientImg.removeAttribute("src");
@@ -4080,22 +4234,25 @@ function applyPlayerAtmosphere(src) {
       r = Math.round(r / n);
       g = Math.round(g / n);
       b = Math.round(b / n);
-      let lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      while (lum < 118 && (r < 255 || g < 255 || b < 255)) {
-        r = Math.min(255, r + 16);
-        g = Math.min(255, g + 16);
-        b = Math.min(255, b + 16);
-        lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      }
-      const deep = [r, g, b].map((c) => Math.round(c * 0.72));
-      win.style.setProperty("--cover-accent", `rgb(${r}, ${g}, ${b})`);
+      const wash = [r, g, b].map((c) => Math.round(c * 0.62 + 10));
+      const vivid = vividCoverRgb(r, g, b);
+      const glow = vividCoverRgb(r, g, b, 0.08, 0.48, 0.78);
+      const deep = vividCoverRgb(r, g, b, 0, 0.62, 0.4);
+      const lum = 0.2126 * vivid[0] + 0.7152 * vivid[1] + 0.0722 * vivid[2];
+      win.style.setProperty("--cover-accent", `rgb(${vivid[0]}, ${vivid[1]}, ${vivid[2]})`);
       win.style.setProperty("--cover-accent-deep", `rgb(${deep[0]}, ${deep[1]}, ${deep[2]})`);
-      win.style.setProperty("--cover-ink", lum > 168 ? "#1a1408" : "#fffaf3");
+      win.style.setProperty("--cover-ink", lum > 176 ? "#1a1408" : "#fffaf3");
+      win.style.setProperty("--lyric-ink", `rgb(${vivid[0]}, ${vivid[1]}, ${vivid[2]})`);
+      win.style.setProperty("--lyric-glow", `rgb(${glow[0]}, ${glow[1]}, ${glow[2]})`);
+      win.style.setProperty("--lyric-wash", `rgba(${wash[0]}, ${wash[1]}, ${wash[2]}, 0.5)`);
     } catch {
       if (token === coverAccentToken) {
         win.style.removeProperty("--cover-accent");
         win.style.removeProperty("--cover-accent-deep");
         win.style.removeProperty("--cover-ink");
+        win.style.removeProperty("--lyric-ink");
+        win.style.removeProperty("--lyric-glow");
+        win.style.removeProperty("--lyric-wash");
       }
     }
   };
@@ -4104,6 +4261,9 @@ function applyPlayerAtmosphere(src) {
     win.style.removeProperty("--cover-accent");
     win.style.removeProperty("--cover-accent-deep");
     win.style.removeProperty("--cover-ink");
+    win.style.removeProperty("--lyric-ink");
+    win.style.removeProperty("--lyric-glow");
+    win.style.removeProperty("--lyric-wash");
   };
   img.src = url;
 }
@@ -4112,11 +4272,149 @@ function fitPlayerBoard() {
   if (els.playerBoard) els.playerBoard.style.transform = "";
 }
 
+const PLAYER_VIEW_KEY = "ludong-player-view";
+
+function paintCommentsHeading(song) {
+  if (els.commentsSongLabel) {
+    els.commentsSongLabel.textContent = song ? `${song.title} · ${song.artist}` : "—";
+  }
+  const img = document.getElementById("commentsCover");
+  if (!img) return;
+  const src = song ? (showLyrics ? lyricsCoverUrl(null, song) : "") || song.cover || "" : "";
+  if (!src) {
+    img.hidden = true;
+    img.removeAttribute("src");
+    return;
+  }
+  img.hidden = false;
+  if (img.getAttribute("src") !== src) img.src = src;
+}
+
+function dockCommentsPanel() {
+  const host = document.getElementById("playerCommentsHost");
+  const panel = document.querySelector(".comments-panel");
+  if (!host || !panel) return;
+  host.hidden = false;
+  if (panel.parentElement !== host) host.appendChild(panel);
+  panel.classList.add("is-docked");
+  commentsDocked = true;
+  els.commentsLayer?.classList.remove("is-open");
+  els.commentsLayer?.setAttribute("aria-hidden", "true");
+}
+
+function undockCommentsPanel() {
+  const layer = els.commentsLayer;
+  const panel = document.querySelector(".comments-panel");
+  const host = document.getElementById("playerCommentsHost");
+  if (panel && layer && panel.parentElement !== layer) layer.appendChild(panel);
+  panel?.classList.remove("is-docked");
+  commentsDocked = false;
+  if (host) host.hidden = true;
+}
+
+function showPlayerComments() {
+  const wasDocked = commentsDocked;
+  dockCommentsPanel();
+  const song = playlist[currentIndex];
+  if (!song) return;
+  const key = playStatKey(song);
+  paintCommentsHeading(song);
+  if (wasDocked && commentsSongKey === key) return;
+  commentsSongKey = key;
+  expandedCommentReplies.clear();
+  clearCommentReplyTarget();
+  const cached = commentsCache[key] || readLocalCommentsMap()[key] || [];
+  renderCommentsList(cached);
+  if (commentsLoading) return;
+  commentsLoading = true;
+  loadCommentsForSong(song, { silent: true })
+    .catch(() => {})
+    .finally(() => {
+      commentsLoading = false;
+    });
+}
+
+function refreshSongFocus() {
+  const meta = document.getElementById("songFocusMeta");
+  const list = document.getElementById("songFocusList");
+  const song = playlist[currentIndex];
+  if (!song) {
+    if (meta) meta.textContent = "先选一首歌";
+    if (list) list.innerHTML = "";
+    return;
+  }
+  const key = playStatKey(song);
+  const rows = (commentsCache[key] || []).filter((item) => item && item.text && !String(item.text).startsWith("_"));
+  if (meta) {
+    meta.textContent = rows.length
+      ? `${song.title} · ${rows.length} 条评论`
+      : `${song.title} · 打开评论看看大家怎么说`;
+  }
+  if (!list) return;
+  list.innerHTML = rows
+    .slice(0, 3)
+    .map((item) => {
+      const author = String(item.author || "听众").replace(/[<>&]/g, "");
+      const text = String(item.text || "").replace(/[<>&]/g, "");
+      return `<li>${author}：${text}</li>`;
+    })
+    .join("");
+}
+
+function setPlayerView(view) {
+  const win = document.getElementById("playerWindow");
+  if (!win) return;
+  const next = view === "immerse" || view === "song" ? view : "listen";
+  win.classList.remove("is-view-immerse", "is-view-listen", "is-view-song");
+  win.classList.add(`is-view-${next}`);
+  document.querySelectorAll("[data-player-view]").forEach((btn) => {
+    const on = btn.dataset.playerView === next;
+    btn.classList.toggle("is-active", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  const focus = document.getElementById("songFocus");
+  if (focus) focus.hidden = true;
+  if (next === "song") showPlayerComments();
+  else if (commentsDocked) undockCommentsPanel();
+  try {
+    localStorage.setItem(PLAYER_VIEW_KEY, next);
+  } catch {
+    /* ignore */
+  }
+  requestAnimationFrame(() => {
+    if (typeof fitPlayerBoard === "function") fitPlayerBoard();
+  });
+}
+
+function bindPlayerViews() {
+  document.querySelectorAll("[data-player-view]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setPlayerView(btn.dataset.playerView || "listen");
+    });
+  });
+  document.getElementById("songFocusComments")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openCommentsLayer();
+  });
+  let saved = "listen";
+  try {
+    saved = localStorage.getItem(PLAYER_VIEW_KEY) || "listen";
+  } catch {
+    saved = "listen";
+  }
+  setPlayerView(saved);
+}
+
+bindPlayerViews();
+
 function openPlayerWindow() {
   if (!els.playerLayer) return;
   els.playerLayer.classList.add("is-open");
   els.playerLayer.setAttribute("aria-hidden", "false");
   document.body.style.overflow = "hidden";
+  const win = document.getElementById("playerWindow");
+  if (win?.classList.contains("is-view-song")) showPlayerComments();
   requestAnimationFrame(() => {
     fitPlayerBoard();
     requestAnimationFrame(fitPlayerBoard);
@@ -4221,6 +4519,7 @@ function applyLyricsSideCover(song) {
   };
   paint(els.lyricsBgImg);
   paint(els.lyricsAmbientImg);
+  if (url) applyPlayerAtmosphere(url);
 }
 
 function closeCoverPicker() {
@@ -4869,13 +5168,14 @@ function syncLyrics() {
 
   const t = mediaClock().currentTime || 0;
   const firstTime = lyricLines[0]?.time ?? 0;
-  // 开唱前：第一句先亮着待命，避免歌词栏空白后突然跳入
-  const waiting = t + 0.08 < firstTime;
+  // 略提前换句，滚动和字号变化来得及在开口时到位
+  const lead = t + 0.28;
+  const waiting = lead + 0.08 < firstTime;
 
   let idx = 0;
   if (!waiting) {
     for (let i = 0; i < lyricLines.length; i++) {
-      if (lyricLines[i].time <= t + 0.05) idx = i;
+      if (lyricLines[i].time <= lead) idx = i;
       else break;
     }
   }
@@ -4894,8 +5194,7 @@ function syncLyrics() {
 
   // 手动滑开后，停住再滚回正在唱的那句
   if (follow && (lyricsDetached || idx !== activeLyricIndex)) {
-    const jump = lyricsDetached || activeLyricIndex < 0 || Math.abs(idx - activeLyricIndex) > 1;
-    scrollToLyric(idx, { instant: jump || waiting });
+    scrollToLyric(idx, { instant: true });
     lyricsDetached = false;
   } else if (follow && waiting && activeLyricIndex < 0) {
     scrollToLyric(0, { instant: true });
@@ -5280,13 +5579,55 @@ function indexInPlaylist(song) {
   return playlist.findIndex((s) => String(s.id) === String(song.id));
 }
 
+let coverPlaneTimer = 0;
+let switchAnim = "flip";
+
+function playCoverPlane(dir, fromSrc, toSrc) {
+  const layer = document.getElementById("coverPlaneLayer");
+  const outEl = document.getElementById("coverPlaneOut");
+  const inEl = document.getElementById("coverPlaneIn");
+  const art = showLyrics ? document.getElementById("lyricsArt") : document.getElementById("cover");
+  const hold = showLyrics ? document.getElementById("lyricsBgImg") : document.getElementById("cover");
+  if (switchAnim === "off") return;
+  if (!layer || !outEl || !inEl || !art || !els.playerLayer?.classList.contains("is-open")) return;
+  if (!fromSrc || !toSrc) return;
+  const rect = art.getBoundingClientRect();
+  if (rect.width < 20) return;
+  layer.hidden = false;
+  layer.style.setProperty("--plane-x", `${rect.left}px`);
+  layer.style.setProperty("--plane-y", `${rect.top}px`);
+  layer.style.setProperty("--plane-w", `${rect.width}px`);
+  layer.style.setProperty("--plane-h", `${rect.height}px`);
+  outEl.src = fromSrc;
+  inEl.src = toSrc;
+  const fade = switchAnim === "fade";
+  hold?.classList.add("is-cover-held");
+  layer.classList.toggle("is-round", !showLyrics);
+  layer.classList.remove("is-next", "is-prev", "is-flip", "is-fade");
+  void layer.offsetWidth;
+  layer.classList.add(dir < 0 ? "is-prev" : "is-next", fade ? "is-fade" : "is-flip");
+  clearTimeout(coverPlaneTimer);
+  coverPlaneTimer = setTimeout(() => {
+    hold?.classList.remove("is-cover-held");
+    layer.classList.remove("is-next", "is-prev", "is-flip", "is-fade");
+    layer.hidden = true;
+  }, fade ? 640 : 920);
+}
+
 async function playAt(index) {
   const song = playlist[index];
   if (!song) return;
+  const changing = index !== currentIndex;
+  const fromSrc = showLyrics ? els.lyricsBgImg?.src || "" : els.cover?.src || "";
+  const dir = index > currentIndex ? 1 : -1;
   if (!playQueueKind) setPlayQueueForSong(song, "");
 
   currentIndex = index;
   updateUI(song);
+  if (changing) {
+    const toSrc = (showLyrics ? lyricsCoverUrl(null, song) : song.cover) || song.cover || "";
+    playCoverPlane(dir, fromSrc, toSrc);
+  }
   seeking = false;
   els.seekWrap?.classList.remove("is-dragging");
   els.nowSeekWrap?.classList.remove("is-dragging");
@@ -6620,14 +6961,37 @@ els.lyricsWindow?.addEventListener(
   { passive: true }
 );
 
+const PLAY_MODE_KEY = "ludong-play-mode";
+
+function applyPlayMode(next, persist) {
+  mode = next === "loop" || next === "shuffle" ? next : "list";
+  els.modes?.querySelectorAll(".mode-btn").forEach((el) => {
+    el.classList.toggle("is-active", el.dataset.mode === mode);
+  });
+  if (!persist) return;
+  try {
+    localStorage.setItem(PLAY_MODE_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadPlayMode() {
+  let saved = "list";
+  try {
+    saved = localStorage.getItem(PLAY_MODE_KEY) || "list";
+  } catch {
+    saved = "list";
+  }
+  applyPlayMode(saved, false);
+}
+
 els.modes.addEventListener("click", (e) => {
   const btn = e.target.closest(".mode-btn");
   if (!btn) return;
-  mode = btn.dataset.mode;
-  els.modes.querySelectorAll(".mode-btn").forEach((el) => {
-    el.classList.toggle("is-active", el.dataset.mode === mode);
-  });
+  applyPlayMode(btn.dataset.mode, true);
 });
+loadPlayMode();
 
 bindSeekWrap(els.seekWrap);
 bindSeekWrap(els.nowSeekWrap);
@@ -6667,6 +7031,7 @@ audio.addEventListener("play", () => {
 audio.addEventListener("pause", () => {
   if (mvReady()) return;
   setPlaying(false);
+  saveResume();
 });
 audio.addEventListener("ended", () => {
   if (mvReady()) return;
@@ -6675,6 +7040,11 @@ audio.addEventListener("ended", () => {
 audio.addEventListener("timeupdate", () => {
   if (mvReady()) return;
   syncProgress();
+  const now = Date.now();
+  if (now - resumeSavedAt > 2000) {
+    resumeSavedAt = now;
+    saveResume();
+  }
 });
 audio.addEventListener("loadedmetadata", syncProgress);
 audio.addEventListener("durationchange", syncProgress);
@@ -6718,18 +7088,18 @@ async function initPlayer() {
       return;
     }
 
-    currentIndex = 0;
-    updateUI(playlist[0]);
+    currentIndex = resumeIndex();
+    updateUI(playlist[currentIndex]);
     setHint("正在读取歌曲时长…");
 
     // 本地歌并发探测时长；云端跳过（避免启动时打爆 Storage）
     await fillAllDurations(DEFAULT_PLAYLIST);
     playlist = [...DEFAULT_PLAYLIST];
     renderList();
-    updateUI(playlist[0]);
+    updateUI(playlist[currentIndex] || playlist[0]);
 
     try {
-      const first = playlist[0];
+      const first = playlist[currentIndex] || playlist[0];
       const playUrl = await resolvePlayUrl(first);
       audio.src = playUrl;
       audio.setAttribute("data-id", String(first.id));
@@ -6739,6 +7109,23 @@ async function initPlayer() {
         /* ignore */
       }
       await waitForAudioReady(first.cloud ? 25000 : 12000);
+      const savedResume = readResume();
+      const sameResume =
+        savedResume &&
+        ((savedResume.id && String(savedResume.id) === String(first.id)) ||
+          (savedResume.key && savedResume.key === playStatKey(first)));
+      if (sameResume && Number(savedResume.time) > 1) {
+        const dur = Number(audio.duration) || 0;
+        const nextTime =
+          dur > 3
+            ? Math.min(Number(savedResume.time) || 0, Math.max(0, dur - 1.2))
+            : Number(savedResume.time) || 0;
+        try {
+          audio.currentTime = nextTime;
+        } catch {
+          /* ignore */
+        }
+      }
       syncProgress();
       setHint(`公共+私人 ${playlist.length} 首 · 输入歌名可搜索`);
     } catch (err) {
@@ -7085,6 +7472,7 @@ function showAuthGate() {
 }
 
 async function bootstrapApp() {
+  applyWebSiteMode();
   // 无云端配置时直接进播放器（本机模式）
   if (!window.LudongCloud?.enabled?.()) {
     document.body.classList.remove("is-auth-screen");
@@ -7098,11 +7486,15 @@ async function bootstrapApp() {
     await window.LudongCloud.ensureAuthSession();
     enterAppAfterAuth();
   } catch {
-    // 完全没会话：显示登录页，可点「先听本地歌」
+    // 完全没会话：显示登录页
     showAuthGate();
-    // 明确断网时自动给提示，避免以为软件坏了
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      setAuthHint("当前无网络：可先听本地歌，联网后再登录", true);
+      setAuthHint(
+        IS_WEB_SITE
+          ? "当前无网络：请联网后再登录或试听云端"
+          : "当前无网络：可先听本地歌，联网后再登录",
+        true
+      );
     }
   }
 }
@@ -7390,6 +7782,17 @@ document.addEventListener("contextmenu", (e) => {
 
 /* —— 首页设置：背景黑白自由调节 —— */
 const THEME_KEY = "ludong-bg-lightness";
+let bgHue = "neutral";
+let bgLight = 0;
+
+const BG_HUES = {
+  neutral: ["#0c0f14", "#f7f4ee", "#141a22", "#efeae2", "#10151c", "#fbf8f3", "#090b10", "#f0ebe3"],
+  orange: ["#2a1408", "#ffb15a", "#3a1c0c", "#ffc27a", "#33180a", "#ffd09a", "#241006", "#ffbf70"],
+  pink: ["#2a1020", "#ff8fbe", "#3a1428", "#ffa3c8", "#30101c", "#ffd0e2", "#240c18", "#ff9ec4"],
+  blue: ["#0c1830", "#7eb6ff", "#122038", "#9ac6ff", "#101c34", "#c5ddff", "#081428", "#8ec0ff"],
+  green: ["#0c2418", "#6ed69a", "#12301e", "#8ee0b0", "#102818", "#c8f0d8", "#081810", "#7ed9a4"],
+  purple: ["#1c1030", "#c49bff", "#28143c", "#d2b0ff", "#201438", "#e4d4ff", "#140c28", "#c9a6ff"]
+};
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
@@ -7427,13 +7830,16 @@ function syncWindowThemeColor() {
   meta.setAttribute("content", color);
 }
 
-function applyBgLightness(value) {
+function applyBgLightness(value, hue) {
+  if (hue && BG_HUES[hue]) bgHue = hue;
+  const pair = BG_HUES[bgHue] || BG_HUES.neutral;
   const t = clamp(Number(value) || 0, 0, 100) / 100;
+  bgLight = t;
   const root = document.documentElement;
-  root.style.setProperty("--bg", mixHex("#0c0f14", "#f7f4ee", t));
-  root.style.setProperty("--bg-soft", mixHex("#141a22", "#efeae2", t));
-  root.style.setProperty("--bg-top", mixHex("#10151c", "#fbf8f3", t));
-  root.style.setProperty("--bg-bottom", mixHex("#090b10", "#f0ebe3", t));
+  root.style.setProperty("--bg", mixHex(pair[0], pair[1], t));
+  root.style.setProperty("--bg-soft", mixHex(pair[2], pair[3], t));
+  root.style.setProperty("--bg-top", mixHex(pair[4], pair[5], t));
+  root.style.setProperty("--bg-bottom", mixHex(pair[6], pair[7], t));
   root.style.setProperty("--text", mixHex("#f2efe8", "#1a1f28", t));
   root.style.setProperty("--muted", mixHex("#8b93a0", "#5a6472", t));
   root.style.setProperty("--dim", mixHex("#5a6270", "#8a93a0", t));
@@ -7488,8 +7894,15 @@ function applyBgLightness(value) {
   if (els.bgPreview) {
     els.bgPreview.style.background = getComputedStyle(root).getPropertyValue("--bg");
   }
+  const preset = bgHue !== "neutral" ? bgHue : t >= 0.5 ? "white" : "black";
+  document.querySelectorAll("[data-bg-preset]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.bgPreset === preset);
+  });
   try {
-    localStorage.setItem(THEME_KEY, String(Math.round(t * 100)));
+    localStorage.setItem(
+      THEME_KEY,
+      JSON.stringify({ l: Math.round(t * 100), h: bgHue })
+    );
   } catch {
     /* ignore */
   }
@@ -7497,12 +7910,24 @@ function applyBgLightness(value) {
 
 function loadBgLightness() {
   let v = 0;
+  let hue = "neutral";
   try {
-    v = Number(localStorage.getItem(THEME_KEY) || "0");
+    const raw = localStorage.getItem(THEME_KEY) || "0";
+    if (raw.trim().startsWith("{")) {
+      const data = JSON.parse(raw);
+      v = Number(data.l) || 0;
+      hue = BG_HUES[data.h] ? data.h : "neutral";
+    } else {
+      v = Number(raw) || 0;
+    }
   } catch {
     v = 0;
+    hue = "neutral";
   }
-  applyBgLightness(v);
+  bgHue = hue;
+  if (hue !== "neutral") v = 100;
+  else v = v >= 50 ? 100 : 0;
+  applyBgLightness(v, hue);
 }
 
 function placeSettingsPanel() {
@@ -7595,12 +8020,105 @@ els.settingsBtn?.addEventListener("click", (e) => {
   setSettingsOpen(!!open);
 });
 
-els.bgLightness?.addEventListener("input", () => {
-  applyBgLightness(els.bgLightness.value);
+
+document.getElementById("rankOpenBtn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setRankChartOpen(true);
+});
+document.getElementById("rankChartClose")?.addEventListener("click", () => setRankChartOpen(false));
+document.getElementById("rankChartBackdrop")?.addEventListener("click", () => setRankChartOpen(false));
+window.addEventListener("beforeunload", () => saveResume());
+
+document.getElementById("bgHueRow")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-bg-preset]");
+  if (!btn) return;
+  e.stopPropagation();
+  const preset = btn.dataset.bgPreset;
+  if (preset === "black") applyBgLightness(0, "neutral");
+  else if (preset === "white") applyBgLightness(100, "neutral");
+  else applyBgLightness(100, preset);
 });
 
-els.bgBlack?.addEventListener("click", () => applyBgLightness(0));
-els.bgWhite?.addEventListener("click", () => applyBgLightness(100));
+const SWITCH_ANIM_KEY = "ludong-switch-anim";
+
+function syncSwitchAnimButtons() {
+  document.querySelectorAll("[data-switch-anim]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.switchAnim === switchAnim);
+  });
+}
+
+function setSwitchAnim(mode) {
+  switchAnim = mode === "off" || mode === "fade" ? mode : "flip";
+  try {
+    localStorage.setItem(SWITCH_ANIM_KEY, switchAnim);
+  } catch {
+    /* ignore */
+  }
+  syncSwitchAnimButtons();
+}
+
+function loadSwitchAnim() {
+  try {
+    const raw = localStorage.getItem(SWITCH_ANIM_KEY) || "flip";
+    switchAnim = raw === "off" || raw === "fade" ? raw : "flip";
+  } catch {
+    switchAnim = "flip";
+  }
+  syncSwitchAnimButtons();
+}
+
+document.getElementById("switchAnimRow")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-switch-anim]");
+  if (!btn) return;
+  e.stopPropagation();
+  setSwitchAnim(btn.dataset.switchAnim);
+});
+
+function queueText(value) {
+  return String(value || "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+}
+
+function renderPlayerQueue() {
+  const panel = document.getElementById("playerQueue");
+  const list = document.getElementById("playerQueueList");
+  if (!panel || panel.hidden || !list) return;
+  if (!playlist.length) {
+    list.innerHTML = '<li class="player-queue-empty">暂无歌曲</li>';
+    return;
+  }
+  list.innerHTML = playlist
+    .map((song, i) => {
+      const current = i === currentIndex ? " is-current" : "";
+      return `<li><button type="button" class="player-queue-item${current}" data-queue-index="${i}"><span>${queueText(song.title)}</span><small>${queueText(song.artist)}</small></button></li>`;
+    })
+    .join("");
+  list.querySelector(".is-current")?.scrollIntoView({ block: "nearest" });
+}
+
+function setPlayerQueueOpen(on) {
+  const panel = document.getElementById("playerQueue");
+  if (!panel) return;
+  panel.hidden = !on;
+  if (on) renderPlayerQueue();
+}
+
+document.getElementById("playerQueueBtn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const panel = document.getElementById("playerQueue");
+  setPlayerQueueOpen(panel?.hidden !== false);
+});
+
+document.getElementById("playerQueueClose")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setPlayerQueueOpen(false);
+});
+
+document.getElementById("playerQueueList")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-queue-index]");
+  if (!btn) return;
+  e.stopPropagation();
+  playAt(Number(btn.dataset.queueIndex));
+});
 
 document.querySelector(".sidebar-scroll")?.addEventListener("scroll", () => {
   if (els.settingsPanel && !els.settingsPanel.hidden) setSettingsOpen(false);
@@ -7621,6 +8139,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 loadBgLightness();
+loadSwitchAnim();
 
 function setImportStatus(text, kind = "") {
   if (!els.importStatus) return;
@@ -8386,10 +8905,13 @@ els.wallpaperRestoreBtn?.addEventListener("click", (e) => {
   restoreDesktopWallpaper();
 });
 
-refreshWallpaperStatus({ silent: true });
+if (IS_LOCAL_HOST) {
+  refreshWallpaperStatus({ silent: true });
+}
 
 els.checkUpdateBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
+  if (!IS_LOCAL_HOST) return;
   checkAppUpdate({ manual: true });
 });
 
@@ -8412,7 +8934,9 @@ els.updateBackdrop?.addEventListener("click", () => {
   setUpdateLayerOpen(false);
 });
 
-refreshAppVersionLabel();
-setTimeout(() => {
-  checkAppUpdate({ manual: false });
-}, 2500);
+if (IS_LOCAL_HOST) {
+  refreshAppVersionLabel();
+  setTimeout(() => {
+    checkAppUpdate({ manual: false });
+  }, 2500);
+}

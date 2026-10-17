@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=1.0.28p3" />
+  <link rel="stylesheet" href="styles.css?v=2.0.01w" />
 </head>
 <body class="is-auth-screen">
   <!-- 启动登录（独立浅色小窗构图） -->
@@ -68,25 +68,33 @@
       </button>
       <div class="settings-panel" id="settingsPanel" hidden>
         <div class="settings-title">设置</div>
-        <label class="settings-row" for="bgLightness">
+        <div class="settings-row">
           <span class="settings-label">背景色</span>
-          <span class="settings-hint">黑 ← → 白</span>
-        </label>
-        <div class="bg-slider-row">
-          <button type="button" class="bg-preset" id="bgBlack" title="纯黑">黑</button>
-          <input
-            type="range"
-            id="bgLightness"
-            min="0"
-            max="100"
-            value="0"
-            step="1"
-            aria-label="背景明暗"
-          />
-          <button type="button" class="bg-preset" id="bgWhite" title="纯白">白</button>
+          <span class="settings-hint">只换主界面</span>
+        </div>
+        <div class="bg-hue-row" id="bgHueRow" role="group" aria-label="背景颜色">
+          <button type="button" class="bg-hue is-active" data-bg-preset="black" title="黑色">黑</button>
+          <button type="button" class="bg-hue" data-bg-preset="white" title="白色">白</button>
+          <button type="button" class="bg-hue" data-bg-preset="orange" title="橙色">橙</button>
+          <button type="button" class="bg-hue" data-bg-preset="pink" title="粉色">粉</button>
+          <button type="button" class="bg-hue" data-bg-preset="blue" title="蓝色">蓝</button>
+          <button type="button" class="bg-hue" data-bg-preset="green" title="绿色">绿</button>
+          <button type="button" class="bg-hue" data-bg-preset="purple" title="紫色">紫</button>
         </div>
         <div class="bg-preview" id="bgPreview" aria-hidden="true"></div>
 
+        <div class="settings-divider"></div>
+        <div class="settings-row">
+          <span class="settings-label">切歌动画</span>
+          <span class="settings-hint">只在换歌时播放</span>
+        </div>
+        <div class="bg-hue-row" id="switchAnimRow" role="group" aria-label="切歌动画">
+          <button type="button" class="bg-hue" data-switch-anim="off">关闭</button>
+          <button type="button" class="bg-hue is-active" data-switch-anim="flip">翻面</button>
+          <button type="button" class="bg-hue" data-switch-anim="fade">淡入</button>
+        </div>
+
+        <div class="local-only">
         <div class="settings-divider"></div>
         <div class="settings-row">
           <span class="settings-label">桌面壁纸</span>
@@ -104,6 +112,7 @@
         </div>
         <input type="file" id="wallpaperFileInput" accept=".jpg,.jpeg,.png,.webp,.bmp,image/*" hidden />
         <p class="import-status" id="wallpaperStatus" aria-live="polite"></p>
+        </div>
 
         <div class="settings-divider"></div>
         <div class="settings-row">
@@ -136,6 +145,7 @@
         />
         <p class="import-status" id="cloudUploadStatus" aria-live="polite"></p>
 
+        <div class="local-only">
         <div class="settings-divider"></div>
         <div class="settings-row">
           <span class="settings-label">导入到我的私人空间</span>
@@ -178,6 +188,7 @@
           hidden
         />
         <p class="import-status" id="importStatus" aria-live="polite"></p>
+        </div>
 
         <div class="settings-divider"></div>
         <button
@@ -193,6 +204,7 @@
           <span class="settings-nav-arrow" aria-hidden="true">›</span>
         </button>
 
+        <div class="local-only">
         <div class="settings-divider"></div>
         <div class="settings-row">
           <span class="settings-label">软件更新</span>
@@ -203,6 +215,7 @@
           <button type="button" class="import-btn" id="checkUpdateBtn">检查更新</button>
         </div>
         <p class="import-status" id="updateStatus" aria-live="polite"></p>
+        </div>
 
         <div class="settings-divider"></div>
         <div class="settings-row">
@@ -236,10 +249,10 @@
       <p class="search-hint" id="searchHint"></p>
 
       <section class="rank-row" id="rankRow" aria-label="听歌次数排行">
-        <div class="rank-head">
+        <button type="button" class="rank-head rank-open" id="rankOpenBtn">
           <span class="rank-title">听歌排行</span>
           <span class="rank-sub" id="rankSub">按播放次数</span>
-        </div>
+        </button>
         <div class="rank-track" id="rankTrack">
           <div class="rank-empty" id="rankEmpty">播过的歌会出现在这里</div>
         </div>
@@ -315,6 +328,10 @@
   <div class="player-layer" id="playerLayer" aria-hidden="true">
     <div class="player-backdrop" id="playerBackdrop"></div>
     <section class="player-window" id="playerWindow" role="dialog" aria-modal="true" aria-label="播放详情">
+      <div class="cover-plane-layer" id="coverPlaneLayer" hidden aria-hidden="true">
+        <img class="cover-plane out" id="coverPlaneOut" alt="" />
+        <img class="cover-plane in" id="coverPlaneIn" alt="" />
+      </div>
       <div class="player-ambient" aria-hidden="true">
         <img class="player-ambient-img" id="playerAmbientImg" alt="" />
         <div class="player-ambient-dim"></div>
@@ -326,8 +343,15 @@
               <span class="player-close-ico"></span>
               返回歌单
             </button>
-            <button type="button" class="player-cover-btn" id="mvToggleBtn" hidden>视频</button>
-            <button type="button" class="player-cover-btn" id="coverPickBtn">自定义封面</button>
+            <div class="player-views" role="group" aria-label="播放界面">
+              <button type="button" class="player-view-btn" data-player-view="immerse">沉浸</button>
+              <button type="button" class="player-view-btn is-active" data-player-view="listen">听</button>
+              <button type="button" class="player-view-btn" data-player-view="song">评论</button>
+            </div>
+            <div class="player-bar-tools">
+              <button type="button" class="player-cover-btn" id="mvToggleBtn" hidden>视频</button>
+              <button type="button" class="player-cover-btn" id="coverPickBtn">自定义封面</button>
+            </div>
           </header>
 
           <main class="player">
@@ -475,9 +499,26 @@
                 </button>
               </div>
               <div class="controls-side-right">
-                <button type="button" class="ctrl-side player-comment" id="playerComment" aria-label="评论" title="评论"></button>
+                <button type="button" class="ctrl-side player-queue-btn" id="playerQueueBtn" aria-label="播放歌单" title="播放歌单">歌单</button>
               </div>
             </div>
+
+            <div class="player-queue" id="playerQueue" hidden>
+              <div class="player-queue-bar">
+                <span>播放歌单</span>
+                <button type="button" class="player-queue-close" id="playerQueueClose">关闭</button>
+              </div>
+              <ul class="player-queue-list" id="playerQueueList"></ul>
+            </div>
+
+            <div class="player-comments-host" id="playerCommentsHost" hidden></div>
+
+            <section class="song-focus" id="songFocus" hidden>
+              <p class="song-focus-kicker">这首歌</p>
+              <p class="song-focus-meta" id="songFocusMeta">评论会显示在这里</p>
+              <ul class="song-focus-list" id="songFocusList"></ul>
+              <button type="button" class="song-focus-open" id="songFocusComments">打开评论</button>
+            </section>
           </main>
         </div>
       </div>
@@ -532,6 +573,18 @@
         <button type="button" class="confirm-btn confirm-ok" id="confirmOk">确定删除</button>
       </div>
     </div>
+  </div>
+
+  <div class="rank-chart-layer" id="rankChartLayer" hidden aria-hidden="true">
+    <div class="rank-chart-backdrop" id="rankChartBackdrop"></div>
+    <section class="rank-chart-panel" role="dialog" aria-modal="true" aria-labelledby="rankChartTitle">
+      <header class="rank-chart-bar">
+        <h2 id="rankChartTitle">听歌榜</h2>
+        <button type="button" class="rank-chart-close" id="rankChartClose">关闭</button>
+      </header>
+      <p class="rank-chart-note" id="rankChartNote">按播放次数</p>
+      <ol class="rank-chart-list" id="rankChartList"></ol>
+    </section>
   </div>
 
   <!-- 个人信息页 -->
@@ -620,8 +673,11 @@
           返回
         </button>
         <div class="comments-panel-meta">
-          <h2 class="likes-panel-title">评论</h2>
-          <p class="comments-song" id="commentsSongLabel">—</p>
+          <img class="comments-cover" id="commentsCover" alt="" hidden />
+          <div class="comments-panel-names">
+            <h2 class="likes-panel-title">评论</h2>
+            <p class="comments-song" id="commentsSongLabel">—</p>
+          </div>
         </div>
         <div class="comments-header-right">
           <div class="comments-sort" role="tablist" aria-label="评论排序">
@@ -854,6 +910,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js"></script>
-  <script src="app.js?v=1.0.28p3"></script>
+  <script src="app.js?v=2.0.01w"></script>
 </body>
 </html>
