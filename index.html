@@ -8,8 +8,15 @@
   <link rel="icon" href="./logo.jpg" type="image/jpeg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.01w" />
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=2.0.02" />
+  <script>
+    try {
+      if (localStorage.getItem("ludong-ui-style") === "manga") {
+        document.documentElement.classList.add("theme-manga");
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body class="is-auth-screen">
   <!-- 启动登录（独立浅色小窗构图） -->
@@ -63,11 +70,24 @@
     <aside class="sidebar">
       <div class="sidebar-scroll">
     <div class="home-settings" id="homeSettings">
+      <button type="button" class="settings-btn" id="wishOpenBtn" aria-label="心愿单" title="心愿单">
+        心愿单
+      </button>
       <button type="button" class="settings-btn" id="settingsBtn" aria-label="设置" aria-expanded="false" title="设置">
         设置
       </button>
       <div class="settings-panel" id="settingsPanel" hidden>
         <div class="settings-title">设置</div>
+        <div class="settings-row">
+          <span class="settings-label">界面风格</span>
+          <span class="settings-hint">整体主题</span>
+        </div>
+        <div class="bg-hue-row" id="uiStyleRow" role="group" aria-label="界面风格">
+          <button type="button" class="bg-hue is-active" data-ui-style="default">默认</button>
+          <button type="button" class="bg-hue" data-ui-style="manga">漫画</button>
+        </div>
+
+        <div class="settings-divider"></div>
         <div class="settings-row">
           <span class="settings-label">背景色</span>
           <span class="settings-hint">只换主界面</span>
@@ -93,6 +113,19 @@
           <button type="button" class="bg-hue is-active" data-switch-anim="flip">翻面</button>
           <button type="button" class="bg-hue" data-switch-anim="fade">淡入</button>
         </div>
+
+        <div class="settings-divider"></div>
+        <button
+          type="button"
+          class="settings-nav-btn"
+          id="seekEmojiOpenBtn"
+        >
+          <span class="settings-nav-main">
+            <span class="settings-label">进度条表情</span>
+            <span class="settings-hint" id="seekEmojiSummary">播放 / 暂停</span>
+          </span>
+          <span class="settings-nav-arrow" aria-hidden="true">›</span>
+        </button>
 
         <div class="local-only">
         <div class="settings-divider"></div>
@@ -450,13 +483,14 @@
 
             <div class="progress">
               <div class="seek-wrap" id="seekWrap">
+                <div class="seek-panels" id="seekPanels" aria-hidden="true"></div>
                 <div class="seek-track">
                   <div class="seek-fill" id="seekFill"></div>
                   <div class="seek-thumb" id="seekThumb" aria-hidden="true">
                     <img
                       class="seek-thumb-gif"
                       id="seekThumbGif"
-                      src="./emoji/momo.gif"
+                      src="./emoji/seek/momo.gif"
                       alt=""
                       draggable="false"
                     />
@@ -584,6 +618,73 @@
       </header>
       <p class="rank-chart-note" id="rankChartNote">按播放次数</p>
       <ol class="rank-chart-list" id="rankChartList"></ol>
+    </section>
+  </div>
+
+  <!-- 心愿单：想听 / 已完成 同页切换 -->
+  <div class="profile-layer wish-layer" id="wishLayer" hidden aria-hidden="true">
+    <div class="profile-backdrop" id="wishBackdrop"></div>
+    <section class="profile-panel wish-panel" role="dialog" aria-modal="true" aria-labelledby="wishPanelTitle">
+      <header class="profile-panel-bar">
+        <button type="button" class="likes-back" id="wishBackBtn" aria-label="返回">
+          <span class="likes-back-ico"></span>
+          返回
+        </button>
+        <h2 class="likes-panel-title" id="wishPanelTitle">心愿单</h2>
+        <span class="profile-panel-spacer" aria-hidden="true"></span>
+      </header>
+      <div class="wish-page">
+        <div class="wish-tabs" role="tablist">
+          <button type="button" class="wish-tab is-active" data-wish-tab="open">想听</button>
+          <button type="button" class="wish-tab" data-wish-tab="done">已完成</button>
+        </div>
+        <form class="wish-form" id="wishForm">
+          <input
+            type="text"
+            id="wishInput"
+            maxlength="80"
+            placeholder="歌曲-歌手，例如 晴天-周杰伦"
+            autocomplete="off"
+          />
+          <button type="submit" class="import-btn" id="wishSubmitBtn">写下</button>
+        </form>
+        <p class="import-status" id="wishStatus" aria-live="polite"></p>
+        <ul class="wish-list" id="wishList"></ul>
+      </div>
+    </section>
+  </div>
+
+  <!-- 进度条表情选择页 -->
+  <div class="profile-layer seek-emoji-layer" id="seekEmojiLayer" hidden aria-hidden="true">
+    <div class="profile-backdrop" id="seekEmojiBackdrop"></div>
+    <section class="profile-panel" role="dialog" aria-modal="true" aria-labelledby="seekEmojiPanelTitle">
+      <header class="profile-panel-bar">
+        <button type="button" class="likes-back" id="seekEmojiBackBtn" aria-label="返回">
+          <span class="likes-back-ico"></span>
+          返回
+        </button>
+        <h2 class="likes-panel-title" id="seekEmojiPanelTitle">进度条表情</h2>
+        <span class="profile-panel-spacer" aria-hidden="true"></span>
+      </header>
+      <div class="seek-emoji-page">
+        <div class="seek-emoji-current">
+          <div class="seek-emoji-current-card">
+            <span class="seek-emoji-current-label">播放</span>
+            <img class="seek-emoji-current-img" id="seekEmojiPlayPreview" src="./emoji/seek/kaixin.gif" alt="" />
+          </div>
+          <div class="seek-emoji-current-card">
+            <span class="seek-emoji-current-label">暂停</span>
+            <img class="seek-emoji-current-img" id="seekEmojiPausePreview" src="./emoji/seek/momo.gif" alt="" />
+          </div>
+        </div>
+        <p class="settings-note">先点选一个表情，再点下方按钮设为播放或暂停。</p>
+        <div class="seek-emoji-grid" id="seekEmojiGrid" role="listbox" aria-label="全部表情"></div>
+        <div class="seek-emoji-actions">
+          <button type="button" class="import-btn" id="seekEmojiSetPlayBtn">设为播放</button>
+          <button type="button" class="import-btn import-btn-ghost" id="seekEmojiSetPauseBtn">设为暂停</button>
+        </div>
+        <p class="import-status" id="seekEmojiStatus" aria-live="polite"></p>
+      </div>
     </section>
   </div>
 
@@ -909,7 +1010,7 @@
     };
   </script>
   <script src="cloud-config.js"></script>
-  <script src="cloud-comments.js"></script>
-  <script src="app.js?v=2.0.01w"></script>
+  <script src="cloud-comments.js?v=2.0.02"></script>
+  <script src="app.js?v=2.0.02"></script>
 </body>
 </html>

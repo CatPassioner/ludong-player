@@ -48,6 +48,7 @@ const els = {
   seekFill: document.getElementById("seekFill"),
   seekThumb: document.getElementById("seekThumb"),
   seekThumbGif: document.getElementById("seekThumbGif"),
+  seekPanels: document.getElementById("seekPanels"),
   currentTime: document.getElementById("currentTime"),
   duration: document.getElementById("duration"),
   nowCard: document.getElementById("nowCard"),
@@ -4170,15 +4171,21 @@ function vividCoverRgb(r, g, b, hueShift = 0, sat = 0.7, light = 0.58) {
   return [hue(h + 1 / 3), hue(h), hue(h - 1 / 3)].map((c) => Math.round(c * 255));
 }
 
+function coverAccentTargets() {
+  const list = [];
+  if (els.playerWindow) list.push(els.playerWindow);
+  list.push(document.documentElement);
+  return list;
+}
+
 function clearPlayerAtmosphere() {
-  const win = els.playerWindow;
-  if (win) {
-    win.style.removeProperty("--cover-accent");
-    win.style.removeProperty("--cover-accent-deep");
-    win.style.removeProperty("--cover-ink");
-    win.style.removeProperty("--lyric-ink");
-    win.style.removeProperty("--lyric-glow");
-    win.style.removeProperty("--lyric-wash");
+  for (const el of coverAccentTargets()) {
+    el.style.removeProperty("--cover-accent");
+    el.style.removeProperty("--cover-accent-deep");
+    el.style.removeProperty("--cover-ink");
+    el.style.removeProperty("--lyric-ink");
+    el.style.removeProperty("--lyric-glow");
+    el.style.removeProperty("--lyric-wash");
   }
   if (els.playerAmbientImg) {
     els.playerAmbientImg.removeAttribute("src");
@@ -4239,31 +4246,22 @@ function applyPlayerAtmosphere(src) {
       const glow = vividCoverRgb(r, g, b, 0.08, 0.48, 0.78);
       const deep = vividCoverRgb(r, g, b, 0, 0.62, 0.4);
       const lum = 0.2126 * vivid[0] + 0.7152 * vivid[1] + 0.0722 * vivid[2];
-      win.style.setProperty("--cover-accent", `rgb(${vivid[0]}, ${vivid[1]}, ${vivid[2]})`);
-      win.style.setProperty("--cover-accent-deep", `rgb(${deep[0]}, ${deep[1]}, ${deep[2]})`);
-      win.style.setProperty("--cover-ink", lum > 176 ? "#1a1408" : "#fffaf3");
-      win.style.setProperty("--lyric-ink", `rgb(${vivid[0]}, ${vivid[1]}, ${vivid[2]})`);
-      win.style.setProperty("--lyric-glow", `rgb(${glow[0]}, ${glow[1]}, ${glow[2]})`);
-      win.style.setProperty("--lyric-wash", `rgba(${wash[0]}, ${wash[1]}, ${wash[2]}, 0.5)`);
-    } catch {
-      if (token === coverAccentToken) {
-        win.style.removeProperty("--cover-accent");
-        win.style.removeProperty("--cover-accent-deep");
-        win.style.removeProperty("--cover-ink");
-        win.style.removeProperty("--lyric-ink");
-        win.style.removeProperty("--lyric-glow");
-        win.style.removeProperty("--lyric-wash");
+      const washCss = `rgba(${wash[0]}, ${wash[1]}, ${wash[2]}, 0.5)`;
+      for (const el of coverAccentTargets()) {
+        el.style.setProperty("--cover-accent", `rgb(${vivid[0]}, ${vivid[1]}, ${vivid[2]})`);
+        el.style.setProperty("--cover-accent-deep", `rgb(${deep[0]}, ${deep[1]}, ${deep[2]})`);
+        el.style.setProperty("--cover-ink", lum > 176 ? "#1a1408" : "#fffaf3");
+        el.style.setProperty("--lyric-ink", `rgb(${vivid[0]}, ${vivid[1]}, ${vivid[2]})`);
+        el.style.setProperty("--lyric-glow", `rgb(${glow[0]}, ${glow[1]}, ${glow[2]})`);
+        el.style.setProperty("--lyric-wash", washCss);
       }
+    } catch {
+      if (token === coverAccentToken) clearPlayerAtmosphere();
     }
   };
   img.onerror = () => {
     if (token !== coverAccentToken || !win) return;
-    win.style.removeProperty("--cover-accent");
-    win.style.removeProperty("--cover-accent-deep");
-    win.style.removeProperty("--cover-ink");
-    win.style.removeProperty("--lyric-ink");
-    win.style.removeProperty("--lyric-glow");
-    win.style.removeProperty("--lyric-wash");
+    clearPlayerAtmosphere();
   };
   img.src = url;
 }
@@ -5336,14 +5334,8 @@ function setPlaying(playing) {
   els.playBtn.classList.toggle("is-playing", on);
   els.playBtn.setAttribute("aria-label", on ? "暂停播放" : "开始播放");
   els.playBtn.setAttribute("title", on ? "暂停播放" : "开始播放");
-  // 播放用开心，暂停用 momo
-  if (els.seekThumbGif) {
-    const file = on ? "kaixin.gif" : "momo.gif";
-    const cur = els.seekThumbGif.getAttribute("src") || "";
-    if (!cur.includes(file)) {
-      els.seekThumbGif.src = "./emoji/" + file;
-    }
-  }
+  // 进度条表情由设置里的选择决定
+  refreshSeekThumbGif();
   if (on && showLyrics) startLyricsLoop();
   if (!on) {
     // 暂停时保留最后一帧高亮，停掉循环即可
@@ -5727,6 +5719,33 @@ function getDuration() {
   return fallback > 0 ? fallback : 0;
 }
 
+const SEEK_PANEL_COUNT = 12;
+
+function ensureSeekPanels() {
+  const host = els.seekPanels;
+  if (!host || host.childElementCount === SEEK_PANEL_COUNT) return;
+  host.innerHTML = Array.from({ length: SEEK_PANEL_COUNT }, (_, i) => {
+    const n = String(i + 1).padStart(2, "0");
+    return `<div class="seek-panel" data-panel="${i}"><span class="seek-panel-no">${n}</span></div>`;
+  }).join("");
+}
+
+function syncSeekPanels(percent) {
+  const host = els.seekPanels;
+  if (!host) return;
+  ensureSeekPanels();
+  const p = Math.max(0, Math.min(100, Number(percent) || 0));
+  const filled = Math.min(
+    SEEK_PANEL_COUNT,
+    Math.max(0, Math.ceil((p / 100) * SEEK_PANEL_COUNT))
+  );
+  const current = p <= 0 ? -1 : Math.min(SEEK_PANEL_COUNT - 1, Math.max(0, filled - 1));
+  host.querySelectorAll(".seek-panel").forEach((el, i) => {
+    el.classList.toggle("is-filled", i < filled);
+    el.classList.toggle("is-current", i === current);
+  });
+}
+
 function setSeekVisual(percent) {
   const p = Math.max(0, Math.min(100, Number(percent) || 0));
   seekPercent = p;
@@ -5735,6 +5754,7 @@ function setSeekVisual(percent) {
   if (els.seekThumb) els.seekThumb.style.left = `${p}%`;
   if (els.nowSeek) els.nowSeek.value = String(Math.round(p * 10));
   if (els.nowSeekFill) els.nowSeekFill.style.width = `${p}%`;
+  syncSeekPanels(p);
 }
 
 function previewSeek(percent) {
@@ -7830,7 +7850,34 @@ function syncWindowThemeColor() {
   meta.setAttribute("content", color);
 }
 
+function applyMangaInkVars() {
+  const root = document.documentElement;
+  root.style.setProperty("--bg", "#f7f3ea");
+  root.style.setProperty("--bg-soft", "#fffdf8");
+  root.style.setProperty("--bg-top", "#f3eee4");
+  root.style.setProperty("--bg-bottom", "#ebe4d6");
+  root.style.setProperty("--text", "#1a1612");
+  root.style.setProperty("--muted", "#5e574e");
+  root.style.setProperty("--dim", "#8a8278");
+  root.style.setProperty("--line", "#1a1612");
+  root.style.setProperty("--accent", "#1a1612");
+  root.style.setProperty("--accent-deep", "#1a1612");
+  root.style.setProperty("--sidebar-bg", "transparent");
+  root.style.setProperty("--now-card-bg", "#fffdf8");
+  root.style.setProperty("--now-card-shadow", "3px 3px 0 #1a1612");
+  root.style.setProperty("--now-skip-bg", "transparent");
+  root.style.setProperty("--now-seek-track", "rgba(26, 22, 18, 0.16)");
+  root.style.setProperty("--scroll-thumb", "rgba(26, 22, 18, 0.35)");
+  root.style.setProperty("--glow-a", "transparent");
+  root.style.setProperty("--glow-b", "transparent");
+  root.dataset.bgLight = "1";
+}
+
 function applyBgLightness(value, hue) {
+  if (document.documentElement.classList.contains("theme-manga")) {
+    applyMangaInkVars();
+    return;
+  }
   if (hue && BG_HUES[hue]) bgHue = hue;
   const pair = BG_HUES[bgHue] || BG_HUES.neutral;
   const t = clamp(Number(value) || 0, 0, 100) / 100;
@@ -8040,6 +8087,232 @@ document.getElementById("bgHueRow")?.addEventListener("click", (e) => {
 });
 
 const SWITCH_ANIM_KEY = "ludong-switch-anim";
+const UI_STYLE_KEY = "ludong-ui-style";
+const SEEK_EMOJI_KEY = "ludong-seek-emoji"; // 旧键，仅作暂停表情迁移
+const SEEK_EMOJI_PLAY_KEY = "ludong-seek-emoji-play";
+const SEEK_EMOJI_PAUSE_KEY = "ludong-seek-emoji-pause";
+const SEEK_EMOJI_DIR = "./emoji/seek/";
+let uiStyle = "default";
+let seekEmojiPlayId = "kaixin";
+let seekEmojiPauseId = "momo";
+let seekEmojiList = [
+  { id: "momo", file: "momo.gif", label: "momo" },
+  { id: "kaixin", file: "kaixin.gif", label: "开心" }
+];
+
+function seekEmojiUrl(id) {
+  const item =
+    seekEmojiList.find((x) => x.id === id) ||
+    seekEmojiList.find((x) => x.id === "momo") ||
+    seekEmojiList[0];
+  return SEEK_EMOJI_DIR + (item?.file || "momo.gif");
+}
+
+function isAudioPlaying() {
+  return !!(els.playBtn && els.playBtn.classList.contains("is-playing"));
+}
+
+function refreshSeekThumbGif() {
+  if (!els.seekThumbGif) return;
+  const id = isAudioPlaying() ? seekEmojiPlayId : seekEmojiPauseId;
+  const url = seekEmojiUrl(id);
+  const cur = els.seekThumbGif.getAttribute("src") || "";
+  if (cur !== url) els.seekThumbGif.src = url;
+}
+
+let seekEmojiPickedId = "";
+
+function seekEmojiLabel(id) {
+  return seekEmojiList.find((x) => x.id === id)?.label || id || "—";
+}
+
+function normalizeSeekEmojiId(id, fallback) {
+  if (seekEmojiList.some((x) => x.id === id)) return id;
+  if (seekEmojiList.some((x) => x.id === fallback)) return fallback;
+  return seekEmojiList[0]?.id || "momo";
+}
+
+function updateSeekEmojiSummary() {
+  const el = document.getElementById("seekEmojiSummary");
+  if (!el) return;
+  el.textContent = `播放 ${seekEmojiLabel(seekEmojiPlayId)} · 暂停 ${seekEmojiLabel(
+    seekEmojiPauseId
+  )}`;
+}
+
+function updateSeekEmojiPreviews() {
+  const playImg = document.getElementById("seekEmojiPlayPreview");
+  const pauseImg = document.getElementById("seekEmojiPausePreview");
+  if (playImg) playImg.src = seekEmojiUrl(seekEmojiPlayId);
+  if (pauseImg) pauseImg.src = seekEmojiUrl(seekEmojiPauseId);
+}
+
+function setSeekEmojiStatus(text, kind = "") {
+  const el = document.getElementById("seekEmojiStatus");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("is-error", kind === "error");
+  el.classList.toggle("is-ok", kind === "ok");
+}
+
+function renderSeekEmojiGrid() {
+  const grid = document.getElementById("seekEmojiGrid");
+  if (!grid) return;
+  if (!seekEmojiPickedId) {
+    seekEmojiPickedId = isAudioPlaying() ? seekEmojiPlayId : seekEmojiPauseId;
+  }
+  grid.innerHTML = seekEmojiList
+    .map((item) => {
+      const on = item.id === seekEmojiPickedId ? " is-active" : "";
+      const badge =
+        item.id === seekEmojiPlayId && item.id === seekEmojiPauseId
+          ? '<span class="seek-emoji-badge">播/停</span>'
+          : item.id === seekEmojiPlayId
+            ? '<span class="seek-emoji-badge">播放</span>'
+            : item.id === seekEmojiPauseId
+              ? '<span class="seek-emoji-badge">暂停</span>'
+              : "";
+      return `<button type="button" class="seek-emoji-cell${on}" data-seek-emoji="${escapeHtml(
+        item.id
+      )}" title="${escapeHtml(item.label)}" role="option" aria-selected="${
+        item.id === seekEmojiPickedId ? "true" : "false"
+      }">${badge}<img src="${SEEK_EMOJI_DIR}${escapeHtml(
+        item.file
+      )}" alt="${escapeHtml(item.label)}" draggable="false" /></button>`;
+    })
+    .join("");
+}
+
+function setSeekEmoji(kind, id, persist = true) {
+  const next = normalizeSeekEmojiId(id, kind === "play" ? "kaixin" : "momo");
+  if (kind === "play") seekEmojiPlayId = next;
+  else seekEmojiPauseId = next;
+  if (persist) {
+    try {
+      localStorage.setItem(
+        kind === "play" ? SEEK_EMOJI_PLAY_KEY : SEEK_EMOJI_PAUSE_KEY,
+        next
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+  refreshSeekThumbGif();
+  updateSeekEmojiSummary();
+  updateSeekEmojiPreviews();
+  renderSeekEmojiGrid();
+}
+
+function setSeekEmojiLayerOpen(on) {
+  const layer = document.getElementById("seekEmojiLayer");
+  if (!layer) return;
+  const open = !!on;
+  layer.hidden = !open;
+  layer.classList.toggle("is-open", open);
+  layer.setAttribute("aria-hidden", open ? "false" : "true");
+  if (open) {
+    setSettingsOpen(false);
+    seekEmojiPickedId = isAudioPlaying() ? seekEmojiPlayId : seekEmojiPauseId;
+    updateSeekEmojiPreviews();
+    renderSeekEmojiGrid();
+    setSeekEmojiStatus("");
+  } else if (els.settingsBtn) {
+    setSettingsOpen(true);
+  }
+}
+
+function bindSeekEmojiPage() {
+  document.getElementById("seekEmojiOpenBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setSeekEmojiLayerOpen(true);
+  });
+  document.getElementById("seekEmojiBackBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setSeekEmojiLayerOpen(false);
+  });
+  document.getElementById("seekEmojiBackdrop")?.addEventListener("click", () => {
+    setSeekEmojiLayerOpen(false);
+  });
+  const grid = document.getElementById("seekEmojiGrid");
+  if (grid && !grid.dataset.bound) {
+    grid.dataset.bound = "1";
+    grid.addEventListener("click", (e) => {
+      const btn = e.target.closest?.("[data-seek-emoji]");
+      if (!btn) return;
+      e.stopPropagation();
+      seekEmojiPickedId = btn.dataset.seekEmoji || "";
+      renderSeekEmojiGrid();
+      setSeekEmojiStatus(`已选中：${seekEmojiLabel(seekEmojiPickedId)}`);
+    });
+  }
+  document.getElementById("seekEmojiSetPlayBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!seekEmojiPickedId) {
+      setSeekEmojiStatus("请先点选一个表情", "error");
+      return;
+    }
+    setSeekEmoji("play", seekEmojiPickedId, true);
+    setSeekEmojiStatus(`已设为播放：${seekEmojiLabel(seekEmojiPlayId)}`, "ok");
+  });
+  document.getElementById("seekEmojiSetPauseBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!seekEmojiPickedId) {
+      setSeekEmojiStatus("请先点选一个表情", "error");
+      return;
+    }
+    setSeekEmoji("pause", seekEmojiPickedId, true);
+    setSeekEmojiStatus(`已设为暂停：${seekEmojiLabel(seekEmojiPauseId)}`, "ok");
+  });
+}
+
+async function loadSeekEmojiPicker() {
+  try {
+    const res = await fetch(`${SEEK_EMOJI_DIR}manifest.json`, { cache: "no-store" });
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length) {
+        seekEmojiList = rows
+          .map((row) => ({
+            id: String(row.id || "").trim(),
+            file: String(row.file || "").trim(),
+            label: String(row.label || row.id || "").trim() || "表情"
+          }))
+          .filter((row) => row.id && row.file);
+      }
+    }
+  } catch {
+    /* keep fallback list */
+  }
+
+  let playId = "kaixin";
+  let pauseId = "momo";
+  try {
+    playId = localStorage.getItem(SEEK_EMOJI_PLAY_KEY) || "";
+    pauseId = localStorage.getItem(SEEK_EMOJI_PAUSE_KEY) || "";
+    const legacy = localStorage.getItem(SEEK_EMOJI_KEY) || "";
+    if (!pauseId && legacy) pauseId = legacy;
+    if (!playId) playId = "kaixin";
+    if (!pauseId) pauseId = "momo";
+  } catch {
+    playId = "kaixin";
+    pauseId = "momo";
+  }
+
+  seekEmojiPlayId = normalizeSeekEmojiId(playId, "kaixin");
+  seekEmojiPauseId = normalizeSeekEmojiId(pauseId, "momo");
+  seekEmojiPickedId = seekEmojiPauseId;
+  try {
+    localStorage.setItem(SEEK_EMOJI_PLAY_KEY, seekEmojiPlayId);
+    localStorage.setItem(SEEK_EMOJI_PAUSE_KEY, seekEmojiPauseId);
+  } catch {
+    /* ignore */
+  }
+
+  updateSeekEmojiSummary();
+  updateSeekEmojiPreviews();
+  refreshSeekThumbGif();
+  bindSeekEmojiPage();
+}
 
 function syncSwitchAnimButtons() {
   document.querySelectorAll("[data-switch-anim]").forEach((btn) => {
@@ -8072,6 +8345,63 @@ document.getElementById("switchAnimRow")?.addEventListener("click", (e) => {
   if (!btn) return;
   e.stopPropagation();
   setSwitchAnim(btn.dataset.switchAnim);
+});
+
+function syncUiStyleButtons() {
+  document.querySelectorAll("[data-ui-style]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.uiStyle === uiStyle);
+  });
+}
+
+function applyUiStyle(style, persist = true) {
+  uiStyle = style === "manga" ? "manga" : "default";
+  document.documentElement.classList.toggle("theme-manga", uiStyle === "manga");
+  document.body?.classList.toggle("theme-manga", uiStyle === "manga");
+  if (persist) {
+    try {
+      localStorage.setItem(UI_STYLE_KEY, uiStyle);
+    } catch {
+      /* ignore */
+    }
+  }
+  syncUiStyleButtons();
+  if (uiStyle === "manga") {
+    applyMangaInkVars();
+    ensureSeekPanels();
+    syncSeekPanels(seekPercent);
+  } else {
+    applyBgLightness(Math.round((bgLight || 0) * 100), bgHue);
+  }
+  try {
+    const song = playlist[currentIndex];
+    const src =
+      (showLyrics && song && (song.lyricsCoverUrl || song.cover)) ||
+      song?.cover ||
+      els.cover?.currentSrc ||
+      els.cover?.src ||
+      "";
+    if (src) applyPlayerAtmosphere(src);
+    else if (uiStyle !== "manga") clearPlayerAtmosphere();
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadUiStyle() {
+  try {
+    const raw = localStorage.getItem(UI_STYLE_KEY) || "default";
+    uiStyle = raw === "manga" ? "manga" : "default";
+  } catch {
+    uiStyle = "default";
+  }
+  applyUiStyle(uiStyle, false);
+}
+
+document.getElementById("uiStyleRow")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-ui-style]");
+  if (!btn) return;
+  e.stopPropagation();
+  applyUiStyle(btn.dataset.uiStyle);
 });
 
 function queueText(value) {
@@ -8128,8 +8458,158 @@ document.addEventListener("click", (e) => {
   if (!els.homeSettings?.contains(e.target)) setSettingsOpen(false);
 });
 
+let wishTab = "open";
+let wishRows = [];
+
+function parseWishText(raw) {
+  const text = String(raw || "").trim();
+  const parts = text.split(/\s*[-—–－]\s*/);
+  if (parts.length < 2) return null;
+  const title = parts[0].trim();
+  const artist = parts.slice(1).join("-").trim();
+  if (!title || !artist) return null;
+  return { title, artist };
+}
+
+function cloudHasWishSong(title, artist) {
+  const cloud = window.LudongCloud;
+  const match = cloud?.wishMatchesSong;
+  if (!match) return false;
+  return playlist.some(
+    (song) => song.scope === "cloud" && match(title, artist, song.title, song.artist)
+  );
+}
+
+function setWishStatus(text, kind = "") {
+  const el = document.getElementById("wishStatus");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("is-error", kind === "error");
+  el.classList.toggle("is-ok", kind === "ok");
+}
+
+function renderWishList() {
+  const list = document.getElementById("wishList");
+  const page = document.querySelector(".wish-page");
+  if (!list) return;
+  page?.classList.toggle("is-done", wishTab === "done");
+  document.querySelectorAll("[data-wish-tab]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.wishTab === wishTab);
+  });
+  const rows = wishRows.filter((row) =>
+    wishTab === "done" ? row.status === "done" : row.status !== "done"
+  );
+  if (!rows.length) {
+    list.innerHTML = `<li class="wish-empty">${
+      wishTab === "done" ? "还没有完成的心愿" : "还没有想听的歌"
+    }</li>`;
+    return;
+  }
+  list.innerHTML = rows
+    .map((row) => {
+      const who = escapeHtml(row.author_name || "用户");
+      const title = escapeHtml(row.title || "");
+      const artist = escapeHtml(row.artist || "");
+      return `<li class="wish-item">
+        <div class="wish-item-title">${title} - ${artist}</div>
+        <div class="wish-item-meta">${who}${wishTab === "done" ? " · 已完成" : ""}</div>
+      </li>`;
+    })
+    .join("");
+}
+
+async function refreshWishes() {
+  const cloud = window.LudongCloud;
+  if (!cloud?.listSongWishes) throw new Error("心愿单还没接上");
+  wishRows = cloud.syncOpenWishes
+    ? await cloud.syncOpenWishes()
+    : await cloud.listSongWishes();
+  renderWishList();
+}
+
+function setWishLayerOpen(on) {
+  const layer = document.getElementById("wishLayer");
+  if (!layer) return;
+  const open = !!on;
+  layer.hidden = !open;
+  layer.classList.toggle("is-open", open);
+  layer.setAttribute("aria-hidden", open ? "false" : "true");
+  if (open) {
+    setSettingsOpen(false);
+    setWishStatus("");
+    refreshWishes().catch((err) => {
+      wishRows = [];
+      renderWishList();
+      setWishStatus(err?.message || "心愿单打不开", "error");
+    });
+  }
+}
+
+function bindWishPage() {
+  document.getElementById("wishOpenBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setWishLayerOpen(true);
+  });
+  document.getElementById("wishBackBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setWishLayerOpen(false);
+  });
+  document.getElementById("wishBackdrop")?.addEventListener("click", () => {
+    setWishLayerOpen(false);
+  });
+  document.querySelectorAll("[data-wish-tab]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      wishTab = btn.dataset.wishTab === "done" ? "done" : "open";
+      setWishStatus("");
+      renderWishList();
+    });
+  });
+  document.getElementById("wishForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const input = document.getElementById("wishInput");
+    const parsed = parseWishText(input?.value || "");
+    if (!parsed) {
+      setWishStatus("请按「歌曲-歌手」填写", "error");
+      return;
+    }
+    if (cloudHasWishSong(parsed.title, parsed.artist)) {
+      setWishStatus("曲库里已经有这首歌", "error");
+      return;
+    }
+    const cloud = window.LudongCloud;
+    if (!cloud?.addSongWish) {
+      setWishStatus("心愿单还没接上", "error");
+      return;
+    }
+    const btn = document.getElementById("wishSubmitBtn");
+    if (btn) btn.disabled = true;
+    try {
+      await cloud.addSongWish(parsed);
+      if (input) input.value = "";
+      setWishStatus("已放到心愿单", "ok");
+      wishTab = "open";
+      await refreshWishes();
+    } catch (err) {
+      setWishStatus(err?.message || "写不进去", "error");
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+}
+
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  const wishLayer = document.getElementById("wishLayer");
+  if (wishLayer?.classList.contains("is-open")) {
+    setWishLayerOpen(false);
+    return;
+  }
+  const seekLayer = document.getElementById("seekEmojiLayer");
+  if (seekLayer?.classList.contains("is-open")) {
+    setSeekEmojiLayerOpen(false);
+    return;
+  }
   const layer = els.profileLayer || document.getElementById("profileLayer");
   if (layer?.classList.contains("is-open")) {
     setProfileLayerOpen(false);
@@ -8140,6 +8620,9 @@ document.addEventListener("keydown", (e) => {
 
 loadBgLightness();
 loadSwitchAnim();
+loadUiStyle();
+loadSeekEmojiPicker();
+bindWishPage();
 
 function setImportStatus(text, kind = "") {
   if (!els.importStatus) return;

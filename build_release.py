@@ -80,6 +80,15 @@ def write_patch_zip(app_dir: Path) -> Path:
             src = app_dir / name
             if src.is_file():
                 zf.write(src, arcname=name)
+        seek = app_dir / "emoji" / "seek"
+        if seek.is_dir():
+            for src in seek.rglob("*"):
+                if not src.is_file():
+                    continue
+                rel = src.relative_to(app_dir).as_posix()
+                if "/originals/" in f"/{rel}":
+                    continue
+                zf.write(src, arcname=rel)
     return patch
 
 
@@ -103,7 +112,7 @@ def write_update_manifest(setup_exe: Path, patch_zip: Path | None = None) -> Pat
     )
     manifest = {
         "version": APP_VERSION,
-        "notes": "2.0：歌词页跟着封面色走，评论页，播放模式会记住，切歌动画可以关掉。",
+        "notes": "心愿单可以公开写想听的歌；歌名对上、歌手接近就会标成已完成。另有漫画风格，进度条表情可以自己选播放和暂停。",
         "patchUrl": public_patch if patch_zip and patch_zip.is_file() else "",
         "installerUrl": "",
         "mandatory": False,

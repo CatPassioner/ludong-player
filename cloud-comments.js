@@ -1873,6 +1873,170 @@
       .toLowerCase()}`;
   }
 
+  function normWishTitle(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+  }
+
+  function normWishArtist(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s·•・.。,，/\\|_\-—–－'"“”‘’`~!！?？:：;；（）()\[\]【】]/g, "");
+  }
+
+  function artistEditDistance(a, b) {
+    const rows = a.length + 1;
+    const cols = b.length + 1;
+    const dp = new Array(cols);
+    for (let j = 0; j < cols; j++) dp[j] = j;
+    for (let i = 1; i < rows; i++) {
+      let prev = dp[0];
+      dp[0] = i;
+      for (let j = 1; j < cols; j++) {
+        const cur = dp[j];
+        const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+        dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost);
+        prev = cur;
+      }
+    }
+    return dp[cols - 1];
+  }
+
+  function artistsClose(left, right) {
+    const a = normWishArtist(left);
+    const b = normWishArtist(right);
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const shorter = a.length <= b.length ? a : b;
+    const longer = a.length <= b.length ? b : a;
+    if (
+      shorter.length >= 3 &&
+      longer.includes(shorter) &&
+      shorter.length / longer.length >= 0.55
+    ) {
+      return true;
+    }
+    const dist = artistEditDistance(a, b);
+    return 1 - dist / Math.max(a.length, b.length) >= 0.72;
+  }
+
+  function wishMatchesSong(wishTitle, wishArtist, songTitle, songArtist) {
+    const titleOk = normWishTitle(wishTitle) && normWishTitle(wishTitle) === normWishTitle(songTitle);
+    return titleOk && artistsClose(wishArtist, songArtist);
+  }
+
+  async function markWishesDone(rows) {
+    if (!rows?.length) return;
+    const doneAt = new Date().toISOString();
+    await Promise.all(
+      rows.map((row) =>
+        rest(`song_wishes?id=eq.${encodeURIComponent(row.id)}`, {
+          method: "PATCH",
+          prefer: "return=minimal",
+          body: { status: "done", done_at: doneAt }
+        })
+      )
+    );
+  }
+
+  function wishMissingMessage(err) {
+    const msg = String(err?.message || "");
+    if (/song_wishes|schema cache|relation|does not exist/i.test(msg)) {
+      return "心愿单还没开通：请在 Supabase 执行 supabase_wishes.sql";
+    }
+    return msg || "心愿单请求失败";
+  }
+
+  async function listSongWishes() {
+    if (!cloudEnabled()) throw new Error("云端未配置");
+    try {
+      const rows = await rest(
+        "song_wishes?select=id,author_id,author_name,title,artist,song_key,status,created_at,done_at&order=created_at.desc&limit=500"
+      );
+      return Array.isArray(rows) ? rows : [];
+    } catch (err) {
+      throw new Error(wishMissingMessage(err));
+    }
+  }
+
+  async function addSongWish({ title, artist } = {}) {
+    if (!cloudEnabled()) throw new Error("云端未配置");
+    const t = String(title || "").trim().slice(0, 120);
+    const a = String(artist || "").trim().slice(0, 120);
+    if (!t || !a) throw new Error("请按「歌曲-歌手」填写");
+    const songKey = makeSongKey(t, a);
+    const me = await currentUserId();
+    const name = String(getDisplayName() || "").trim().slice(0, 24);
+    const songs = await listCloudSongs();
+    if (songs.some((song) => wishMatchesSong(t, a, song.title, song.artist))) {
+      throw new Error("曲库里已经有这首歌");
+    }
+    const openRows = await listSongWishes();
+    if (
+      openRows.some(
+        (row) => row.status !== "done" && wishMatchesSong(t, a, row.title, row.artist)
+      )
+    ) {
+      throw new Error("这首已经在心愿单里了");
+    }
+    try {
+      const rows = await rest("song_wishes", {
+        method: "POST",
+        prefer: "return=representation",
+        body: {
+          author_id: me,
+          author_name: name,
+          title: t,
+          artist: a,
+          song_key: songKey,
+          status: "open"
+        }
+      });
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      if (!row?.id) throw new Error("写入心愿失败");
+      return row;
+    } catch (err) {
+      const msg = String(err?.message || "");
+      if (/duplicate|unique|song_wishes_open_key/i.test(msg)) {
+        throw new Error("这首已经在心愿单里了");
+      }
+      throw new Error(wishMissingMessage(err));
+    }
+  }
+
+  async function completeWishesForSong(title, artist) {
+    if (!normWishTitle(title)) return;
+    let rows = [];
+    try {
+      const data = await rest(
+        "song_wishes?status=eq.open&select=id,title,artist&limit=500"
+      );
+      rows = Array.isArray(data) ? data : [];
+    } catch {
+      return;
+    }
+    const hits = rows.filter((row) =>
+      wishMatchesSong(row.title, row.artist, title, artist)
+    );
+    await markWishesDone(hits);
+  }
+
+  async function syncOpenWishes() {
+    const wishes = await listSongWishes();
+    const open = wishes.filter((row) => row.status !== "done");
+    if (!open.length) return wishes;
+    const songs = await listCloudSongs();
+    const hits = open.filter((row) =>
+      songs.some((song) => wishMatchesSong(row.title, row.artist, song.title, song.artist))
+    );
+    if (!hits.length) return wishes;
+    await markWishesDone(hits);
+    return listSongWishes();
+  }
+
   function parseSongFileName(filename) {
     const stem = String(filename || "")
       .replace(/\.[^.]+$/, "")
@@ -2289,6 +2453,11 @@
       }
       const row = Array.isArray(rows) ? rows[0] : rows;
       if (!row?.id) throw new Error("写入曲库失败");
+      try {
+        await completeWishesForSong(t, a);
+      } catch {
+        /* 心愿单表未建时不影响上传 */
+      }
       return row;
     } catch (err) {
       try {
@@ -2413,7 +2582,12 @@
     recallGroupMessage,
     getGroupUnreadSummary,
     makeSongKey,
+    wishMatchesSong,
     parseSongFileName,
+    listSongWishes,
+    addSongWish,
+    completeWishesForSong,
+    syncOpenWishes,
     storagePublicUrl,
     listCloudSongs,
     uploadCloudSong,

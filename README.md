@@ -2,7 +2,7 @@
 
 本机桌面音乐播放器（HTTP 本地服务 + Edge/Chrome 应用窗口 + Supabase 云端能力）。
 
-当前版本见 `app_version.py`（现为 **2.0.01**）。
+当前版本见 `app_version.py`（现为 **2.0.02**）。
 
 ## 功能概要
 

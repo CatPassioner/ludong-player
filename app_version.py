@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """应用版本号。发版时只改这里，再跑 build_release.py。"""
 
-APP_VERSION = "2.0.01"
+APP_VERSION = "2.0.02"
 
 # 远端更新清单（放到 Supabase Storage 公开桶 ludong-releases/update.json）
 DEFAULT_MANIFEST_URL = (

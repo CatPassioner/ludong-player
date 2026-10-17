@@ -1,0 +1,57 @@
+[
+  {
+    "id": "momo",
+    "file": "momo.gif",
+    "label": "momo"
+  },
+  {
+    "id": "kaixin",
+    "file": "kaixin.gif",
+    "label": "开心"
+  },
+  {
+    "id": "seek-01",
+    "file": "seek-01.gif",
+    "label": "表情1"
+  },
+  {
+    "id": "seek-02",
+    "file": "seek-02.gif",
+    "label": "表情2"
+  },
+  {
+    "id": "seek-03",
+    "file": "seek-03.gif",
+    "label": "表情3"
+  },
+  {
+    "id": "seek-04",
+    "file": "seek-04.gif",
+    "label": "表情4"
+  },
+  {
+    "id": "seek-05",
+    "file": "seek-05.gif",
+    "label": "表情5"
+  },
+  {
+    "id": "seek-06",
+    "file": "seek-06.gif",
+    "label": "表情6"
+  },
+  {
+    "id": "seek-07",
+    "file": "seek-07.gif",
+    "label": "表情7"
+  },
+  {
+    "id": "seek-08",
+    "file": "seek-08.gif",
+    "label": "表情8"
+  },
+  {
+    "id": "seek-09",
+    "file": "seek-09.gif",
+    "label": "表情9"
+  }
+]

@@ -96,6 +96,7 @@ button {
   z-index: 5;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin: 2px 14px 8px 0;
 }
 
@@ -5240,6 +5241,227 @@ html[data-bg-light="1"] .confirm-backdrop {
   touch-action: none;
 }
 
+.seek-manga-fx,
+.seek-panels {
+  display: none;
+}
+
+.wish-panel {
+  width: min(440px, 100vw);
+}
+
+.wish-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 24px;
+  overflow: hidden;
+  min-height: 0;
+  flex: 1;
+}
+
+.wish-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.wish-tab {
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wish-tab.is-active {
+  background: var(--accent, #e8a54b);
+  color: #1a140c;
+}
+
+.wish-form {
+  display: flex;
+  gap: 8px;
+}
+
+.wish-form input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font: inherit;
+}
+
+.wish-page.is-done .wish-form {
+  display: none;
+}
+
+.wish-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wish-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.wish-item-title {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.wish-item-meta {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.wish-empty {
+  padding: 28px 8px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.seek-emoji-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 16px 24px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.seek-emoji-current {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.seek-emoji-current-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.seek-emoji-current-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+
+.seek-emoji-current-img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  display: block;
+}
+
+.seek-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.seek-emoji-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+
+.seek-emoji-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.seek-emoji-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 1;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(20, 22, 28, 0.78);
+  color: #fffaf3;
+  font-size: 0.58rem;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+}
+
+.seek-emoji-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.seek-emoji-cell:hover {
+  border-color: rgba(232, 165, 75, 0.45);
+  background: rgba(232, 165, 75, 0.1);
+}
+
+.seek-emoji-cell.is-active {
+  border-color: var(--accent, #e8a54b);
+  background: rgba(232, 165, 75, 0.16);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #e8a54b) 35%, transparent);
+}
+
+html.theme-manga .seek-emoji-current-card,
+html.theme-manga .seek-emoji-cell {
+  border: 2px solid #1a1612;
+  border-radius: 8px;
+  background: #fffdf8;
+  box-shadow: 2px 2px 0 #1a1612;
+}
+
+html.theme-manga .seek-emoji-cell.is-active {
+  outline: 2px solid #1a1612;
+  outline-offset: 1px;
+}
+
+html.theme-manga .seek-emoji-badge {
+  background: #1a1612;
+  color: #f7f3ea;
+}
+
 .seek-track {
   position: absolute;
   left: 0;
@@ -5843,4 +6065,342 @@ body.is-auth-screen {
     border-right: none;
     border-bottom: none;
   }
+}
+
+/* ========== 整体主题：漫画线条（白纸黑线，不改播放层定位） ========== */
+html.theme-manga body {
+  background: #f7f3ea;
+  color: #1a1612;
+}
+
+html.theme-manga body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.035;
+  background-image: radial-gradient(#1a1612 0.6px, transparent 0.7px);
+  background-size: 4px 4px;
+}
+
+html.theme-manga .app {
+  position: relative;
+  z-index: 1;
+}
+
+html.theme-manga .brand,
+html.theme-manga .auth-title,
+html.theme-manga .player-window .title,
+html.theme-manga .playlist-block-name {
+  letter-spacing: 0.06em;
+}
+
+html.theme-manga .brand-logo,
+html.theme-manga .auth-logo,
+html.theme-manga .song img,
+html.theme-manga .now-cover,
+html.theme-manga .lyrics-art,
+html.theme-manga .cover {
+  border-radius: 4px;
+  box-shadow: none;
+  outline: 2.5px solid #1a1612;
+  outline-offset: 0;
+  filter: none;
+}
+
+html.theme-manga .settings-btn,
+html.theme-manga .import-btn,
+html.theme-manga .home-switch,
+html.theme-manga .home-switch-btn,
+html.theme-manga .mode-btn,
+html.theme-manga .ctrl,
+html.theme-manga .ctrl-side,
+html.theme-manga .now-skip,
+html.theme-manga .bg-hue,
+html.theme-manga .auth-tab,
+html.theme-manga .auth-submit,
+html.theme-manga .auth-local-btn,
+html.theme-manga .search input,
+html.theme-manga .auth-field input {
+  border: 2.5px solid #1a1612 !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+html.theme-manga .settings-btn,
+html.theme-manga .import-btn,
+html.theme-manga .home-switch,
+html.theme-manga .now-skip,
+html.theme-manga .auth-local-btn,
+html.theme-manga .search input,
+html.theme-manga .auth-field input {
+  background: #fffdf8 !important;
+  color: #1a1612 !important;
+}
+
+html.theme-manga .settings-btn.is-open,
+html.theme-manga .home-switch-btn.is-active,
+html.theme-manga .mode-btn.is-active,
+html.theme-manga .bg-hue.is-active[data-ui-style="manga"],
+html.theme-manga .auth-tab.is-active,
+html.theme-manga .auth-submit {
+  background: #1a1612 !important;
+  color: #f7f3ea !important;
+}
+
+html.theme-manga .settings-panel,
+html.theme-manga .now-card,
+html.theme-manga .comments-panel,
+html.theme-manga .comments-panel.is-docked {
+  background: #fffdf8;
+  border: 2.5px solid #1a1612;
+  border-radius: 8px;
+  box-shadow: 4px 4px 0 #1a1612;
+}
+
+html.theme-manga .song {
+  border: 0;
+  border-bottom: 2px solid #1a1612;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+html.theme-manga .song:hover,
+html.theme-manga .song.active {
+  background: rgba(26, 22, 18, 0.05);
+  border-color: #1a1612;
+  box-shadow: none;
+}
+
+html.theme-manga .song.active .song-title,
+html.theme-manga .song.active .idx {
+  color: #1a1612;
+}
+
+html.theme-manga .song.active img,
+html.theme-manga .now-card .now-cover {
+  outline-color: var(--cover-accent, #1a1612);
+  filter: none;
+}
+
+html.theme-manga .play,
+html.theme-manga .now-toggle {
+  border: 2.5px solid #1a1612 !important;
+  border-radius: 50% !important;
+  box-shadow: 3px 3px 0 #1a1612 !important;
+}
+
+html.theme-manga .disc {
+  box-shadow: 0 0 0 3px #1a1612;
+}
+
+html.theme-manga .disc-ring {
+  box-shadow: inset 0 0 0 3px #1a1612;
+}
+
+html.theme-manga .lyrics-side {
+  border: 2.5px solid #1a1612;
+  border-radius: 8px;
+}
+
+/* 漫画主题进度：一排漫画分格，按进度逐格填墨，不是加载细线 */
+html.theme-manga .seek-wrap {
+  height: 56px;
+  outline: none;
+}
+
+html.theme-manga .seek-panels {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 4px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 8px;
+  height: 40px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+html.theme-manga .seek-panel {
+  position: relative;
+  border: 2.5px solid #1a1612;
+  border-radius: 3px;
+  background: #fffdf8;
+  box-shadow: 2px 2px 0 #1a1612;
+  overflow: hidden;
+}
+
+html.theme-manga .seek-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(26, 22, 18, 0.05) 0 3px,
+    transparent 3px 6px
+  );
+}
+
+html.theme-manga .seek-panel.is-filled {
+  background: var(--cover-accent, #ff5a9a);
+  box-shadow: 2px 2px 0 #1a1612;
+}
+
+html.theme-manga .seek-panel.is-filled::before {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(26, 22, 18, 0.18) 0 4px,
+    transparent 4px 8px
+  );
+}
+
+html.theme-manga .seek-panel.is-current {
+  transform: translateY(-2px);
+  outline: 2px solid #1a1612;
+  outline-offset: 1px;
+}
+
+html.theme-manga .seek-panel-no {
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: rgba(26, 22, 18, 0.35);
+  line-height: 1;
+  z-index: 1;
+}
+
+html.theme-manga .seek-panel.is-filled .seek-panel-no {
+  color: rgba(255, 253, 248, 0.85);
+}
+
+html.theme-manga .seek-track {
+  top: 0;
+  bottom: 0;
+  height: auto;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+html.theme-manga .seek-fill {
+  display: none !important;
+}
+
+html.theme-manga .seek-thumb {
+  top: 28px;
+  width: 36px;
+  height: 36px;
+  margin-top: -18px;
+  margin-left: -18px;
+  border: 2.5px solid #1a1612;
+  border-radius: 50%;
+  background: #fffdf8;
+  box-shadow: 2px 2px 0 #1a1612;
+  z-index: 3;
+}
+
+html.theme-manga .seek-thumb-gif {
+  width: 30px;
+  height: 30px;
+  filter: none;
+}
+
+html.theme-manga .seek-wrap.is-dragging .seek-thumb {
+  transform: scale(1.12) rotate(-8deg);
+}
+
+html.theme-manga .now-seek-wrap {
+  outline: none;
+  height: 18px;
+}
+
+html.theme-manga .now-seek-track {
+  height: 12px;
+  border-radius: 2px;
+  border: 2px solid #1a1612;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #fffdf8 0 calc(100% / 8 - 2px),
+      #1a1612 calc(100% / 8 - 2px) calc(100% / 8)
+    );
+  box-shadow: 2px 2px 0 #1a1612;
+  overflow: hidden;
+}
+
+html.theme-manga .now-seek-fill {
+  border-radius: 0;
+  background: var(--cover-accent, #ff5a9a);
+  border-right: 2px solid #1a1612;
+  opacity: 0.92;
+}
+
+html.theme-manga .auth-layer {
+  color: #1a1612;
+  background:
+    radial-gradient(#1a1612 0.55px, transparent 0.7px) 0 0 / 4px 4px,
+    #f7f3ea;
+}
+
+html.theme-manga .auth-title {
+  color: #1a1612;
+}
+
+html.theme-manga .auth-tabs {
+  background: #fffdf8;
+  box-shadow: 3px 3px 0 #1a1612;
+}
+
+html.theme-manga .player-window {
+  background: #f7f3ea;
+}
+
+html.theme-manga .player-ambient-img,
+html.theme-manga .lyrics-ambient-img {
+  filter: blur(42px) saturate(0.75) brightness(1.05) !important;
+  opacity: 0.35;
+}
+
+html.theme-manga .player-ambient-dim,
+html.theme-manga .lyrics-ambient-dim,
+html.theme-manga .player-window:has(.stage.is-lyrics) .player-ambient-dim {
+  background: rgba(247, 243, 234, 0.72) !important;
+}
+
+html.theme-manga .player-window:has(.stage.is-lyrics) .title,
+html.theme-manga .player-window:has(.stage.is-lyrics) .artist,
+html.theme-manga .player-window:has(.stage.is-lyrics) .mode-btn:not(.is-active),
+html.theme-manga .player-window:has(.stage.is-lyrics) .ctrl,
+html.theme-manga .player-window:has(.stage.is-lyrics) .ctrl-side:not(.is-liked),
+html.theme-manga .player-window:has(.stage.is-lyrics) .time-row {
+  color: #1a1612;
+  text-shadow: none;
+  border-color: #1a1612;
+}
+
+html.theme-manga .lyric-line:not(.is-active) .lyric-karaoke,
+html.theme-manga .lyric-line.is-near:not(.is-active) .lyric-karaoke {
+  color: rgba(26, 22, 18, 0.38);
+}
+
+html.theme-manga .lyric-line.is-active .lyric-karaoke {
+  filter: none;
+}
+
+html.theme-manga .lyric-empty {
+  color: rgba(26, 22, 18, 0.55);
+}
+
+html.theme-manga .mode-btn.is-active {
+  background: #1a1612 !important;
+  color: #f7f3ea !important;
+  border-color: #1a1612 !important;
 }
