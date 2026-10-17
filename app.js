@@ -80,6 +80,7 @@ const els = {
   mvEmpty: document.getElementById("mvEmpty"),
   mvFrame: document.getElementById("mvFrame"),
   mvCcBtn: document.getElementById("mvCcBtn"),
+  mvSourceBtn: document.getElementById("mvSourceBtn"),
   mvLyric: document.getElementById("mvLyric"),
   mvLyricCurrent: document.getElementById("mvLyricCurrent"),
   coverPickBtn: document.getElementById("coverPickBtn"),
@@ -251,6 +252,7 @@ const els = {
 let playlist = [];
 let currentIndex = -1;
 let playQueueKind = "";
+let playQueueIds = [];
 let mode = "list";
 let seeking = false;
 let seekPercent = 0;
@@ -258,6 +260,13 @@ let searchTimer = null;
 let audiusHost = null;
 let showLyrics = false;
 let showMv = false;
+let mvPreferSong = false;
+const DEFAULT_MV_URL = "./mv/default.mp4";
+try {
+  mvPreferSong = localStorage.getItem("ludong-mv-source") === "song";
+} catch {
+  mvPreferSong = false;
+}
 let showMvCaptions = true;
 try {
   const savedCc = localStorage.getItem("ludong-mv-cc");
@@ -3411,7 +3420,7 @@ async function playLikedItem(key, id) {
     if (els.searchInput) els.searchInput.value = "";
     renderList();
     closeLikesLayer();
-    setPlayQueueForSong(playlist[index], "");
+    setPlayQueueForSong(playlist[index], "likes");
     openPlayerWindow();
     await playAt(index);
     return;
@@ -3442,6 +3451,7 @@ async function playLikedItem(key, id) {
   playlist = [song, ...DEFAULT_PLAYLIST.filter((s) => playStatKey(s) !== key)];
   renderList();
   closeLikesLayer();
+  setPlayQueueForSong(song, "likes");
   openPlayerWindow();
   await playAt(0);
 }
@@ -4406,6 +4416,8 @@ function bindPlayerViews() {
 
 bindPlayerViews();
 
+let resumeMvOnOpen = false;
+
 function openPlayerWindow() {
   if (!els.playerLayer) return;
   els.playerLayer.classList.add("is-open");
@@ -4417,14 +4429,28 @@ function openPlayerWindow() {
     fitPlayerBoard();
     requestAnimationFrame(fitPlayerBoard);
   });
-  if (showLyrics) startLyricsLoop();
+  if (showMv && els.mvVideo?.getAttribute("data-src")) {
+    paintMvChrome();
+    if (resumeMvOnOpen && els.mvVideo.paused) {
+      els.mvVideo.play().catch(() => {});
+    }
+    resumeMvOnOpen = false;
+    startLyricsLoop();
+  } else if (showLyrics) startLyricsLoop();
   else syncLyrics();
 }
 
 function closePlayerWindow() {
   if (!els.playerLayer) return;
-  // 关掉二级窗口时回到唱片态，下次进来先看唱片
-  setLyricsMode(false);
+  const video = els.mvVideo;
+  const keepVideo = !!(showMv && video?.getAttribute("data-src"));
+  if (keepVideo) {
+    // 返回主界面时留在视频上，进度和播放都不打断
+    resumeMvOnOpen = !video.paused;
+  } else {
+    resumeMvOnOpen = false;
+    setLyricsMode(false);
+  }
   els.playerLayer.classList.remove("is-open");
   els.playerLayer.setAttribute("aria-hidden", "true");
   document.body.style.overflow = "";
@@ -4627,7 +4653,7 @@ async function probeUrlExists(url) {
   }
 }
 
-async function resolveMvUrl(song) {
+async function resolveOwnMvUrl(song) {
   if (!song) return "";
   if (song.videoUrl) return song.videoUrl;
   if (song.cloud) return "";
@@ -4646,15 +4672,46 @@ async function resolveMvUrl(song) {
   return "";
 }
 
+function songMvDrivesAudio() {
+  const video = els.mvVideo;
+  return !!(showMv && video && video.dataset.mvKind === "song" && video.getAttribute("data-src"));
+}
+
 function mvReady() {
   const video = els.mvVideo;
   return !!(
-    showMv &&
+    songMvDrivesAudio() &&
     video &&
-    video.getAttribute("data-src") &&
     !video.error &&
     !(els.mvEmpty && !els.mvEmpty.hidden)
   );
+}
+
+function paintMvSourceBtn(hasOwn) {
+  const btn = els.mvSourceBtn;
+  if (!btn) return;
+  const show = !!(showMv && hasOwn);
+  btn.hidden = !show;
+  const usingSong = show && els.mvVideo?.dataset.mvKind === "song";
+  btn.textContent = usingSong ? "默认视频" : "原本视频";
+  btn.title = usingSong ? "改回循环的默认视频" : "切换到这首歌自己的视频";
+}
+
+function syncAmbientMv(playing) {
+  const video = els.mvVideo;
+  if (!video || !showMv || video.dataset.mvKind !== "default") return;
+  video.muted = true;
+  video.loop = true;
+  if (playing) {
+    const pending = video.play();
+    if (pending && typeof pending.catch === "function") pending.catch(() => {});
+  } else {
+    try {
+      video.pause();
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 function mediaClock() {
@@ -4735,37 +4792,56 @@ function handoffToAudio(wasPlaying) {
 async function applyMvForSong(song) {
   const video = els.mvVideo;
   if (!video) return;
-  const url = await resolveMvUrl(song);
+  const ownUrl = await resolveOwnMvUrl(song);
+  const useSong = !!(mvPreferSong && ownUrl);
+  const url = useSong ? ownUrl : DEFAULT_MV_URL;
+  const kind = useSong ? "song" : "default";
   if (els.mvToggleBtn) {
     els.mvToggleBtn.hidden = !showLyrics;
     els.mvToggleBtn.disabled = false;
     els.mvToggleBtn.classList.toggle("is-on", showMv);
     els.mvToggleBtn.textContent = showMv ? "歌词" : "视频";
-    els.mvToggleBtn.title = showMv ? "返回歌词" : url ? "切换到 MV" : "暂无 MV";
+    els.mvToggleBtn.title = showMv ? "返回歌词" : "切换到视频";
   }
+  paintMvSourceBtn(!!ownUrl);
   if (!showMv) {
     clearMvVideo();
     if (els.mvEmpty) els.mvEmpty.hidden = true;
     return;
   }
-  if (!url) {
-    clearMvVideo();
-    if (els.mvEmpty) els.mvEmpty.hidden = false;
+  if (els.mvEmpty) els.mvEmpty.hidden = true;
+  if (video.dataset.mvKind === kind && video.getAttribute("data-src") === url) {
+    if (kind === "default") syncAmbientMv(!audio.paused);
+    paintMvSourceBtn(!!ownUrl);
     return;
   }
-  if (els.mvEmpty) els.mvEmpty.hidden = true;
-  const wasPlaying = !audio.paused || (video && !video.paused && video.getAttribute("data-src"));
-  if (video.getAttribute("data-src") !== url) {
-    video.controls = false;
-    video.disablePictureInPicture = true;
-    video.setAttribute("data-src", url);
-    video.src = url;
-    try {
-      video.load();
-    } catch {
-      /* ignore */
-    }
+  const wasPlaying = !audio.paused || (!video.paused && !!video.getAttribute("data-src"));
+  const previousKind = video.dataset.mvKind || "";
+  video.controls = false;
+  video.disablePictureInPicture = true;
+  video.loop = kind === "default";
+  video.dataset.mvKind = kind;
+  video.setAttribute("data-src", url);
+  video.src = url;
+  try {
+    video.load();
+  } catch {
+    /* ignore */
   }
+  paintMvSourceBtn(!!ownUrl);
+  if (kind === "default") {
+    video.muted = true;
+    video.volume = 0;
+    const startLoop = () => {
+      if (previousKind === "song") handoffToAudio(wasPlaying);
+      else audio.muted = false;
+      syncAmbientMv(wasPlaying || !audio.paused);
+    };
+    if (video.readyState >= 1) startLoop();
+    else video.addEventListener("loadedmetadata", startLoop, { once: true });
+    return;
+  }
+  video.muted = false;
   const ready = () => handoffToMv(!!wasPlaying || !audio.paused);
   if (video.readyState >= 1) ready();
   else video.addEventListener("loadedmetadata", ready, { once: true });
@@ -4815,14 +4891,25 @@ function paintMvChrome() {
 
 function setMvMode(on) {
   const next = !!on;
-  const wasPlaying = mvReady() ? !els.mvVideo.paused : !audio.paused;
+  const video = els.mvVideo;
+  const kind = video?.dataset.mvKind || "";
+  const wasPlaying = kind === "song" ? !video.paused : !audio.paused;
   if (!next && showMv) {
     showMv = false;
     paintMvChrome();
     if (els.lyricsSide) els.lyricsSide.hidden = false;
     if (els.lyricsArt) els.lyricsArt.hidden = false;
-    handoffToAudio(wasPlaying);
+    if (kind === "song") handoffToAudio(wasPlaying);
+    else if (video) {
+      try {
+        video.pause();
+      } catch {
+        /* ignore */
+      }
+      audio.muted = false;
+    }
     clearMvVideo();
+    if (els.mvSourceBtn) els.mvSourceBtn.hidden = true;
     return;
   }
   showMv = next;
@@ -5329,6 +5416,7 @@ async function loadLyricsForSong(song) {
 
 function setPlaying(playing) {
   const on = !!playing;
+  syncAmbientMv(on);
   els.disc.classList.toggle("spinning", on);
   els.nowToggle.classList.toggle("playing", on);
   els.playBtn.classList.toggle("is-playing", on);
@@ -5538,37 +5626,95 @@ function playFailHint(song, err) {
   return `播放失败：${msg || "请稍后重试"}`;
 }
 
+function librarySongs() {
+  return DEFAULT_PLAYLIST.length ? DEFAULT_PLAYLIST : playlist;
+}
+
+function likedSongsInOrder() {
+  const lib = librarySongs();
+  return Object.entries(likedSongs)
+    .map(([key, item]) => ({ key, ...item }))
+    .sort(
+      (a, b) =>
+        (Number(b.likedAt) || 0) - (Number(a.likedAt) || 0) ||
+        String(a.title).localeCompare(String(b.title), "zh")
+    )
+    .map((item) =>
+      lib.find(
+        (song) =>
+          (item.id && String(song.id) === String(item.id)) ||
+          playStatKey(song) === item.key
+      ) ||
+      playlist.find(
+        (song) =>
+          (item.id && String(song.id) === String(item.id)) ||
+          playStatKey(song) === item.key
+      )
+    )
+    .filter(Boolean);
+}
+
 function setPlayQueueForSong(song, listId) {
   const id = String(listId || "").trim();
-  if (id) {
+  const lib = librarySongs();
+  let ids = [];
+  if (id === "likes") {
+    playQueueKind = "likes";
+    ids = likedSongsInOrder().map((item) => item.id);
+  } else if (id) {
     playQueueKind = id;
-    return;
+    const list = readUserPlaylists().find((p) => p.id === id);
+    ids = list?.songIds ? list.songIds.slice() : [];
+  } else if (song?.cloud) {
+    playQueueKind = "cloud";
+    ids = lib.filter((item) => item.cloud).map((item) => item.id);
+  } else if (song?.local) {
+    playQueueKind = "local";
+    ids = lib.filter((item) => item.local && !item.cloud).map((item) => item.id);
+  } else {
+    playQueueKind = "";
+    ids = lib.map((item) => item.id);
   }
-  if (song?.cloud) playQueueKind = "cloud";
-  else if (song?.local) playQueueKind = "local";
-  else playQueueKind = "";
+  const songId = String(song?.id || "");
+  if (songId && !ids.some((item) => String(item) === songId)) ids.unshift(songId);
+  playQueueIds = ids.map((item) => String(item)).filter(Boolean);
+}
+
+function songByQueueId(id) {
+  const key = String(id || "");
+  if (!key) return null;
+  return (
+    librarySongs().find((song) => String(song.id) === key) ||
+    playlist.find((song) => String(song.id) === key) ||
+    null
+  );
 }
 
 function currentPlayQueue() {
-  if (playQueueKind === "cloud") return playlist.filter((s) => s.cloud);
-  if (playQueueKind === "local") return playlist.filter((s) => s.local && !s.cloud);
-  if (playQueueKind) {
-    const list = readUserPlaylists().find((p) => p.id === playQueueKind);
-    if (list) {
-      return list.songIds
-        .map((id) => playlist.find((s) => String(s.id) === String(id)))
-        .filter(Boolean);
-    }
-  }
+  const fromIds = playQueueIds.map((id) => songByQueueId(id)).filter(Boolean);
+  if (fromIds.length) return fromIds;
   const song = playlist[currentIndex];
-  if (song?.cloud) return playlist.filter((s) => s.cloud);
-  if (song?.local) return playlist.filter((s) => s.local && !s.cloud);
-  return playlist.slice();
+  if (song?.cloud) return librarySongs().filter((item) => item.cloud);
+  if (song?.local) return librarySongs().filter((item) => item.local && !item.cloud);
+  return librarySongs().slice();
+}
+
+function playlistIndexOf(song) {
+  if (!song) return -1;
+  return playlist.findIndex((item) => String(item.id) === String(song.id));
 }
 
 function indexInPlaylist(song) {
   if (!song) return -1;
-  return playlist.findIndex((s) => String(s.id) === String(song.id));
+  let index = playlistIndexOf(song);
+  if (index >= 0) return index;
+  const lib = librarySongs();
+  if (playlist !== lib && lib.some((item) => String(item.id) === String(song.id))) {
+    playlist = lib.slice();
+    renderList();
+    index = playlist.findIndex((item) => String(item.id) === String(song.id));
+  }
+  return index;
 }
 
 let coverPlaneTimer = 0;
@@ -6957,6 +7103,17 @@ els.mvToggleBtn?.addEventListener("click", (e) => {
   setMvMode(!showMv);
 });
 
+els.mvSourceBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  mvPreferSong = els.mvVideo?.dataset.mvKind !== "song";
+  try {
+    localStorage.setItem("ludong-mv-source", mvPreferSong ? "song" : "default");
+  } catch {
+    /* ignore */
+  }
+  applyMvForSong(playlist[currentIndex]);
+});
+
 els.mvCcBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
   setMvCaptions(!showMvCaptions);
@@ -7073,19 +7230,20 @@ if (els.mvVideo) {
   els.mvVideo.controls = false;
   els.mvVideo.disablePictureInPicture = true;
   els.mvVideo.addEventListener("timeupdate", () => {
-    if (showMv) syncProgress();
+    if (songMvDrivesAudio()) syncProgress();
   });
   els.mvVideo.addEventListener("play", () => {
-    if (showMv) setPlaying(true);
+    if (songMvDrivesAudio()) setPlaying(true);
   });
   els.mvVideo.addEventListener("pause", () => {
-    if (showMv) setPlaying(false);
+    if (songMvDrivesAudio()) setPlaying(false);
   });
   els.mvVideo.addEventListener("ended", () => {
-    if (showMv) onEnded();
+    if (songMvDrivesAudio()) onEnded();
+    else if (showMv && els.mvVideo?.dataset.mvKind === "default") syncAmbientMv(!audio.paused);
   });
   els.mvVideo.addEventListener("loadedmetadata", () => {
-    if (showMv) syncProgress();
+    if (songMvDrivesAudio()) syncProgress();
   });
 }
 
@@ -8412,14 +8570,16 @@ function renderPlayerQueue() {
   const panel = document.getElementById("playerQueue");
   const list = document.getElementById("playerQueueList");
   if (!panel || panel.hidden || !list) return;
-  if (!playlist.length) {
+  const queue = currentPlayQueue();
+  if (!queue.length) {
     list.innerHTML = '<li class="player-queue-empty">暂无歌曲</li>';
     return;
   }
-  list.innerHTML = playlist
-    .map((song, i) => {
-      const current = i === currentIndex ? " is-current" : "";
-      return `<li><button type="button" class="player-queue-item${current}" data-queue-index="${i}"><span>${queueText(song.title)}</span><small>${queueText(song.artist)}</small></button></li>`;
+  const currentId = String(playlist[currentIndex]?.id || "");
+  list.innerHTML = queue
+    .map((song) => {
+      const current = String(song.id) === currentId ? " is-current" : "";
+      return `<li><button type="button" class="player-queue-item${current}" data-queue-id="${queueText(song.id)}"><span>${queueText(song.title)}</span><small>${queueText(song.artist)}</small></button></li>`;
     })
     .join("");
   list.querySelector(".is-current")?.scrollIntoView({ block: "nearest" });
@@ -8444,10 +8604,12 @@ document.getElementById("playerQueueClose")?.addEventListener("click", (e) => {
 });
 
 document.getElementById("playerQueueList")?.addEventListener("click", (e) => {
-  const btn = e.target.closest?.("[data-queue-index]");
+  const btn = e.target.closest?.("[data-queue-id]");
   if (!btn) return;
   e.stopPropagation();
-  playAt(Number(btn.dataset.queueIndex));
+  const song = songByQueueId(btn.dataset.queueId || "");
+  const index = indexInPlaylist(song);
+  if (index >= 0) playAt(index);
 });
 
 document.querySelector(".sidebar-scroll")?.addEventListener("scroll", () => {

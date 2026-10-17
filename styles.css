@@ -4879,9 +4879,25 @@ html[data-bg-light="1"] .confirm-backdrop {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 8px;
   margin-top: 6px;
   padding: 0 2px;
   min-height: 28px;
+}
+
+.mv-source-btn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.mv-source-btn[hidden] {
+  display: none;
 }
 
 .mv-cc-btn {

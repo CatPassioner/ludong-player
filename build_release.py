@@ -89,6 +89,9 @@ def write_patch_zip(app_dir: Path) -> Path:
                 if "/originals/" in f"/{rel}":
                     continue
                 zf.write(src, arcname=rel)
+        default_mv = app_dir / "mv" / "default.mp4"
+        if default_mv.is_file():
+            zf.write(default_mv, arcname="mv/default.mp4")
     return patch
 
 
@@ -112,7 +115,7 @@ def write_update_manifest(setup_exe: Path, patch_zip: Path | None = None) -> Pat
     )
     manifest = {
         "version": APP_VERSION,
-        "notes": "心愿单可以公开写想听的歌；歌名对上、歌手接近就会标成已完成。另有漫画风格，进度条表情可以自己选播放和暂停。",
+        "notes": "没有专属视频的歌会循环播放默认画面，有原视频可以切换。返回主界面再进视频不会中断。顺序和随机播放留在当前歌单。",
         "patchUrl": public_patch if patch_zip and patch_zip.is_file() else "",
         "installerUrl": "",
         "mandatory": False,
