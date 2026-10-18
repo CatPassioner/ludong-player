@@ -313,19 +313,19 @@ button {
   flex-direction: column;
   background: transparent;
   overflow: hidden;
-  /* 右侧整体留白：避免搜索/按钮贴窗边 */
-  padding-right: 18px;
+  /* 右侧整体留白（参考网易云：内容与窗边拉开） */
+  padding-right: 28px;
 }
 
 .main-home {
   flex: 1;
   min-height: 0;
-  padding: 16px 18px 12px 18px;
+  padding: 16px 20px 12px 18px;
 }
 
 /* sidebar-scroll 的 padding-right:2px 会冲掉主区右边距，这里盖回去 */
 .main-home.sidebar-scroll {
-  padding: 16px 22px 12px 18px;
+  padding: 16px 8px 12px 18px;
 }
 
 .main-home[hidden] {
@@ -334,7 +334,7 @@ button {
 
 .app > .now-card {
   flex-shrink: 0;
-  margin: 0 30px 12px 12px;
+  margin: 0 40px 12px 12px;
   z-index: 6;
 }
 
@@ -2054,8 +2054,28 @@ html[data-bg-light="0"] .novel-card {
 }
 
 .rank-row {
+  position: relative;
   margin-bottom: 12px;
   min-width: 0;
+  /* 右侧裁切线内缩，半截卡片不会贴窗边 */
+  padding-right: 6px;
+}
+
+/* 听歌排行右侧柔和收边，避免半截卡片硬切 */
+.rank-row::after {
+  content: "";
+  position: absolute;
+  top: 28px;
+  right: 0;
+  bottom: 2px;
+  width: 40px;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--bg-soft) 88%, var(--bg))
+  );
 }
 
 .rank-head {
@@ -2228,7 +2248,8 @@ html[data-bg-light="0"] .novel-card {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding: 0 4px 6px 0;
+  scroll-padding-inline-end: 36px;
   scrollbar-width: thin;
 }
 
