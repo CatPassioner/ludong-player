@@ -9568,7 +9568,6 @@ document.addEventListener("keydown", (e) => {
 loadBgLightness();
 loadSwitchAnim();
 loadUiStyle();
-hydrateShellBackground();
 
 const SHELL_BG_KEY = "ludong-shell-bg-v1";
 const SHELL_BG_MAX = 12;
@@ -9585,19 +9584,54 @@ function setShellBgStatus(text, isError = false) {
 
 function openShellBgDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open("ludong-shell-bg", 1);
+    const req = indexedDB.open("ludong-shell-bg", 2);
     req.onupgradeneeded = () => {
-      if (!req.result.objectStoreNames.contains("images")) {
-        req.result.createObjectStore("images");
-      }
+      const db = req.result;
+      if (!db.objectStoreNames.contains("images")) db.createObjectStore("images");
+      if (!db.objectStoreNames.contains("libraries")) db.createObjectStore("libraries");
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error || new Error("打不开背景库"));
   });
 }
 
+function shellOwnerId() {
+  return currentLibraryUserId() || "__guest__";
+}
+
+let shellBgMemory = null;
+let shellBgOwner = "";
+let shellHydrateGen = 0;
+let shellWriteSeq = 0;
+
 function shellBlobKey(id) {
-  return `${currentLibraryUserId() || "__guest__"}:${id}`;
+  return `${shellOwnerId()}:${id}`;
+}
+
+function shellDbPutLibrary(record, owner = shellOwnerId()) {
+  const key = owner || "__guest__";
+  return openShellBgDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction("libraries", "readwrite");
+        tx.objectStore("libraries").put(record, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error("背景库保存失败"));
+      })
+  );
+}
+
+function shellDbGetLibrary(owner = shellOwnerId()) {
+  const key = owner || "__guest__";
+  return openShellBgDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction("libraries", "readonly");
+        const req = tx.objectStore("libraries").get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      })
+  );
 }
 
 function shellDbPut(id, blob) {
@@ -9613,8 +9647,8 @@ function shellDbPut(id, blob) {
   );
 }
 
-function shellDbGet(id) {
-  const key = shellBlobKey(id);
+function shellDbGet(id, owner = shellOwnerId()) {
+  const key = `${owner || "__guest__"}:${id}`;
   return openShellBgDb().then(
     (db) =>
       new Promise((resolve, reject) => {
@@ -9658,16 +9692,36 @@ function shellLevelFromSaved(data) {
 }
 
 function emptyShellBackground() {
-  return { ids: [], activeId: "", level: 55, rotate: "off", intervalMin: 5 };
+  return { ids: [], images: {}, activeId: "", level: 55, rotate: "off", intervalMin: 5 };
 }
 
 function normalizeShellBackground(data) {
+  const images = {};
+  const incoming = data?.images && typeof data.images === "object" ? data.images : {};
+  Object.entries(incoming).forEach(([id, image]) => {
+    const src = String(image || "");
+    if (id && src.startsWith("data:image/")) images[id] = src;
+  });
+  if (Array.isArray(data?.items)) {
+    data.items.forEach((item) => {
+      const id = String(item?.id || "");
+      const src = String(item?.image || "");
+      if (id && src.startsWith("data:image/")) images[id] = src;
+    });
+  }
   const fromItems = (Array.isArray(data?.items) ? data.items : [])
     .map((item) => String(item?.id || ""))
     .filter(Boolean);
   const fromIds = (Array.isArray(data?.ids) ? data.ids : []).map((id) => String(id || "")).filter(Boolean);
-  let ids = [...new Set(fromIds.length ? fromIds : fromItems)].slice(0, SHELL_BG_MAX);
-  if (!ids.length && String(data?.image || "").startsWith("data:image/")) ids = ["bg-legacy"];
+  let ids = [...new Set(fromIds.length ? fromIds : fromItems)];
+  Object.keys(images).forEach((id) => {
+    if (!ids.includes(id)) ids.push(id);
+  });
+  if (!ids.length && String(data?.image || "").startsWith("data:image/")) {
+    images["bg-legacy"] = String(data.image);
+    ids = ["bg-legacy"];
+  }
+  ids = ids.filter((id) => images[id]).slice(0, SHELL_BG_MAX);
   const activeId = ids.includes(data?.activeId) ? data.activeId : ids[0] || "";
   const rotate = ["off", "order", "random"].includes(data?.rotate) ? data.rotate : "off";
   let intervalMin = Number(data?.intervalMin);
@@ -9675,6 +9729,7 @@ function normalizeShellBackground(data) {
   intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
   return {
     ids,
+    images,
     activeId,
     level: shellLevelFromSaved(data || {}),
     rotate,
@@ -9683,23 +9738,23 @@ function normalizeShellBackground(data) {
 }
 
 function readShellBackground() {
-  try {
-    const raw = localStorage.getItem(scopedStorageKey(SHELL_BG_KEY));
-    return normalizeShellBackground(raw ? JSON.parse(raw) : null);
-  } catch {
-    return emptyShellBackground();
-  }
+  return shellBgMemory || emptyShellBackground();
 }
 
 function shellImageOf(state) {
-  return shellBgUrls.get(state.activeId) || "";
+  return state?.images?.[state.activeId] || "";
 }
 
 function writeShellBackground(next) {
-  const key = scopedStorageKey(SHELL_BG_KEY);
+  shellWriteSeq += 1;
   const state = normalizeShellBackground(next);
-  localStorage.setItem(key, JSON.stringify(state));
-  if (!state.ids.length) localStorage.removeItem(key);
+  shellBgMemory = state;
+  shellBgOwner = shellOwnerId();
+  const owner = shellBgOwner;
+  shellDbPutLibrary(state, owner).catch((err) => {
+    console.warn("shell background save", owner, err);
+    setShellBgStatus(err?.message || "背景库保存失败", true);
+  });
   return state;
 }
 
@@ -9735,38 +9790,89 @@ async function migrateShellImagesToDb(raw) {
   }
 }
 
-async function hydrateShellBackground() {
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("无法读取图片"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function migrateLegacyShellLibrary(owner = shellOwnerId()) {
+  const key = scopedStorageKey(SHELL_BG_KEY);
+  let raw = null;
   try {
-    const key = scopedStorageKey(SHELL_BG_KEY);
-    const raw = JSON.parse(localStorage.getItem(key) || "null");
-    const hasInline =
-      (Array.isArray(raw?.items) && raw.items.some((item) => String(item?.image || "").startsWith("data:"))) ||
-      String(raw?.image || "").startsWith("data:image/");
-    if (hasInline) await migrateShellImagesToDb(raw);
+    raw = JSON.parse(localStorage.getItem(key) || "null");
   } catch {
-    /* 旧数据迁不走就继续用库里已有的 */
+    raw = null;
   }
-  for (const url of shellBgUrls.values()) URL.revokeObjectURL(url);
-  shellBgUrls.clear();
-  const state = readShellBackground();
-  const kept = [];
-  for (const id of state.ids) {
+  if (!raw) return null;
+  const images = {};
+  const items = Array.isArray(raw.items) ? raw.items : [];
+  for (const item of items) {
+    const id = String(item?.id || "");
+    const src = String(item?.image || "");
+    if (id && src.startsWith("data:image/")) images[id] = src;
+  }
+  const ids = (Array.isArray(raw.ids) ? raw.ids : Object.keys(images)).map(String).filter(Boolean);
+  for (const id of ids) {
+    if (images[id]) continue;
     try {
-      const blob = await shellDbGet(id);
+      const blob = await shellDbGet(id, owner);
       if (!blob) continue;
-      rememberShellUrl(id, blob);
-      kept.push(id);
+      const url = await blobToDataUrl(blob);
+      if (url.startsWith("data:image/")) images[id] = url;
     } catch {
-      /* 单张读失败就跳过 */
+      /* 旧图读不到就跳过 */
     }
   }
-  if (kept.length !== state.ids.length) {
-    writeShellBackground({
-      ...state,
-      ids: kept,
-      activeId: kept.includes(state.activeId) ? state.activeId : kept[0] || ""
-    });
+  const state = normalizeShellBackground({ ...raw, images, ids: Object.keys(images) });
+  if (!state.ids.length) return null;
+  await shellDbPutLibrary(state, owner);
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
   }
+  return state;
+}
+
+function shellHydrateStillCurrent(gen, owner, writes) {
+  return gen === shellHydrateGen && owner === shellOwnerId() && writes === shellWriteSeq;
+}
+
+async function hydrateShellBackground() {
+  const gen = ++shellHydrateGen;
+  const writes = shellWriteSeq;
+  const owner = shellOwnerId();
+  if (shellBgOwner !== owner) {
+    shellBgOwner = owner;
+    shellBgMemory = emptyShellBackground();
+    applyShellBackground();
+  }
+  let saved = null;
+  try {
+    saved = await shellDbGetLibrary(owner);
+  } catch (err) {
+    console.warn("hydrate shell background", owner, err);
+  }
+  if (!shellHydrateStillCurrent(gen, owner, writes)) return;
+  if (saved) {
+    shellBgMemory = normalizeShellBackground(saved);
+    shellBgOwner = owner;
+    applyShellBackground();
+    return;
+  }
+  let migrated = null;
+  try {
+    migrated = await migrateLegacyShellLibrary(owner);
+  } catch {
+    migrated = null;
+  }
+  if (!shellHydrateStillCurrent(gen, owner, writes)) return;
+  shellBgMemory = migrated || emptyShellBackground();
+  shellBgOwner = owner;
   applyShellBackground();
 }
 
@@ -9793,7 +9899,7 @@ function renderShellBackgroundPicker(state) {
   if (grid) {
     grid.innerHTML = state.ids
       .map((id) => {
-        const url = shellBgUrls.get(id);
+        const url = state.images?.[id] || "";
         if (!url) return "";
         return `<button type="button" class="wallpaper-library-item${
           id === state.activeId ? " is-selected" : ""
@@ -9928,9 +10034,10 @@ document.getElementById("shellBgFile")?.addEventListener("change", async (e) => 
     for (const file of files) {
       if (ids.length >= SHELL_BG_MAX) break;
       const blob = await compressShellBackgroundFile(file);
+      const image = await blobToDataUrl(blob);
+      if (!image.startsWith("data:image/")) throw new Error("无法保存这张图");
       const id = `bg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-      await shellDbPut(id, blob);
-      rememberShellUrl(id, blob);
+      prev.images[id] = image;
       ids.push(id);
       if (!activeId) activeId = id;
       added += 1;
@@ -9939,7 +10046,7 @@ document.getElementById("shellBgFile")?.addEventListener("change", async (e) => 
       setShellBgStatus(`背景库最多 ${SHELL_BG_MAX} 张`, true);
       return;
     }
-    writeShellBackground({ ...prev, ids, activeId });
+    writeShellBackground({ ...prev, ids, images: prev.images, activeId });
     applyShellBackground();
     const skipped = files.length - added;
     setShellBgStatus(
@@ -9947,7 +10054,7 @@ document.getElementById("shellBgFile")?.addEventListener("change", async (e) => 
     );
   } catch (err) {
     if (added) {
-      writeShellBackground({ ...prev, ids, activeId });
+      writeShellBackground({ ...prev, ids, images: prev.images, activeId });
       applyShellBackground();
     }
     setShellBgStatus(err?.message || "背景上传失败", true);
@@ -9960,17 +10067,11 @@ document.getElementById("shellBgGrid")?.addEventListener("click", async (e) => {
   if (del) {
     e.stopPropagation();
     const id = del.dataset.shellDel || "";
-    try {
-      await shellDbDelete(id);
-    } catch {
-      /* 库里没有也继续从列表去掉 */
-    }
-    const url = shellBgUrls.get(id);
-    if (url) URL.revokeObjectURL(url);
-    shellBgUrls.delete(id);
+    const images = { ...(state.images || {}) };
+    delete images[id];
     const ids = state.ids.filter((item) => item !== id);
     const activeId = state.activeId === id ? ids[0] || "" : state.activeId;
-    writeShellBackground({ ...state, ids, activeId });
+    writeShellBackground({ ...state, ids, images, activeId });
     applyShellBackground();
     setShellBgStatus(ids.length ? "已从背景库删除" : "背景库已清空");
     return;
@@ -10008,17 +10109,6 @@ document.getElementById("shellBgInterval")?.addEventListener("change", (e) => {
 });
 
 document.getElementById("shellBgClearBtn")?.addEventListener("click", async () => {
-  const state = readShellBackground();
-  for (const id of state.ids) {
-    try {
-      await shellDbDelete(id);
-    } catch {
-      /* ignore */
-    }
-    const url = shellBgUrls.get(id);
-    if (url) URL.revokeObjectURL(url);
-    shellBgUrls.delete(id);
-  }
   writeShellBackground(null);
   applyShellBackground();
   setShellBgStatus("已恢复默认背景");
@@ -10045,6 +10135,7 @@ document.getElementById("shellBgLevel")?.addEventListener("change", (e) => {
     setHint(err?.message || "保存失败", true);
   }
 });
+hydrateShellBackground();
 loadSeekEmojiPicker();
 bindWishPage();
 
