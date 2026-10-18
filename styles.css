@@ -91,62 +91,122 @@ button {
   z-index: 1;
 }
 
-/* 整窗一张背景 + 浅遮罩；文字写在磨砂面板上 */
-html[data-shell-bg="1"] {
-  --shell-dim: 0.34;
-  --shell-rail: 0.84;
-  --shell-pane: 0.74;
-  --shell-bar: 0.86;
-}
-
-html[data-shell-bg="1"][data-shell-strength="soft"] {
-  --shell-dim: 0.46;
-  --shell-rail: 0.92;
-  --shell-pane: 0.86;
-  --shell-bar: 0.92;
-}
-
-html[data-shell-bg="1"][data-shell-strength="strong"] {
-  --shell-dim: 0.18;
-  --shell-rail: 0.72;
-  --shell-pane: 0.55;
-  --shell-bar: 0.76;
-}
-
-html[data-shell-bg="1"] body:not(.is-auth-screen) {
-  background-color: var(--bg);
-  background-image: var(--shell-bg-image);
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-}
-
-html[data-shell-bg="1"] body:not(.is-auth-screen)::before {
-  content: "";
+/* 整窗一张背景层 + 磨砂面板；文字写在面板上 */
+.shell-bg-layer {
+  display: none;
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: color-mix(in srgb, var(--bg) calc(var(--shell-dim) * 100%), transparent);
+  background-color: var(--bg);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+html[data-shell-bg="1"] .shell-bg-layer:not([hidden]) {
+  display: block;
+}
+
+html[data-shell-bg="1"] .shell-bg-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 28%, transparent);
+}
+
+html[data-shell-bg="1"] body:not(.is-auth-screen) {
+  background: transparent !important;
+}
+
+html[data-shell-bg="1"] .app {
+  background: transparent;
+}
+
+html[data-shell-bg="1"] .app-body {
+  background: transparent;
 }
 
 html[data-shell-bg="1"] .nav-rail {
-  background: color-mix(in srgb, var(--bg) calc(var(--shell-rail) * 100%), transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: color-mix(in srgb, var(--bg) 72%, transparent) !important;
+  backdrop-filter: blur(16px) saturate(1.05);
+  -webkit-backdrop-filter: blur(16px) saturate(1.05);
 }
 
 html[data-shell-bg="1"] .main-pane {
-  background: color-mix(in srgb, var(--bg-soft) calc(var(--shell-pane) * 100%), transparent);
+  background: color-mix(in srgb, var(--bg-soft) 58%, transparent) !important;
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+}
+
+html[data-shell-bg="1"] .main-pane > .pane-view,
+html[data-shell-bg="1"] .main-pane > .playlist-detail,
+html[data-shell-bg="1"] .main-pane > .likes-layer,
+html[data-shell-bg="1"] .main-pane > .chat-layer,
+html[data-shell-bg="1"] .main-pane > .profile-layer,
+html[data-shell-bg="1"] .main-pane > .wish-layer,
+html[data-shell-bg="1"] .main-pane > .seek-emoji-layer {
+  background: color-mix(in srgb, var(--bg-soft) 68%, transparent) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 html[data-shell-bg="1"] .app > .now-card {
-  background: color-mix(in srgb, var(--bg) calc(var(--shell-bar) * 100%), transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: color-mix(in srgb, var(--bg) 78%, transparent) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html[data-shell-bg="1"][data-shell-strength="soft"] .shell-bg-layer::after {
+  background: color-mix(in srgb, var(--bg) 42%, transparent);
+}
+
+html[data-shell-bg="1"][data-shell-strength="soft"] .nav-rail {
+  background: color-mix(in srgb, var(--bg) 86%, transparent) !important;
+}
+
+html[data-shell-bg="1"][data-shell-strength="soft"] .main-pane {
+  background: color-mix(in srgb, var(--bg-soft) 78%, transparent) !important;
+}
+
+html[data-shell-bg="1"][data-shell-strength="soft"] .main-pane > .pane-view,
+html[data-shell-bg="1"][data-shell-strength="soft"] .main-pane > .playlist-detail,
+html[data-shell-bg="1"][data-shell-strength="soft"] .main-pane > .likes-layer,
+html[data-shell-bg="1"][data-shell-strength="soft"] .main-pane > .chat-layer,
+html[data-shell-bg="1"][data-shell-strength="soft"] .main-pane > .profile-layer,
+html[data-shell-bg="1"][data-shell-strength="soft"] .main-pane > .wish-layer,
+html[data-shell-bg="1"][data-shell-strength="soft"] .main-pane > .seek-emoji-layer {
+  background: color-mix(in srgb, var(--bg-soft) 82%, transparent) !important;
+}
+
+html[data-shell-bg="1"][data-shell-strength="soft"] .app > .now-card {
+  background: color-mix(in srgb, var(--bg) 88%, transparent) !important;
+}
+
+html[data-shell-bg="1"][data-shell-strength="strong"] .shell-bg-layer::after {
+  background: color-mix(in srgb, var(--bg) 12%, transparent);
+}
+
+html[data-shell-bg="1"][data-shell-strength="strong"] .nav-rail {
+  background: color-mix(in srgb, var(--bg) 55%, transparent) !important;
+}
+
+html[data-shell-bg="1"][data-shell-strength="strong"] .main-pane {
+  background: color-mix(in srgb, var(--bg-soft) 40%, transparent) !important;
+}
+
+html[data-shell-bg="1"][data-shell-strength="strong"] .main-pane > .pane-view,
+html[data-shell-bg="1"][data-shell-strength="strong"] .main-pane > .playlist-detail,
+html[data-shell-bg="1"][data-shell-strength="strong"] .main-pane > .likes-layer,
+html[data-shell-bg="1"][data-shell-strength="strong"] .main-pane > .chat-layer,
+html[data-shell-bg="1"][data-shell-strength="strong"] .main-pane > .profile-layer,
+html[data-shell-bg="1"][data-shell-strength="strong"] .main-pane > .wish-layer,
+html[data-shell-bg="1"][data-shell-strength="strong"] .main-pane > .seek-emoji-layer {
+  background: color-mix(in srgb, var(--bg-soft) 48%, transparent) !important;
+}
+
+html[data-shell-bg="1"][data-shell-strength="strong"] .app > .now-card {
+  background: color-mix(in srgb, var(--bg) 62%, transparent) !important;
 }
 
 .shell-bg-preview {

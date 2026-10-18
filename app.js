@@ -9445,17 +9445,23 @@ function writeShellBackground(next) {
 function applyShellBackground() {
   const data = readShellBackground();
   const root = document.documentElement;
+  const layer = document.getElementById("shellBgLayer");
   const on = !!data.image;
-  root.toggleAttribute("data-shell-bg", on);
   if (on) {
-    root.setAttribute("data-shell-strength", data.strength);
+    root.setAttribute("data-shell-bg", "1");
+    root.setAttribute("data-shell-strength", data.strength || "mid");
     root.style.setProperty("--shell-bg-image", `url("${data.image}")`);
   } else {
+    root.removeAttribute("data-shell-bg");
     root.removeAttribute("data-shell-strength");
     root.style.removeProperty("--shell-bg-image");
   }
-  document.querySelectorAll("[data-shell-strength]").forEach((btn) => {
-    if (!btn.classList.contains("bg-hue")) return;
+  if (layer) {
+    layer.hidden = !on;
+    layer.setAttribute("aria-hidden", on ? "false" : "true");
+    layer.style.backgroundImage = on ? `url("${data.image}")` : "";
+  }
+  document.querySelectorAll("#shellBgStrengthRow [data-shell-strength]").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.shellStrength === (data.strength || "mid"));
   });
   const preview = document.getElementById("shellBgPreview");
