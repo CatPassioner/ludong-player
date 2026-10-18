@@ -4091,6 +4091,7 @@ html[data-bg-light="1"] .comment-item {
 }
 
 .playlist-edit-btn,
+.playlist-delete-btn,
 .playlist-new-btn {
   height: 26px;
   padding: 0 10px;
@@ -4109,10 +4110,21 @@ html[data-bg-light="1"] .comment-item {
   color: var(--muted);
 }
 
+.playlist-delete-btn {
+  border-color: rgba(224, 112, 112, 0.45);
+  background: rgba(224, 112, 112, 0.12);
+  color: #d06060;
+}
+
 .playlist-edit-btn:hover,
 .playlist-new-btn:hover {
   background: rgba(74, 158, 255, 0.22);
   color: #4a9eff;
+}
+
+.playlist-delete-btn:hover {
+  background: rgba(224, 112, 112, 0.22);
+  color: #c04040;
 }
 
 .playlist-edit-btn.is-on {
@@ -4129,7 +4141,41 @@ html[data-bg-light="1"] .comment-item {
 .playlist-block-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.playlist-check {
+  width: 14px;
+  height: 14px;
+  margin: 0 0 0 4px;
+  padding: 0;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--muted) 70%, var(--line));
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+
+.playlist-check:hover {
+  border-color: rgba(232, 165, 75, 0.7);
+}
+
+.playlist-check.is-on {
+  border-color: rgba(232, 165, 75, 0.85);
+  background: rgba(232, 165, 75, 0.2);
+}
+
+.playlist-check.is-on::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  width: 5px;
+  height: 8px;
+  border: solid var(--text);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
 }
 
 .playlist-block-head {
@@ -4151,6 +4197,14 @@ html[data-bg-light="1"] .comment-item {
 
 .playlist-block-head:hover {
   background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.playlist.is-editing .playlist-block-head {
+  cursor: default;
+}
+
+.playlist.is-editing .playlist-block.is-mine .playlist-block-head:hover {
+  background: transparent;
 }
 
 .playlist-block-cover {
@@ -4195,37 +4249,6 @@ html[data-bg-light="1"] .comment-item {
 .playlist-block-count {
   font-size: 0.72rem;
   color: var(--dim);
-}
-
-.playlist-block-actions {
-  display: none;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.playlist.is-editing .playlist-block-actions {
-  display: flex;
-}
-
-.playlist-mini-btn {
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--muted);
-  font-size: 0.7rem;
-  cursor: pointer;
-}
-
-.playlist-mini-btn:hover {
-  color: var(--text);
-  border-color: rgba(232, 165, 75, 0.4);
-}
-
-.playlist-mini-btn.is-danger:hover {
-  color: #e07070;
-  border-color: rgba(224, 112, 112, 0.45);
 }
 
 .playlist-block-songs {
@@ -4336,7 +4359,8 @@ html[data-bg-light="1"] .comment-item {
   gap: 8px;
 }
 
-.playlist-play-all {
+.playlist-play-all,
+.playlist-rename-btn {
   height: 34px;
   padding: 0 16px;
   border: 0;
@@ -4348,8 +4372,20 @@ html[data-bg-light="1"] .comment-item {
   cursor: pointer;
 }
 
+.playlist-rename-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .playlist-play-all:hover {
   filter: brightness(1.04);
+}
+
+.playlist-rename-btn:hover {
+  color: var(--text);
+  border-color: rgba(232, 165, 75, 0.45);
 }
 
 .playlist-detail-songs {
@@ -4373,11 +4409,21 @@ html.theme-manga .playlist-detail-cover-wrap {
 }
 
 html.theme-manga .playlist-edit-btn,
+html.theme-manga .playlist-delete-btn,
 html.theme-manga .playlist-play-all,
-html.theme-manga .playlist-cover-btn {
+html.theme-manga .playlist-rename-btn,
+html.theme-manga .playlist-cover-btn,
+html.theme-manga .playlist-check {
   border: 2px solid #1a1612;
   border-radius: 6px;
   box-shadow: 2px 2px 0 #1a1612;
+}
+
+html.theme-manga .playlist-check {
+  width: 14px;
+  height: 14px;
+  box-shadow: 1px 1px 0 #1a1612;
+  border-radius: 3px;
 }
 
 html.theme-manga .playlist-play-all {

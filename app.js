@@ -4194,6 +4194,7 @@ function songRowHtml(song, indexInPlaylist, { listId = "", queueId = "", display
 
 const LIKES_COVER_KEY = "ludong-likes-cover-v1";
 let playlistEditing = false;
+let playlistSelectedIds = new Set();
 let playlistDetailState = null;
 
 function readLikesCover() {
@@ -4277,14 +4278,20 @@ function playlistBlockHtml(name, {
   openKind = "",
   cover = "./logo.jpg"
 } = {}) {
-  const actions = listId
-    ? `<span class="playlist-block-actions">
-        <button type="button" class="playlist-mini-btn" data-pl-act="rename" data-list-id="${escapeHtml(listId)}">重命名</button>
-        <button type="button" class="playlist-mini-btn is-danger" data-pl-act="delete" data-list-id="${escapeHtml(listId)}">删除</button>
-      </span>`
-    : "";
-  return `<li class="playlist-block${kind ? ` is-${kind}` : ""}">
+  const checked = listId && playlistSelectedIds.has(listId);
+  const check =
+    playlistEditing && listId
+      ? `<button type="button" class="playlist-check${
+          checked ? " is-on" : ""
+        }" data-pl-check="${escapeHtml(listId)}" aria-pressed="${
+          checked ? "true" : "false"
+        }" aria-label="选择歌单" title="选择"></button>`
+      : "";
+  return `<li class="playlist-block${kind ? ` is-${kind}` : ""}${
+    checked ? " is-checked" : ""
+  }">
     <div class="playlist-block-row">
+      ${check}
       <button type="button" class="playlist-block-head" data-open-kind="${escapeHtml(
         openKind || kind
       )}" data-open-id="${escapeHtml(listId)}">
@@ -4294,21 +4301,35 @@ function playlistBlockHtml(name, {
           <span class="playlist-block-count">${count} 首</span>
         </span>
       </button>
-      ${actions}
     </div>
   </li>`;
 }
 
 function syncPlaylistEditBtn() {
   const btn = document.getElementById("playlistEditBtn");
-  if (!btn) return;
-  btn.classList.toggle("is-on", playlistEditing);
-  btn.setAttribute("aria-pressed", playlistEditing ? "true" : "false");
-  btn.textContent = playlistEditing ? "完成" : "编辑";
+  const delBtn = document.getElementById("playlistDeleteBtn");
+  if (btn) {
+    btn.classList.toggle("is-on", playlistEditing);
+    btn.setAttribute("aria-pressed", playlistEditing ? "true" : "false");
+    btn.textContent = playlistEditing ? "完成" : "编辑";
+  }
   els.playlist?.classList.toggle("is-editing", playlistEditing);
+  if (delBtn) {
+    const n = playlistSelectedIds.size;
+    delBtn.hidden = !(playlistEditing && n > 0);
+    delBtn.textContent = n > 1 ? `删除(${n})` : "删除";
+  }
+}
+
+function prunePlaylistSelection() {
+  const valid = new Set(readUserPlaylists().map((p) => p.id));
+  playlistSelectedIds = new Set(
+    [...playlistSelectedIds].filter((id) => valid.has(id))
+  );
 }
 
 function renderList() {
+  prunePlaylistSelection();
   const cloud = librarySongs().filter((s) => s.cloud);
   const local = librarySongs().filter((s) => s.local && !s.cloud);
   const likes = likedSongsInOrder();
@@ -4424,12 +4445,14 @@ function renderPlaylistDetail() {
   const countEl = document.getElementById("playlistDetailCount");
   const coverEl = document.getElementById("playlistDetailCover");
   const coverBtn = document.getElementById("playlistCoverBtn");
+  const renameBtn = document.getElementById("playlistRenameBtn");
   const listEl = document.getElementById("playlistDetailList");
   if (titleEl) titleEl.textContent = bundle.title;
   if (nameEl) nameEl.textContent = bundle.title;
   if (countEl) countEl.textContent = `${bundle.songs.length} 首`;
   if (coverEl) coverEl.src = bundle.cover || "./logo.jpg";
   if (coverBtn) coverBtn.hidden = !bundle.coverEditable;
+  if (renameBtn) renameBtn.hidden = bundle.kind !== "custom";
   if (listEl) {
     if (!bundle.songs.length) {
       listEl.innerHTML = '<li class="playlist-empty">这里还没有歌</li>';
@@ -6703,49 +6726,25 @@ async function handleSongListClick(e) {
 }
 
 els.playlist.addEventListener("click", async (e) => {
-  const plBtn = e.target.closest("[data-pl-act]");
-  if (plBtn) {
+  const checkBtn = e.target.closest("[data-pl-check]");
+  if (checkBtn) {
     e.stopPropagation();
-    const act = plBtn.dataset.plAct;
-    const listId = plBtn.dataset.listId || "";
-    const lists = readUserPlaylists();
-    const target = lists.find((p) => p.id === listId);
-    if (!target) return;
-    if (act === "rename") {
-      const next = window.prompt("重命名歌单", target.name);
-      if (next == null) return;
-      const name = String(next).trim().slice(0, 24);
-      if (!name) {
-        setHint("歌单名不能为空", true);
-        return;
-      }
-      target.name = name;
-      writeUserPlaylists(lists);
-      renderList();
-      setHint(`歌单已改为「${name}」`);
-    }
-    if (act === "delete") {
-      const ok = await openConfirm(
-        `删除歌单「${target.name}」？里面的歌曲仍保留在云端或本地。`,
-        "删除歌单？"
-      );
-      if (!ok) return;
-      writeUserPlaylists(lists.filter((p) => p.id !== listId));
-      if (
-        playlistDetailState?.kind === "custom" &&
-        playlistDetailState.listId === listId
-      ) {
-        closePlaylistDetail();
-      }
-      renderList();
-      setHint("歌单已删除");
-    }
+    const listId = checkBtn.dataset.plCheck || "";
+    if (!listId) return;
+    if (playlistSelectedIds.has(listId)) playlistSelectedIds.delete(listId);
+    else playlistSelectedIds.add(listId);
+    const on = playlistSelectedIds.has(listId);
+    checkBtn.classList.toggle("is-on", on);
+    checkBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    checkBtn.closest(".playlist-block")?.classList.toggle("is-checked", on);
+    syncPlaylistEditBtn();
     return;
   }
 
   const openBtn = e.target.closest("[data-open-kind]");
   if (openBtn) {
     e.stopPropagation();
+    if (playlistEditing) return;
     openPlaylistDetail({
       kind: openBtn.dataset.openKind || "",
       listId: openBtn.dataset.openId || ""
@@ -6774,8 +6773,39 @@ els.playlistPickList?.addEventListener("click", (e) => {
 document.getElementById("playlistEditBtn")?.addEventListener("click", (e) => {
   e.stopPropagation();
   playlistEditing = !playlistEditing;
+  if (!playlistEditing) playlistSelectedIds.clear();
   syncPlaylistEditBtn();
   renderList();
+});
+
+document.getElementById("playlistDeleteBtn")?.addEventListener("click", async (e) => {
+  e.stopPropagation();
+  prunePlaylistSelection();
+  const ids = [...playlistSelectedIds];
+  if (!ids.length) return;
+  const lists = readUserPlaylists();
+  const names = lists
+    .filter((p) => ids.includes(p.id))
+    .map((p) => p.name);
+  const ok = await openConfirm(
+    ids.length === 1
+      ? `删除歌单「${names[0] || ""}」？里面的歌曲仍保留在云端或本地。`
+      : `删除选中的 ${ids.length} 个歌单？里面的歌曲仍保留在云端或本地。`,
+    "删除歌单？"
+  );
+  if (!ok) return;
+  const remove = new Set(ids);
+  writeUserPlaylists(lists.filter((p) => !remove.has(p.id)));
+  if (
+    playlistDetailState?.kind === "custom" &&
+    remove.has(playlistDetailState.listId)
+  ) {
+    closePlaylistDetail();
+  }
+  playlistSelectedIds.clear();
+  if (!readUserPlaylists().length) playlistEditing = false;
+  renderList();
+  setHint(ids.length === 1 ? "歌单已删除" : `已删除 ${ids.length} 个歌单`);
 });
 
 els.newPlaylistBtn?.addEventListener("click", (e) => {
@@ -6796,6 +6826,7 @@ els.newPlaylistBtn?.addEventListener("click", (e) => {
   });
   writeUserPlaylists(lists);
   playlistEditing = false;
+  playlistSelectedIds.clear();
   renderList();
   setHint(`已新建歌单「${name}」`);
 });
@@ -6806,6 +6837,26 @@ document.getElementById("playlistDetailBack")?.addEventListener("click", () => {
 
 document.getElementById("playlistPlayAllBtn")?.addEventListener("click", () => {
   playPlaylistDetailAll().catch(() => {});
+});
+
+document.getElementById("playlistRenameBtn")?.addEventListener("click", () => {
+  if (playlistDetailState?.kind !== "custom" || !playlistDetailState.listId) {
+    return;
+  }
+  const lists = readUserPlaylists();
+  const target = lists.find((p) => p.id === playlistDetailState.listId);
+  if (!target) return;
+  const next = window.prompt("重命名歌单", target.name);
+  if (next == null) return;
+  const name = String(next).trim().slice(0, 24);
+  if (!name) {
+    setHint("歌单名不能为空", true);
+    return;
+  }
+  target.name = name;
+  writeUserPlaylists(lists);
+  renderList();
+  setHint(`歌单已改为「${name}」`);
 });
 
 document.getElementById("playlistCoverBtn")?.addEventListener("click", () => {

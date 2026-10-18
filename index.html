@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03pldetail1" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03pldetail2" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -146,6 +146,7 @@
             <span>歌单</span>
             <span class="section-head-actions">
               <button type="button" class="playlist-edit-btn" id="playlistEditBtn" aria-pressed="false">编辑</button>
+              <button type="button" class="playlist-delete-btn" id="playlistDeleteBtn" hidden>删除</button>
               <button type="button" class="playlist-new-btn" id="newPlaylistBtn">新建歌单</button>
               <span class="count" id="songCount">0 首</span>
             </span>
@@ -478,6 +479,7 @@
           <p class="playlist-detail-count" id="playlistDetailCount">0 首</p>
           <div class="playlist-detail-actions">
             <button type="button" class="playlist-play-all" id="playlistPlayAllBtn">播放全部</button>
+            <button type="button" class="playlist-rename-btn" id="playlistRenameBtn" hidden>重命名</button>
           </div>
         </div>
       </div>
@@ -1022,6 +1024,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03shell3"></script>
-  <script src="app.js?v=2.0.03pldetail1"></script>
+  <script src="app.js?v=2.0.03pldetail2"></script>
 </body>
 </html>
