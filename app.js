@@ -411,7 +411,7 @@ function resetAccountScopedUi() {
   if (els.likesCountLabel) els.likesCountLabel.textContent = "0 首";
   if (els.likesPanelCount) els.likesPanelCount.textContent = "0 首";
   try {
-    applyShellBackground();
+    hydrateShellBackground();
   } catch {
     /* 背景图函数尚未就绪时忽略 */
   }
@@ -9405,11 +9405,86 @@ document.addEventListener("keydown", (e) => {
 loadBgLightness();
 loadSwitchAnim();
 loadUiStyle();
-applyShellBackground();
+hydrateShellBackground();
 
 const SHELL_BG_KEY = "ludong-shell-bg-v1";
-const SHELL_BG_MAX = 6;
+const SHELL_BG_MAX = 12;
+const shellBgUrls = new Map();
 let shellBgTimer = 0;
+
+function setShellBgStatus(text, isError = false) {
+  const el = document.getElementById("shellBgStatus");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("is-error", !!isError);
+  el.classList.toggle("is-ok", !!text && !isError);
+}
+
+function openShellBgDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("ludong-shell-bg", 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains("images")) {
+        req.result.createObjectStore("images");
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error("打不开背景库"));
+  });
+}
+
+function shellBlobKey(id) {
+  return `${currentLibraryUserId() || "__guest__"}:${id}`;
+}
+
+function shellDbPut(id, blob) {
+  const key = shellBlobKey(id);
+  return openShellBgDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction("images", "readwrite");
+        tx.objectStore("images").put(blob, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error("背景没能存进库"));
+      })
+  );
+}
+
+function shellDbGet(id) {
+  const key = shellBlobKey(id);
+  return openShellBgDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction("images", "readonly");
+        const req = tx.objectStore("images").get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      })
+  );
+}
+
+function shellDbDelete(id) {
+  const key = shellBlobKey(id);
+  return openShellBgDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction("images", "readwrite");
+        tx.objectStore("images").delete(key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      })
+  );
+}
+
+function rememberShellUrl(id, blob) {
+  const prev = shellBgUrls.get(id);
+  if (prev) URL.revokeObjectURL(prev);
+  shellBgUrls.set(id, URL.createObjectURL(blob));
+}
+
+function dataUrlToBlob(dataUrl) {
+  return fetch(dataUrl).then((res) => res.blob());
+}
 
 function shellLevelFromSaved(data) {
   const n = Number(data?.level);
@@ -9420,30 +9495,23 @@ function shellLevelFromSaved(data) {
 }
 
 function emptyShellBackground() {
-  return { items: [], activeId: "", level: 55, rotate: "off", intervalMin: 5 };
+  return { ids: [], activeId: "", level: 55, rotate: "off", intervalMin: 5 };
 }
 
 function normalizeShellBackground(data) {
-  let items = (Array.isArray(data?.items) ? data.items : [])
-    .map((item) => ({
-      id: String(item?.id || ""),
-      image: String(item?.image || "")
-    }))
-    .filter((item) => item.id && item.image.startsWith("data:image/"));
-  const legacy = String(data?.image || "");
-  if (!items.length && legacy.startsWith("data:image/")) {
-    items = [{ id: "bg-legacy", image: legacy }];
-  }
-  items = items.slice(0, SHELL_BG_MAX);
-  const activeId = items.some((item) => item.id === data?.activeId)
-    ? data.activeId
-    : items[0]?.id || "";
+  const fromItems = (Array.isArray(data?.items) ? data.items : [])
+    .map((item) => String(item?.id || ""))
+    .filter(Boolean);
+  const fromIds = (Array.isArray(data?.ids) ? data.ids : []).map((id) => String(id || "")).filter(Boolean);
+  let ids = [...new Set(fromIds.length ? fromIds : fromItems)].slice(0, SHELL_BG_MAX);
+  if (!ids.length && String(data?.image || "").startsWith("data:image/")) ids = ["bg-legacy"];
+  const activeId = ids.includes(data?.activeId) ? data.activeId : ids[0] || "";
   const rotate = ["off", "order", "random"].includes(data?.rotate) ? data.rotate : "off";
   let intervalMin = Number(data?.intervalMin);
   if (!Number.isFinite(intervalMin)) intervalMin = 5;
   intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
   return {
-    items,
+    ids,
     activeId,
     level: shellLevelFromSaved(data || {}),
     rotate,
@@ -9461,19 +9529,82 @@ function readShellBackground() {
 }
 
 function shellImageOf(state) {
-  return state.items.find((item) => item.id === state.activeId)?.image || "";
+  return shellBgUrls.get(state.activeId) || "";
 }
 
 function writeShellBackground(next) {
   const key = scopedStorageKey(SHELL_BG_KEY);
   const state = normalizeShellBackground(next);
-  try {
-    if (!state.items.length) localStorage.removeItem(key);
-    else localStorage.setItem(key, JSON.stringify(state));
-  } catch {
-    throw new Error("图片太多或太大，本机存不下");
-  }
+  localStorage.setItem(key, JSON.stringify(state));
+  if (!state.ids.length) localStorage.removeItem(key);
   return state;
+}
+
+async function migrateShellImagesToDb(raw) {
+  const jobs = [];
+  if (Array.isArray(raw?.items)) {
+    raw.items.forEach((item) => {
+      const image = String(item?.image || "");
+      const id = String(item?.id || "");
+      if (id && image.startsWith("data:image/")) jobs.push({ id, image });
+    });
+  }
+  const legacy = String(raw?.image || "");
+  if (!jobs.length && legacy.startsWith("data:image/")) {
+    jobs.push({ id: "bg-legacy", image: legacy });
+  }
+  for (const job of jobs) {
+    const blob = await dataUrlToBlob(job.image);
+    await shellDbPut(job.id, blob);
+  }
+  if (jobs.length) {
+    const state = normalizeShellBackground(raw);
+    localStorage.setItem(
+      scopedStorageKey(SHELL_BG_KEY),
+      JSON.stringify({
+        ids: state.ids,
+        activeId: state.activeId,
+        level: state.level,
+        rotate: state.rotate,
+        intervalMin: state.intervalMin
+      })
+    );
+  }
+}
+
+async function hydrateShellBackground() {
+  try {
+    const key = scopedStorageKey(SHELL_BG_KEY);
+    const raw = JSON.parse(localStorage.getItem(key) || "null");
+    const hasInline =
+      (Array.isArray(raw?.items) && raw.items.some((item) => String(item?.image || "").startsWith("data:"))) ||
+      String(raw?.image || "").startsWith("data:image/");
+    if (hasInline) await migrateShellImagesToDb(raw);
+  } catch {
+    /* 旧数据迁不走就继续用库里已有的 */
+  }
+  for (const url of shellBgUrls.values()) URL.revokeObjectURL(url);
+  shellBgUrls.clear();
+  const state = readShellBackground();
+  const kept = [];
+  for (const id of state.ids) {
+    try {
+      const blob = await shellDbGet(id);
+      if (!blob) continue;
+      rememberShellUrl(id, blob);
+      kept.push(id);
+    } catch {
+      /* 单张读失败就跳过 */
+    }
+  }
+  if (kept.length !== state.ids.length) {
+    writeShellBackground({
+      ...state,
+      ids: kept,
+      activeId: kept.includes(state.activeId) ? state.activeId : kept[0] || ""
+    });
+  }
+  applyShellBackground();
 }
 
 function applyShellLevel(level) {
@@ -9494,16 +9625,20 @@ function applyShellLevel(level) {
 
 function renderShellBackgroundPicker(state) {
   const grid = document.getElementById("shellBgGrid");
+  const empty = document.getElementById("shellBgEmpty");
+  if (empty) empty.hidden = state.ids.length > 0;
   if (grid) {
-    grid.innerHTML = state.items
-      .map(
-        (item) => `<button type="button" class="shell-bg-thumb${
-          item.id === state.activeId ? " is-on" : ""
-        }" data-shell-id="${escapeHtml(item.id)}" title="设为当前背景">
-          <img src="${item.image}" alt="" />
-          <span class="shell-bg-thumb-del" data-shell-del="${escapeHtml(item.id)}" title="删除">×</span>
-        </button>`
-      )
+    grid.innerHTML = state.ids
+      .map((id) => {
+        const url = shellBgUrls.get(id);
+        if (!url) return "";
+        return `<button type="button" class="wallpaper-library-item${
+          id === state.activeId ? " is-selected" : ""
+        }" data-shell-id="${escapeHtml(id)}" title="设为当前背景">
+          <img src="${url}" alt="" />
+          <span class="wallpaper-library-del" data-shell-del="${escapeHtml(id)}" title="删除">×</span>
+        </button>`;
+      })
       .join("");
   }
   document.querySelectorAll("#shellBgRotateRow [data-shell-rotate]").forEach((btn) => {
@@ -9511,7 +9646,7 @@ function renderShellBackgroundPicker(state) {
   });
   const wrap = document.getElementById("shellBgIntervalWrap");
   const interval = document.getElementById("shellBgInterval");
-  if (wrap) wrap.hidden = state.rotate === "off" || state.items.length < 2;
+  if (wrap) wrap.hidden = state.rotate === "off" || state.ids.length < 2;
   if (interval && document.activeElement !== interval) {
     interval.value = String(state.intervalMin);
   }
@@ -9520,7 +9655,7 @@ function renderShellBackgroundPicker(state) {
 function scheduleShellBackgroundRotate(state = readShellBackground()) {
   clearInterval(shellBgTimer);
   shellBgTimer = 0;
-  if (state.rotate === "off" || state.items.length < 2) return;
+  if (state.rotate === "off" || state.ids.length < 2) return;
   const ms = state.intervalMin * 60 * 1000;
   shellBgTimer = setInterval(() => {
     advanceShellBackground();
@@ -9529,14 +9664,14 @@ function scheduleShellBackgroundRotate(state = readShellBackground()) {
 
 function advanceShellBackground() {
   const state = readShellBackground();
-  if (state.items.length < 2 || state.rotate === "off") return;
-  const index = state.items.findIndex((item) => item.id === state.activeId);
-  let nextId = state.items[0].id;
+  if (state.ids.length < 2 || state.rotate === "off") return;
+  const index = state.ids.indexOf(state.activeId);
+  let nextId = state.ids[0];
   if (state.rotate === "random") {
-    const pool = state.items.filter((item) => item.id !== state.activeId);
-    nextId = pool[Math.floor(Math.random() * pool.length)]?.id || nextId;
+    const pool = state.ids.filter((id) => id !== state.activeId);
+    nextId = pool[Math.floor(Math.random() * pool.length)] || nextId;
   } else {
-    nextId = state.items[(Math.max(index, 0) + 1) % state.items.length].id;
+    nextId = state.ids[(Math.max(index, 0) + 1) % state.ids.length];
   }
   if (nextId === state.activeId) return;
   writeShellBackground({ ...state, activeId: nextId });
@@ -9571,7 +9706,8 @@ function applyShellBackground() {
 
 function compressShellBackgroundFile(file) {
   return new Promise((resolve, reject) => {
-    if (!file || !String(file.type || "").startsWith("image/")) {
+    const nameOk = /\.(jpe?g|png|webp|gif|bmp)$/i.test(file?.name || "");
+    if (!file || (!String(file.type || "").startsWith("image/") && !nameOk)) {
       reject(new Error("请选择图片文件"));
       return;
     }
@@ -9582,28 +9718,25 @@ function compressShellBackgroundFile(file) {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
+      const finish = (blob) => {
+        URL.revokeObjectURL(url);
+        if (!blob) {
+          reject(new Error("无法压缩这张图"));
+          return;
+        }
+        resolve(blob);
+      };
       try {
-        const maxEdge = 1600;
+        const maxEdge = 1280;
         const scale = Math.min(1, maxEdge / Math.max(img.width, img.height, 1));
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(img.width * scale));
         canvas.height = Math.max(1, Math.round(img.height * scale));
         canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        let quality = 0.78;
-        let out = canvas.toDataURL("image/jpeg", quality);
-        while (out.length > 420000 && quality > 0.42) {
-          quality -= 0.08;
-          out = canvas.toDataURL("image/jpeg", quality);
-        }
-        if (out.length > 900000) {
-          reject(new Error("压缩后仍然太大，请换一张"));
-          return;
-        }
-        resolve(out);
+        canvas.toBlob((blob) => finish(blob), "image/jpeg", 0.72);
       } catch (err) {
-        reject(err);
-      } finally {
         URL.revokeObjectURL(url);
+        reject(err);
       }
     };
     img.onerror = () => {
@@ -9624,72 +9757,68 @@ document.getElementById("shellBgFile")?.addEventListener("change", async (e) => 
   if (input) input.value = "";
   if (!files.length) return;
   const prev = readShellBackground();
-  const items = prev.items.slice();
-  let added = 0;
+  const ids = prev.ids.slice();
   let activeId = prev.activeId;
+  let added = 0;
+  setShellBgStatus("正在加入背景库…");
   try {
     for (const file of files) {
-      if (items.length >= SHELL_BG_MAX) break;
-      const image = await compressShellBackgroundFile(file);
+      if (ids.length >= SHELL_BG_MAX) break;
+      const blob = await compressShellBackgroundFile(file);
       const id = `bg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-      items.push({ id, image });
+      await shellDbPut(id, blob);
+      rememberShellUrl(id, blob);
+      ids.push(id);
       if (!activeId) activeId = id;
       added += 1;
     }
     if (!added) {
-      setHint(`最多保存 ${SHELL_BG_MAX} 张背景`, true);
+      setShellBgStatus(`背景库最多 ${SHELL_BG_MAX} 张`, true);
       return;
     }
-    writeShellBackground({ ...prev, items, activeId });
+    writeShellBackground({ ...prev, ids, activeId });
     applyShellBackground();
     const skipped = files.length - added;
-    setHint(
-      skipped > 0
-        ? `已加入 ${added} 张，最多 ${SHELL_BG_MAX} 张`
-        : `已加入 ${added} 张背景`
+    setShellBgStatus(
+      skipped > 0 ? `已加入 ${added} 张，库里最多 ${SHELL_BG_MAX} 张` : `已加入背景库 ${added} 张`
     );
   } catch (err) {
     if (added) {
-      try {
-        writeShellBackground({ ...prev, items, activeId });
-        applyShellBackground();
-      } catch {
-        /* ignore */
-      }
+      writeShellBackground({ ...prev, ids, activeId });
+      applyShellBackground();
     }
-    setHint(err?.message || "背景上传失败", true);
+    setShellBgStatus(err?.message || "背景上传失败", true);
   }
 });
 
-document.getElementById("shellBgGrid")?.addEventListener("click", (e) => {
+document.getElementById("shellBgGrid")?.addEventListener("click", async (e) => {
   const del = e.target.closest?.("[data-shell-del]");
   const state = readShellBackground();
   if (del) {
     e.stopPropagation();
     const id = del.dataset.shellDel || "";
-    const items = state.items.filter((item) => item.id !== id);
-    const activeId = state.activeId === id ? items[0]?.id || "" : state.activeId;
     try {
-      writeShellBackground({ ...state, items, activeId });
-    } catch (err) {
-      setHint(err?.message || "删除失败", true);
-      return;
+      await shellDbDelete(id);
+    } catch {
+      /* 库里没有也继续从列表去掉 */
     }
+    const url = shellBgUrls.get(id);
+    if (url) URL.revokeObjectURL(url);
+    shellBgUrls.delete(id);
+    const ids = state.ids.filter((item) => item !== id);
+    const activeId = state.activeId === id ? ids[0] || "" : state.activeId;
+    writeShellBackground({ ...state, ids, activeId });
     applyShellBackground();
-    setHint(items.length ? "已删除这张背景" : "已恢复默认背景");
+    setShellBgStatus(ids.length ? "已从背景库删除" : "背景库已清空");
     return;
   }
   const thumb = e.target.closest?.("[data-shell-id]");
   if (!thumb) return;
   const activeId = thumb.dataset.shellId || "";
   if (!activeId || activeId === state.activeId) return;
-  try {
-    writeShellBackground({ ...state, activeId });
-  } catch (err) {
-    setHint(err?.message || "切换失败", true);
-    return;
-  }
+  writeShellBackground({ ...state, activeId });
   applyShellBackground();
+  setShellBgStatus("已换成这张背景");
 });
 
 document.getElementById("shellBgRotateRow")?.addEventListener("click", (e) => {
@@ -9697,16 +9826,11 @@ document.getElementById("shellBgRotateRow")?.addEventListener("click", (e) => {
   if (!btn) return;
   const rotate = btn.dataset.shellRotate || "off";
   const state = readShellBackground();
-  if (rotate !== "off" && state.items.length < 2) {
-    setHint("至少上传两张才能自动切换", true);
+  if (rotate !== "off" && state.ids.length < 2) {
+    setShellBgStatus("背景库至少两张才能自动切换", true);
     return;
   }
-  try {
-    writeShellBackground({ ...state, rotate });
-  } catch (err) {
-    setHint(err?.message || "保存失败", true);
-    return;
-  }
+  writeShellBackground({ ...state, rotate });
   applyShellBackground();
 });
 
@@ -9716,23 +9840,25 @@ document.getElementById("shellBgInterval")?.addEventListener("change", (e) => {
   intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
   if (e.target) e.target.value = String(intervalMin);
   const state = readShellBackground();
-  try {
-    writeShellBackground({ ...state, intervalMin });
-  } catch (err) {
-    setHint(err?.message || "保存失败", true);
-    return;
-  }
+  writeShellBackground({ ...state, intervalMin });
   scheduleShellBackgroundRotate();
 });
 
-document.getElementById("shellBgClearBtn")?.addEventListener("click", () => {
-  try {
-    writeShellBackground(null);
-  } catch {
-    /* ignore */
+document.getElementById("shellBgClearBtn")?.addEventListener("click", async () => {
+  const state = readShellBackground();
+  for (const id of state.ids) {
+    try {
+      await shellDbDelete(id);
+    } catch {
+      /* ignore */
+    }
+    const url = shellBgUrls.get(id);
+    if (url) URL.revokeObjectURL(url);
+    shellBgUrls.delete(id);
   }
+  writeShellBackground(null);
   applyShellBackground();
-  setHint("已恢复默认背景");
+  setShellBgStatus("已恢复默认背景");
 });
 
 document.getElementById("shellBgLevel")?.addEventListener("input", (e) => {
@@ -9746,7 +9872,7 @@ document.getElementById("shellBgLevel")?.addEventListener("change", (e) => {
   const level = Number(e.target?.value);
   const prev = readShellBackground();
   if (!shellImageOf(prev)) {
-    setHint("请先上传一张背景图", true);
+    setShellBgStatus("请先上传到背景库", true);
     if (e.target) e.target.value = "55";
     return;
   }

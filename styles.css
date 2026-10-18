@@ -173,54 +173,8 @@ html[data-shell-bg="1"] .app > .now-card {
   cursor: pointer;
 }
 
-.shell-bg-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 12px;
-  min-height: 0;
-}
-
-.shell-bg-grid:empty {
-  display: none;
-}
-
-.shell-bg-thumb {
-  position: relative;
-  width: 96px;
-  height: 60px;
-  padding: 0;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 2px solid transparent;
-  background: var(--bg);
-  cursor: pointer;
-}
-
-.shell-bg-thumb.is-on {
-  border-color: var(--accent);
-}
-
-.shell-bg-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-}
-
-.shell-bg-thumb-del {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: rgba(12, 14, 18, 0.62);
-  color: #fff;
-  font-size: 0.7rem;
-  line-height: 16px;
-  text-align: center;
+.shell-bg-library .wallpaper-library-grid {
+  max-height: 220px;
 }
 
 .shell-bg-interval {
