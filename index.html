@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03sync3" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03menu1" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -73,190 +73,9 @@
       <button type="button" class="settings-btn" id="wishOpenBtn" aria-label="心愿单" title="心愿单">
         心愿单
       </button>
-      <button type="button" class="settings-btn" id="settingsBtn" aria-label="设置" aria-expanded="false" title="设置">
-        设置
+      <button type="button" class="settings-btn" id="settingsBtn" aria-label="我的" aria-expanded="false" title="我的">
+        我的
       </button>
-      <div class="settings-panel" id="settingsPanel" hidden>
-        <div class="settings-title">设置</div>
-        <div class="settings-row">
-          <span class="settings-label">界面风格</span>
-          <span class="settings-hint">整体主题</span>
-        </div>
-        <div class="bg-hue-row" id="uiStyleRow" role="group" aria-label="界面风格">
-          <button type="button" class="bg-hue is-active" data-ui-style="default">默认</button>
-          <button type="button" class="bg-hue" data-ui-style="manga">漫画</button>
-        </div>
-
-        <div class="settings-divider"></div>
-        <div class="settings-row">
-          <span class="settings-label">背景色</span>
-          <span class="settings-hint">只换主界面</span>
-        </div>
-        <div class="bg-hue-row" id="bgHueRow" role="group" aria-label="背景颜色">
-          <button type="button" class="bg-hue is-active" data-bg-preset="black" title="黑色">黑</button>
-          <button type="button" class="bg-hue" data-bg-preset="white" title="白色">白</button>
-          <button type="button" class="bg-hue" data-bg-preset="orange" title="橙色">橙</button>
-          <button type="button" class="bg-hue" data-bg-preset="pink" title="粉色">粉</button>
-          <button type="button" class="bg-hue" data-bg-preset="blue" title="蓝色">蓝</button>
-          <button type="button" class="bg-hue" data-bg-preset="green" title="绿色">绿</button>
-          <button type="button" class="bg-hue" data-bg-preset="purple" title="紫色">紫</button>
-        </div>
-        <div class="bg-preview" id="bgPreview" aria-hidden="true"></div>
-
-        <div class="settings-divider"></div>
-        <div class="settings-row">
-          <span class="settings-label">切歌动画</span>
-          <span class="settings-hint">只在换歌时播放</span>
-        </div>
-        <div class="bg-hue-row" id="switchAnimRow" role="group" aria-label="切歌动画">
-          <button type="button" class="bg-hue" data-switch-anim="off">关闭</button>
-          <button type="button" class="bg-hue is-active" data-switch-anim="flip">翻面</button>
-          <button type="button" class="bg-hue" data-switch-anim="fade">淡入</button>
-        </div>
-
-        <div class="settings-divider"></div>
-        <button
-          type="button"
-          class="settings-nav-btn"
-          id="seekEmojiOpenBtn"
-        >
-          <span class="settings-nav-main">
-            <span class="settings-label">进度条表情</span>
-            <span class="settings-hint" id="seekEmojiSummary">播放 / 暂停</span>
-          </span>
-          <span class="settings-nav-arrow" aria-hidden="true">›</span>
-        </button>
-
-        <div class="local-only">
-        <div class="settings-divider"></div>
-        <div class="settings-row">
-          <span class="settings-label">桌面壁纸</span>
-          <span class="settings-hint" id="wallpaperScreenHint">屏幕 —</span>
-        </div>
-        <p class="settings-note">上传到壁纸库后可点选，再设为桌面壁纸。会按屏幕尺寸裁切铺满；首次设置前备份原壁纸，可随时还原。</p>
-        <div class="wallpaper-library" id="wallpaperLibrary">
-          <p class="wallpaper-library-empty" id="wallpaperLibraryEmpty">还没有壁纸，点下方上传</p>
-          <div class="wallpaper-library-grid" id="wallpaperLibraryGrid"></div>
-        </div>
-        <div class="import-actions">
-          <button type="button" class="import-btn" id="wallpaperPickBtn">上传壁纸</button>
-          <button type="button" class="import-btn" id="wallpaperApplyBtn">设为桌面壁纸</button>
-          <button type="button" class="import-btn import-btn-ghost" id="wallpaperRestoreBtn">还原原壁纸</button>
-        </div>
-        <input type="file" id="wallpaperFileInput" accept=".jpg,.jpeg,.png,.webp,.bmp,image/*" hidden />
-        <p class="import-status" id="wallpaperStatus" aria-live="polite"></p>
-        </div>
-
-        <div class="settings-divider"></div>
-        <div class="settings-row">
-          <span class="settings-label">上传到云端共同曲库</span>
-          <span class="settings-link-group">
-            <a
-              class="settings-link"
-              href="./import-help.html"
-              target="_blank"
-              rel="noopener"
-            >导入说明</a>
-            <a
-              class="settings-link"
-              href="https://www.bilibili.com/video/BV1x1b76qEL9/"
-              target="_blank"
-              rel="noopener"
-            >B站提取教程</a>
-          </span>
-        </div>
-        <p class="settings-note">登录后可上传 MP3，并可同选 LRC/SRT、封面、MP4 视频（建议同名）。音频/视频/歌词/弹幕等可先按 <a class="settings-inline-link" href="https://www.bilibili.com/video/BV1x1b76qEL9/" target="_blank" rel="noopener">此 B 站教程</a> 从视频中提取。所有人都能听、看 MV、评论。视频建议 &lt; 180MB。请勿上传无版权的商业音乐。</p>
-        <div class="import-actions">
-          <button type="button" class="import-btn" id="cloudUploadBtn">上传到共同曲库</button>
-        </div>
-        <input
-          type="file"
-          id="cloudUploadInput"
-          accept=".mp3,.lrc,.srt,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,audio/mpeg,image/*,video/*"
-          multiple
-          hidden
-        />
-        <p class="import-status" id="cloudUploadStatus" aria-live="polite"></p>
-
-        <div class="local-only">
-        <div class="settings-divider"></div>
-        <div class="settings-row">
-          <span class="settings-label">导入到我的私人空间</span>
-          <span class="settings-link-group">
-            <a
-              class="settings-link"
-              href="./import-help.html"
-              target="_blank"
-              rel="noopener"
-            >导入说明</a>
-            <a
-              class="settings-link"
-              href="https://www.bilibili.com/video/BV1x1b76qEL9/"
-              target="_blank"
-              rel="noopener"
-            >B站提取教程</a>
-          </span>
-        </div>
-        <p class="settings-note">私人歌只存本机当前账号。需要从视频提取音频/视频/歌词/弹幕时，请先看 <a class="settings-inline-link" href="https://www.bilibili.com/video/BV1x1b76qEL9/" target="_blank" rel="noopener">B 站提取教程</a>。可分开上传：同一首歌请用同一绑定名——推荐「歌曲-歌名」（如 歌曲-晴天.mp3 / 歌曲-晴天.lrc / 歌曲-晴天.jpg / 歌曲-晴天.mp4），或统一「歌名 - 歌手」。漏传的文件之后按同名会自动进对应歌曲文件夹。也可一次多选；视频还可命名为 mv / video（需与 MP3 同批或已有该歌）。</p>
-        <div class="import-actions">
-          <button type="button" class="import-btn" id="importMp3Btn">导入 MP3</button>
-          <button type="button" class="import-btn" id="importLrcBtn">导入歌词</button>
-          <button type="button" class="import-btn" id="importVideoBtn">导入视频</button>
-          <button type="button" class="import-btn import-btn-ghost" id="importAnyBtn">一起选</button>
-        </div>
-        <input type="file" id="importMp3Input" accept=".mp3,audio/mpeg" multiple hidden />
-        <input type="file" id="importLrcInput" accept=".lrc,.srt,text/plain" multiple hidden />
-        <input
-          type="file"
-          id="importVideoInput"
-          accept=".mp4,.webm,.mkv,.mov,.m4v,.acc,video/*"
-          multiple
-          hidden
-        />
-        <input
-          type="file"
-          id="importAnyInput"
-          accept=".mp3,.lrc,.srt,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mkv,.mov,.m4v,.acc,audio/mpeg,image/*,video/*"
-          multiple
-          hidden
-        />
-        <p class="import-status" id="importStatus" aria-live="polite"></p>
-        </div>
-
-        <div class="settings-divider"></div>
-        <button
-          type="button"
-          class="settings-nav-btn"
-          id="profileOpenBtn"
-          onclick="window.__ludongOpenProfile&&window.__ludongOpenProfile(event)"
-        >
-          <span class="settings-nav-main">
-            <span class="settings-label">个人信息</span>
-            <span class="settings-hint" id="accountUserNo">用户号 —</span>
-          </span>
-          <span class="settings-nav-arrow" aria-hidden="true">›</span>
-        </button>
-
-        <div class="local-only">
-        <div class="settings-divider"></div>
-        <div class="settings-row">
-          <span class="settings-label">软件更新</span>
-          <span class="settings-hint" id="appVersionLabel">版本 —</span>
-        </div>
-        <p class="settings-note">启动时会自动检查。有新版本会提示；点立即更新即可覆盖安装，私人歌曲与账号保留。</p>
-        <div class="import-actions">
-          <button type="button" class="import-btn" id="checkUpdateBtn">检查更新</button>
-        </div>
-        <p class="import-status" id="updateStatus" aria-live="polite"></p>
-        </div>
-
-        <div class="settings-divider"></div>
-        <div class="settings-row">
-          <span class="settings-label">账号</span>
-          <span class="settings-hint" id="accountNameLabel">未登录</span>
-        </div>
-        <button type="button" class="import-btn import-btn-ghost" id="logoutBtn">退出登录</button>
-      </div>
     </div>
 
       <header class="brand-block">
@@ -620,6 +439,209 @@
       <p class="rank-chart-note" id="rankChartNote">按播放次数</p>
       <ol class="rank-chart-list" id="rankChartList"></ol>
     </section>
+  </div>
+
+  <!-- 我的：左侧抽屉，设置在底部进入 -->
+  <div class="menu-layer" id="menuLayer" hidden aria-hidden="true">
+    <div class="menu-backdrop" id="menuBackdrop"></div>
+    <aside class="menu-drawer" id="menuDrawer" role="dialog" aria-modal="true" aria-labelledby="menuName">
+      <div class="menu-home" id="menuHome">
+        <button type="button" class="menu-user" id="menuUserBtn" aria-label="打开个人信息">
+          <img class="menu-avatar" id="menuAvatar" src="./logo.jpg" alt="" />
+          <span class="menu-user-meta">
+            <span class="menu-name" id="menuName">未登录</span>
+            <span class="menu-sub" id="menuUserNo">用户号 —</span>
+          </span>
+          <span class="menu-user-arrow" aria-hidden="true">›</span>
+        </button>
+        <nav class="menu-list" aria-label="我的功能">
+          <button type="button" class="menu-item" data-menu-act="profile">
+            <span class="menu-item-ico" aria-hidden="true">◎</span>
+            <span class="menu-item-text">
+              <span class="menu-item-title">我的信息</span>
+              <span class="menu-item-sub" id="accountUserNo">头像、昵称与密码</span>
+            </span>
+            <span class="menu-item-arrow" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="menu-item" data-menu-act="wish">
+            <span class="menu-item-ico" aria-hidden="true">♡</span>
+            <span class="menu-item-text">
+              <span class="menu-item-title">心愿单</span>
+              <span class="menu-item-sub">想听与已完成</span>
+            </span>
+            <span class="menu-item-arrow" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="menu-item" data-menu-act="chat">
+            <span class="menu-item-ico" aria-hidden="true">✉</span>
+            <span class="menu-item-text">
+              <span class="menu-item-title">私聊</span>
+              <span class="menu-item-sub" id="menuChatSub">和好友聊天</span>
+            </span>
+            <span class="menu-item-badge" id="menuChatBadge" hidden>0</span>
+            <span class="menu-item-arrow" aria-hidden="true">›</span>
+          </button>
+        </nav>
+        <footer class="menu-footer">
+          <button type="button" class="menu-footer-btn" id="menuOpenSettingsBtn">
+            <span class="menu-footer-ico" aria-hidden="true">⚙</span>
+            <span>设置</span>
+          </button>
+          <span class="menu-footer-hint" id="accountNameLabel">未登录</span>
+        </footer>
+      </div>
+      <div class="menu-settings" id="settingsPanel" hidden>
+        <header class="menu-settings-bar">
+          <button type="button" class="likes-back" id="menuSettingsBackBtn" aria-label="返回">
+            <span class="likes-back-ico"></span>
+            返回
+          </button>
+          <h2 class="likes-panel-title">设置</h2>
+          <span class="profile-panel-spacer" aria-hidden="true"></span>
+        </header>
+        <div class="menu-settings-body">
+          <div class="settings-row">
+            <span class="settings-label">界面风格</span>
+            <span class="settings-hint">整体主题</span>
+          </div>
+          <div class="bg-hue-row" id="uiStyleRow" role="group" aria-label="界面风格">
+            <button type="button" class="bg-hue is-active" data-ui-style="default">默认</button>
+            <button type="button" class="bg-hue" data-ui-style="manga">漫画</button>
+          </div>
+
+          <div class="settings-divider"></div>
+          <div class="settings-row">
+            <span class="settings-label">背景色</span>
+            <span class="settings-hint">只换主界面</span>
+          </div>
+          <div class="bg-hue-row" id="bgHueRow" role="group" aria-label="背景颜色">
+            <button type="button" class="bg-hue is-active" data-bg-preset="black" title="黑色">黑</button>
+            <button type="button" class="bg-hue" data-bg-preset="white" title="白色">白</button>
+            <button type="button" class="bg-hue" data-bg-preset="orange" title="橙色">橙</button>
+            <button type="button" class="bg-hue" data-bg-preset="pink" title="粉色">粉</button>
+            <button type="button" class="bg-hue" data-bg-preset="blue" title="蓝色">蓝</button>
+            <button type="button" class="bg-hue" data-bg-preset="green" title="绿色">绿</button>
+            <button type="button" class="bg-hue" data-bg-preset="purple" title="紫色">紫</button>
+          </div>
+          <div class="bg-preview" id="bgPreview" aria-hidden="true"></div>
+
+          <div class="settings-divider"></div>
+          <div class="settings-row">
+            <span class="settings-label">切歌动画</span>
+            <span class="settings-hint">只在换歌时播放</span>
+          </div>
+          <div class="bg-hue-row" id="switchAnimRow" role="group" aria-label="切歌动画">
+            <button type="button" class="bg-hue" data-switch-anim="off">关闭</button>
+            <button type="button" class="bg-hue is-active" data-switch-anim="flip">翻面</button>
+            <button type="button" class="bg-hue" data-switch-anim="fade">淡入</button>
+          </div>
+
+          <div class="settings-divider"></div>
+          <button type="button" class="settings-nav-btn" id="seekEmojiOpenBtn">
+            <span class="settings-nav-main">
+              <span class="settings-label">进度条表情</span>
+              <span class="settings-hint" id="seekEmojiSummary">播放 / 暂停</span>
+            </span>
+            <span class="settings-nav-arrow" aria-hidden="true">›</span>
+          </button>
+
+          <div class="local-only">
+            <div class="settings-divider"></div>
+            <div class="settings-row">
+              <span class="settings-label">桌面壁纸</span>
+              <span class="settings-hint" id="wallpaperScreenHint">屏幕 —</span>
+            </div>
+            <p class="settings-note">上传到壁纸库后可点选，再设为桌面壁纸。会按屏幕尺寸裁切铺满；首次设置前备份原壁纸，可随时还原。</p>
+            <div class="wallpaper-library" id="wallpaperLibrary">
+              <p class="wallpaper-library-empty" id="wallpaperLibraryEmpty">还没有壁纸，点下方上传</p>
+              <div class="wallpaper-library-grid" id="wallpaperLibraryGrid"></div>
+            </div>
+            <div class="import-actions">
+              <button type="button" class="import-btn" id="wallpaperPickBtn">上传壁纸</button>
+              <button type="button" class="import-btn" id="wallpaperApplyBtn">设为桌面壁纸</button>
+              <button type="button" class="import-btn import-btn-ghost" id="wallpaperRestoreBtn">还原原壁纸</button>
+            </div>
+            <input type="file" id="wallpaperFileInput" accept=".jpg,.jpeg,.png,.webp,.bmp,image/*" hidden />
+            <p class="import-status" id="wallpaperStatus" aria-live="polite"></p>
+          </div>
+
+          <div class="settings-divider"></div>
+          <div class="settings-row">
+            <span class="settings-label">上传到云端共同曲库</span>
+            <span class="settings-link-group">
+              <a class="settings-link" href="./import-help.html" target="_blank" rel="noopener">导入说明</a>
+              <a class="settings-link" href="https://www.bilibili.com/video/BV1x1b76qEL9/" target="_blank" rel="noopener">B站提取教程</a>
+            </span>
+          </div>
+          <p class="settings-note">登录后可上传 MP3，并可同选 LRC/SRT、封面、MP4 视频（建议同名）。音频/视频/歌词/弹幕等可先按 <a class="settings-inline-link" href="https://www.bilibili.com/video/BV1x1b76qEL9/" target="_blank" rel="noopener">此 B 站教程</a> 从视频中提取。所有人都能听、看 MV、评论。视频建议 &lt; 180MB。请勿上传无版权的商业音乐。</p>
+          <div class="import-actions">
+            <button type="button" class="import-btn" id="cloudUploadBtn">上传到共同曲库</button>
+          </div>
+          <input
+            type="file"
+            id="cloudUploadInput"
+            accept=".mp3,.lrc,.srt,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,audio/mpeg,image/*,video/*"
+            multiple
+            hidden
+          />
+          <p class="import-status" id="cloudUploadStatus" aria-live="polite"></p>
+
+          <div class="local-only">
+            <div class="settings-divider"></div>
+            <div class="settings-row">
+              <span class="settings-label">导入到我的私人空间</span>
+              <span class="settings-link-group">
+                <a class="settings-link" href="./import-help.html" target="_blank" rel="noopener">导入说明</a>
+                <a class="settings-link" href="https://www.bilibili.com/video/BV1x1b76qEL9/" target="_blank" rel="noopener">B站提取教程</a>
+              </span>
+            </div>
+            <p class="settings-note">私人歌只存本机当前账号。需要从视频提取音频/视频/歌词/弹幕时，请先看 <a class="settings-inline-link" href="https://www.bilibili.com/video/BV1x1b76qEL9/" target="_blank" rel="noopener">B 站提取教程</a>。可分开上传：同一首歌请用同一绑定名——推荐「歌曲-歌名」（如 歌曲-晴天.mp3 / 歌曲-晴天.lrc / 歌曲-晴天.jpg / 歌曲-晴天.mp4），或统一「歌名 - 歌手」。漏传的文件之后按同名会自动进对应歌曲文件夹。也可一次多选；视频还可命名为 mv / video（需与 MP3 同批或已有该歌）。</p>
+            <div class="import-actions">
+              <button type="button" class="import-btn" id="importMp3Btn">导入 MP3</button>
+              <button type="button" class="import-btn" id="importLrcBtn">导入歌词</button>
+              <button type="button" class="import-btn" id="importVideoBtn">导入视频</button>
+              <button type="button" class="import-btn import-btn-ghost" id="importAnyBtn">一起选</button>
+            </div>
+            <input type="file" id="importMp3Input" accept=".mp3,audio/mpeg" multiple hidden />
+            <input type="file" id="importLrcInput" accept=".lrc,.srt,text/plain" multiple hidden />
+            <input
+              type="file"
+              id="importVideoInput"
+              accept=".mp4,.webm,.mkv,.mov,.m4v,.acc,video/*"
+              multiple
+              hidden
+            />
+            <input
+              type="file"
+              id="importAnyInput"
+              accept=".mp3,.lrc,.srt,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mkv,.mov,.m4v,.acc,audio/mpeg,image/*,video/*"
+              multiple
+              hidden
+            />
+            <p class="import-status" id="importStatus" aria-live="polite"></p>
+          </div>
+
+          <div class="local-only">
+            <div class="settings-divider"></div>
+            <div class="settings-row">
+              <span class="settings-label">软件更新</span>
+              <span class="settings-hint" id="appVersionLabel">版本 —</span>
+            </div>
+            <p class="settings-note">启动时会自动检查。有新版本会提示；点立即更新即可覆盖安装，私人歌曲与账号保留。</p>
+            <div class="import-actions">
+              <button type="button" class="import-btn" id="checkUpdateBtn">检查更新</button>
+            </div>
+            <p class="import-status" id="updateStatus" aria-live="polite"></p>
+          </div>
+
+          <div class="settings-divider"></div>
+          <div class="settings-row">
+            <span class="settings-label">账号</span>
+            <span class="settings-hint" id="menuAccountHint">本机与网站共用</span>
+          </div>
+          <button type="button" class="import-btn import-btn-ghost" id="logoutBtn">退出登录</button>
+        </div>
+      </div>
+    </aside>
   </div>
 
   <!-- 心愿单：想听 / 已完成 同页切换 -->
@@ -1011,7 +1033,7 @@
     };
   </script>
   <script src="cloud-config.js"></script>
-  <script src="cloud-comments.js?v=2.0.03sync3"></script>
-  <script src="app.js?v=2.0.03sync3"></script>
+  <script src="cloud-comments.js?v=2.0.03menu1"></script>
+  <script src="app.js?v=2.0.03menu1"></script>
 </body>
 </html>

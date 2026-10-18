@@ -96,6 +96,17 @@ const els = {
   homeSettings: document.getElementById("homeSettings"),
   settingsBtn: document.getElementById("settingsBtn"),
   settingsPanel: document.getElementById("settingsPanel"),
+  menuLayer: document.getElementById("menuLayer"),
+  menuBackdrop: document.getElementById("menuBackdrop"),
+  menuHome: document.getElementById("menuHome"),
+  menuAvatar: document.getElementById("menuAvatar"),
+  menuName: document.getElementById("menuName"),
+  menuUserNo: document.getElementById("menuUserNo"),
+  menuChatBadge: document.getElementById("menuChatBadge"),
+  menuChatSub: document.getElementById("menuChatSub"),
+  menuUserBtn: document.getElementById("menuUserBtn"),
+  menuOpenSettingsBtn: document.getElementById("menuOpenSettingsBtn"),
+  menuSettingsBackBtn: document.getElementById("menuSettingsBackBtn"),
   bgLightness: document.getElementById("bgLightness"),
   bgBlack: document.getElementById("bgBlack"),
   bgWhite: document.getElementById("bgWhite"),
@@ -1673,16 +1684,23 @@ function updateChatEntryBadge() {
       els.chatEntryBadge.hidden = true;
     }
   }
-  els.chatEntry?.classList.toggle("has-unread", n > 0);
-  if (els.chatEntrySub) {
+  if (els.menuChatBadge) {
     if (n > 0) {
-      els.chatEntrySub.textContent = `${n} 条未读`;
-    } else if (chatFriendsCache.length > 0) {
-      els.chatEntrySub.textContent = `${chatFriendsCache.length} 位好友`;
+      els.menuChatBadge.hidden = false;
+      els.menuChatBadge.textContent = n > 99 ? "99+" : String(n);
     } else {
-      els.chatEntrySub.textContent = "搜索添加好友";
+      els.menuChatBadge.hidden = true;
     }
   }
+  els.chatEntry?.classList.toggle("has-unread", n > 0);
+  const chatSub =
+    n > 0
+      ? `${n} 条未读`
+      : chatFriendsCache.length > 0
+        ? `${chatFriendsCache.length} 位好友`
+        : "搜索添加好友";
+  if (els.chatEntrySub) els.chatEntrySub.textContent = chatSub;
+  if (els.menuChatSub) els.menuChatSub.textContent = chatSub;
 }
 
 async function refreshChatUnread({ silent = true } = {}) {
@@ -7699,12 +7717,29 @@ function bindProfileAvatarPicker() {
   );
 }
 
+function paintMenuIdentity({
+  name = "未登录",
+  avatarSrc = "./logo.jpg",
+  userNoText = "用户号 —",
+  tone = ""
+} = {}) {
+  if (els.menuName) els.menuName.textContent = name;
+  if (els.menuAvatar) els.menuAvatar.src = avatarSrc || "./logo.jpg";
+  if (els.menuUserNo) {
+    els.menuUserNo.className = `menu-sub${tone ? ` ${tone}` : ""}`;
+    els.menuUserNo.textContent = userNoText;
+  }
+  if (els.accountNameLabel) els.accountNameLabel.textContent = name;
+  if (els.accountUserNo) {
+    els.accountUserNo.className = `menu-item-sub${tone ? ` ${tone}` : ""}`;
+    els.accountUserNo.textContent =
+      userNoText === "用户号 —" ? "头像、昵称与密码" : userNoText;
+  }
+}
+
 async function refreshProfileEditor() {
   if (!window.LudongCloud?.isLoggedIn?.()) {
-    if (els.accountUserNo) {
-      els.accountUserNo.className = "settings-hint";
-      els.accountUserNo.textContent = "用户号 —";
-    }
+    paintMenuIdentity();
     if (els.profileEditName) els.profileEditName.textContent = "未登录";
     if (els.profileEditSub) {
       els.profileEditSub.className = "profile-edit-sub";
@@ -7733,11 +7768,13 @@ async function refreshProfileEditor() {
   selectedProfileAvatar = avatar.startsWith("preset:") || avatar.startsWith("data:")
     ? avatar
     : avatar || "preset:1";
-  if (els.accountNameLabel) els.accountNameLabel.textContent = name;
-  if (els.accountUserNo) {
-    els.accountUserNo.className = `settings-hint${tone ? ` ${tone}` : ""}`;
-    els.accountUserNo.textContent = noLabel ? `用户号 ${noLabel}` : "用户号 —";
-  }
+  const avatarUrl = window.LudongCloud.avatarSrc(avatar, name);
+  paintMenuIdentity({
+    name,
+    avatarSrc: avatarUrl,
+    userNoText: noLabel ? `用户号 ${noLabel}` : "用户号 —",
+    tone
+  });
   if (els.profileEditName) els.profileEditName.textContent = name;
   if (els.profileEditSub) {
     if (noLabel) {
@@ -7763,17 +7800,21 @@ async function refreshProfileEditor() {
     }
   }
   if (els.profileEditAvatar) {
-    els.profileEditAvatar.src = window.LudongCloud.avatarSrc(avatar, name);
+    els.profileEditAvatar.src = avatarUrl;
   }
   bindProfileAvatarPicker();
 }
 
 function refreshAccountLabel() {
-  if (!els.accountNameLabel) return;
   if (window.LudongCloud?.isLoggedIn?.()) {
-    els.accountNameLabel.textContent = window.LudongCloud.getDisplayName?.() || "已登录";
+    const name = window.LudongCloud.getDisplayName?.() || "已登录";
+    const avatar = window.LudongCloud.getAvatar?.() || "preset:1";
+    paintMenuIdentity({
+      name,
+      avatarSrc: window.LudongCloud.avatarSrc?.(avatar, name) || "./logo.jpg"
+    });
   } else {
-    els.accountNameLabel.textContent = "未登录";
+    paintMenuIdentity();
   }
   refreshProfileEditor().catch(() => {});
 }
@@ -8316,34 +8357,47 @@ function loadBgLightness() {
   applyBgLightness(v, hue);
 }
 
-function placeSettingsPanel() {
-  const btn = els.settingsBtn;
-  const panel = els.settingsPanel;
-  if (!btn || !panel || panel.hidden) return;
-  const rect = btn.getBoundingClientRect();
-  const right = Math.max(12, Math.round(window.innerWidth - rect.right));
-  panel.style.position = "fixed";
-  panel.style.top = `${Math.round(rect.bottom + 8)}px`;
-  panel.style.right = `${right}px`;
-  panel.style.left = "auto";
+let menuReturnView = "home";
+
+function isMenuOpen() {
+  return !!(els.menuLayer && els.menuLayer.classList.contains("is-open"));
 }
 
-function setSettingsOpen(on) {
-  if (!els.settingsPanel || !els.settingsBtn) return;
-  els.settingsPanel.hidden = !on;
-  els.settingsBtn.classList.toggle("is-open", on);
-  els.settingsBtn.setAttribute("aria-expanded", on ? "true" : "false");
-  if (on) placeSettingsPanel();
-  else {
-    els.settingsPanel.style.position = "";
-    els.settingsPanel.style.top = "";
-    els.settingsPanel.style.right = "";
-    els.settingsPanel.style.left = "";
+function setMenuView(view = "home") {
+  const settings = view === "settings";
+  if (els.menuHome) els.menuHome.hidden = settings;
+  if (els.settingsPanel) els.settingsPanel.hidden = !settings;
+  menuReturnView = settings ? "settings" : "home";
+}
+
+function setMenuOpen(on, view = "home") {
+  const layer = els.menuLayer || document.getElementById("menuLayer");
+  if (!layer) return;
+  els.menuLayer = layer;
+  const open = !!on;
+  layer.hidden = !open;
+  layer.classList.toggle("is-open", open);
+  layer.setAttribute("aria-hidden", open ? "false" : "true");
+  els.settingsBtn?.classList.toggle("is-open", open);
+  els.settingsBtn?.setAttribute("aria-expanded", open ? "true" : "false");
+  if (open) {
+    setMenuView(view);
+    refreshAccountLabel();
+  } else {
+    setMenuView("home");
   }
+}
+
+/** 兼容旧调用：true 打开「我的」侧栏设置页，false 关闭侧栏 */
+function setSettingsOpen(on) {
+  if (on) setMenuOpen(true, "settings");
+  else setMenuOpen(false);
 }
 
 function setProfileLayerOpen(on) {
   if (on) {
+    if (isMenuOpen()) menuReturnView = els.settingsPanel?.hidden ? "home" : "settings";
+    setMenuOpen(false);
     if (typeof window.__ludongOpenProfile === "function") {
       window.__ludongOpenProfile();
     } else {
@@ -8354,8 +8408,6 @@ function setProfileLayerOpen(on) {
       layer.classList.add("is-open");
       layer.setAttribute("aria-hidden", "false");
     }
-    // 设置保持打开，侧页盖在上面；返回时直接露出设置
-    if (els.settingsPanel?.hidden) setSettingsOpen(true);
     refreshProfileEditor().catch(() => {});
     setProfileStatus("");
     return;
@@ -8368,18 +8420,17 @@ function setProfileLayerOpen(on) {
     layer.hidden = true;
     layer.classList.remove("is-open");
     layer.setAttribute("aria-hidden", "true");
-    setSettingsOpen(true);
+    setMenuOpen(true, menuReturnView || "home");
   }
 }
 
 window.__ludongOnProfileOpened = () => {
-  if (els.settingsPanel?.hidden) setSettingsOpen(true);
   refreshProfileEditor().catch(() => {});
   setProfileStatus("");
 };
 
 window.__ludongOnProfileClosed = () => {
-  setSettingsOpen(true);
+  setMenuOpen(true, menuReturnView || "home");
 };
 
 function openProfileFromSettings(e) {
@@ -8388,22 +8439,43 @@ function openProfileFromSettings(e) {
   setProfileLayerOpen(true);
 }
 
-els.profileOpenBtn?.addEventListener("click", openProfileFromSettings);
-els.settingsPanel?.addEventListener("click", (e) => {
-  const t = e.target;
-  const el = t && t.nodeType === 1 ? t : t?.parentElement;
-  const btn = el?.closest?.("#profileOpenBtn");
-  if (!btn) return;
-  openProfileFromSettings(e);
-});
-
 els.profileBackBtn?.addEventListener("click", () => setProfileLayerOpen(false));
 els.profileBackdrop?.addEventListener("click", () => setProfileLayerOpen(false));
 
 els.settingsBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
-  const open = els.settingsPanel?.hidden;
-  setSettingsOpen(!!open);
+  if (isMenuOpen()) setMenuOpen(false);
+  else setMenuOpen(true, "home");
+});
+
+els.menuBackdrop?.addEventListener("click", () => setMenuOpen(false));
+els.menuSettingsBackBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setMenuView("home");
+});
+els.menuOpenSettingsBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setMenuView("settings");
+});
+els.menuUserBtn?.addEventListener("click", openProfileFromSettings);
+els.menuHome?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-menu-act]");
+  if (!btn) return;
+  e.stopPropagation();
+  const act = btn.dataset.menuAct;
+  if (act === "profile") {
+    openProfileFromSettings(e);
+    return;
+  }
+  if (act === "wish") {
+    setMenuOpen(false);
+    setWishLayerOpen(true);
+    return;
+  }
+  if (act === "chat") {
+    setMenuOpen(false);
+    openChatLayer().catch(() => {});
+  }
 });
 
 
@@ -8794,11 +8866,14 @@ document.getElementById("playerQueueList")?.addEventListener("click", (e) => {
 });
 
 document.querySelector(".sidebar-scroll")?.addEventListener("scroll", () => {
-  if (els.settingsPanel && !els.settingsPanel.hidden) setSettingsOpen(false);
+  if (isMenuOpen()) setMenuOpen(false);
 });
 
 document.addEventListener("click", (e) => {
-  if (!els.homeSettings?.contains(e.target)) setSettingsOpen(false);
+  if (!isMenuOpen()) return;
+  if (els.homeSettings?.contains(e.target)) return;
+  if (els.menuLayer?.contains(e.target)) return;
+  setMenuOpen(false);
 });
 
 let wishTab = "open";
@@ -8958,7 +9033,10 @@ document.addEventListener("keydown", (e) => {
     setProfileLayerOpen(false);
     return;
   }
-  setSettingsOpen(false);
+  if (isMenuOpen()) {
+    if (els.settingsPanel && !els.settingsPanel.hidden) setMenuView("home");
+    else setMenuOpen(false);
+  }
 });
 
 loadBgLightness();

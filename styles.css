@@ -90,7 +90,7 @@ button {
   position: relative;
 }
 
-/* 设置跟在歌单滚动区里，下滑会一起走 */
+/* 我的 / 心愿单入口 */
 .home-settings {
   position: relative;
   z-index: 5;
@@ -98,10 +98,6 @@ button {
   justify-content: flex-end;
   gap: 8px;
   margin: 2px 14px 8px 0;
-}
-
-.home-settings .settings-panel {
-  top: calc(100% + 10px);
 }
 
 .settings-btn {
@@ -122,23 +118,274 @@ button {
   background: rgba(232, 165, 75, 0.12);
 }
 
-.settings-panel {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: min(360px, calc(100vw - 40px));
-  max-height: min(78vh, 640px);
-  overflow-y: auto;
-  padding: 14px 16px 16px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--bg-soft) 92%, transparent);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+/* 左侧「我的」抽屉 */
+.menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 88;
+  display: flex;
+  justify-content: flex-start;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
 }
 
-.settings-panel[hidden] {
-  display: none;
+.menu-layer[hidden] {
+  display: none !important;
+}
+
+.menu-layer.is-open {
+  display: flex !important;
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.menu-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 10, 14, 0.42);
+}
+
+.menu-drawer {
+  position: relative;
+  z-index: 1;
+  width: min(318px, 86vw);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--bg-soft) 96%, var(--bg));
+  border-right: 1px solid var(--line);
+  box-shadow: 12px 0 36px rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  transform: translateX(-12px);
+  transition: transform 0.22s ease;
+  overflow: hidden;
+}
+
+.menu-layer.is-open .menu-drawer {
+  transform: translateX(0);
+}
+
+.menu-home {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.menu-home[hidden] {
+  display: none !important;
+}
+
+.menu-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 22px 18px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-user:hover {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.menu-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+  background: var(--bg);
+}
+
+.menu-user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.menu-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-sub {
+  font-size: 0.74rem;
+  color: var(--dim);
+}
+
+.menu-user-arrow {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  color: var(--dim);
+}
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px 12px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 12px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.menu-item-ico {
+  width: 28px;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.menu-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.menu-item-title {
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+.menu-item-sub {
+  font-size: 0.72rem;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-item-badge {
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e35d5d;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.menu-item-arrow {
+  color: var(--dim);
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.menu-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 55%, var(--bg-soft));
+  flex-shrink: 0;
+}
+
+.menu-footer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-soft) 80%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.menu-footer-btn:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.menu-footer-ico {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.menu-footer-hint {
+  font-size: 0.72rem;
+  color: var(--dim);
+  max-width: 46%;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-settings {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: color-mix(in srgb, var(--bg-soft) 96%, var(--bg));
+}
+
+.menu-settings[hidden] {
+  display: none !important;
+}
+
+.menu-settings-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.menu-settings-body {
+  padding: 14px 16px 24px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
 }
 
 .settings-title {
@@ -515,7 +762,9 @@ button {
 
 .user-no.is-gold,
 .honor-title.is-gold,
-.settings-hint.is-gold {
+.settings-hint.is-gold,
+.menu-sub.is-gold,
+.menu-item-sub.is-gold {
   color: #e8c547;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -523,7 +772,9 @@ button {
 
 .user-no.is-obsidian,
 .honor-title.is-obsidian,
-.settings-hint.is-obsidian {
+.settings-hint.is-obsidian,
+.menu-sub.is-obsidian,
+.menu-item-sub.is-obsidian {
   font-weight: 800;
   letter-spacing: 0.04em;
   background: linear-gradient(
@@ -6179,11 +6430,52 @@ html.theme-manga .auth-submit {
   color: #f7f3ea !important;
 }
 
-html.theme-manga .settings-panel,
+html.theme-manga .menu-drawer,
+html.theme-manga .menu-settings,
 html.theme-manga .now-card,
 html.theme-manga .comments-panel,
 html.theme-manga .comments-panel.is-docked {
   background: #fffdf8;
+  border-color: #1a1612;
+  box-shadow: 4px 0 0 #1a1612;
+}
+
+html.theme-manga .menu-drawer {
+  border-right: 2.5px solid #1a1612;
+  border-radius: 0;
+}
+
+html.theme-manga .menu-footer {
+  background: #f3eee4;
+  border-top: 2px solid #1a1612;
+}
+
+html.theme-manga .menu-footer-btn,
+html.theme-manga .menu-item:hover,
+html.theme-manga .menu-user:hover {
+  border-color: #1a1612;
+}
+
+html.theme-manga .menu-footer-btn {
+  border: 2px solid #1a1612;
+  border-radius: 6px;
+  box-shadow: 2px 2px 0 #1a1612;
+  background: #fffdf8;
+}
+
+html.theme-manga .menu-avatar {
+  border: 2px solid #1a1612;
+  border-radius: 8px;
+}
+
+html.theme-manga .menu-item-badge {
+  border: 2px solid #1a1612;
+  border-radius: 4px;
+}
+
+html.theme-manga .now-card,
+html.theme-manga .comments-panel,
+html.theme-manga .comments-panel.is-docked {
   border: 2.5px solid #1a1612;
   border-radius: 8px;
   box-shadow: 4px 4px 0 #1a1612;
