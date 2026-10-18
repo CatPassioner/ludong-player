@@ -1193,22 +1193,32 @@ button {
 
 .avatar-picker {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 72px));
   gap: 8px;
+  justify-content: start;
 }
 
 .avatar-picker.is-compact {
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, 48px);
+  gap: 8px;
+  max-width: 320px;
 }
 
 .avatar-pick {
-  aspect-ratio: 1;
+  width: 72px;
+  height: 72px;
   border-radius: 12px;
   border: 2px solid transparent;
   padding: 0;
   overflow: hidden;
   cursor: pointer;
   background: transparent;
+}
+
+.avatar-picker.is-compact .avatar-pick {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
 }
 
 .avatar-pick img {
