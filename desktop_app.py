@@ -228,8 +228,8 @@ def open_app_window(url: str) -> bool:
         [
             str(exe),
             f"--app={url}",
-            "--window-size=420,680",
-            "--window-position=220,80",
+            "--window-size=1022,720",
+            "--window-position=120,60",
             f"--user-data-dir={profile}",
             "--disable-features=TranslateUI",
             "--no-first-run",

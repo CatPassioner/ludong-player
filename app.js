@@ -96,21 +96,15 @@ const els = {
   homeSettings: document.getElementById("homeSettings"),
   settingsBtn: document.getElementById("settingsBtn"),
   settingsPanel: document.getElementById("settingsPanel"),
-  menuLayer: document.getElementById("menuLayer"),
-  menuBackdrop: document.getElementById("menuBackdrop"),
-  menuHome: document.getElementById("menuHome"),
-  menuAvatar: document.getElementById("menuAvatar"),
-  menuName: document.getElementById("menuName"),
-  menuUserNo: document.getElementById("menuUserNo"),
-  menuChatBadge: document.getElementById("menuChatBadge"),
-  menuChatSub: document.getElementById("menuChatSub"),
-  menuUserBtn: document.getElementById("menuUserBtn"),
-  menuOpenSettingsBtn: document.getElementById("menuOpenSettingsBtn"),
+  navRail: document.getElementById("navRail"),
+  mainPane: document.getElementById("mainPane"),
+  viewHome: document.getElementById("viewHome"),
+  navAvatar: document.getElementById("navAvatar"),
+  navName: document.getElementById("navName"),
+  navUserNo: document.getElementById("navUserNo"),
+  navUserBtn: document.getElementById("navUserBtn"),
+  navHomeBtn: document.getElementById("navHomeBtn"),
   menuSettingsBackBtn: document.getElementById("menuSettingsBackBtn"),
-  menuCloseBtn: document.getElementById("menuCloseBtn"),
-  menuHonorChip: document.getElementById("menuHonorChip"),
-  menuLikesSub: document.getElementById("menuLikesSub"),
-  menuProfileHint: document.getElementById("menuProfileHint"),
   bgLightness: document.getElementById("bgLightness"),
   bgBlack: document.getElementById("bgBlack"),
   bgWhite: document.getElementById("bgWhite"),
@@ -728,16 +722,27 @@ function renderLikesList() {
 }
 
 function openLikesLayer() {
+  mountMainViews();
   renderLikesList();
   if (!els.likesLayer) return;
+  if (els.viewHome) els.viewHome.hidden = true;
+  els.likesLayer.hidden = false;
   els.likesLayer.classList.add("is-open");
   els.likesLayer.setAttribute("aria-hidden", "false");
+  currentMainView = "likes";
+  syncNavActive("likes");
 }
 
 function closeLikesLayer() {
   if (!els.likesLayer) return;
+  els.likesLayer.hidden = true;
   els.likesLayer.classList.remove("is-open");
   els.likesLayer.setAttribute("aria-hidden", "true");
+  if (currentMainView === "likes") {
+    currentMainView = "home";
+    if (els.viewHome) els.viewHome.hidden = false;
+    syncNavActive("home");
+  }
 }
 
 async function loadLikes() {
@@ -1688,14 +1693,6 @@ function updateChatEntryBadge() {
       els.chatEntryBadge.hidden = true;
     }
   }
-  if (els.menuChatBadge) {
-    if (n > 0) {
-      els.menuChatBadge.hidden = false;
-      els.menuChatBadge.textContent = n > 99 ? "99+" : String(n);
-    } else {
-      els.menuChatBadge.hidden = true;
-    }
-  }
   els.chatEntry?.classList.toggle("has-unread", n > 0);
   const chatSub =
     n > 0
@@ -1704,7 +1701,6 @@ function updateChatEntryBadge() {
         ? `${chatFriendsCache.length} 位好友`
         : "搜索添加好友";
   if (els.chatEntrySub) els.chatEntrySub.textContent = chatSub;
-  if (els.menuChatSub) els.menuChatSub.textContent = chatSub;
 }
 
 async function refreshChatUnread({ silent = true } = {}) {
@@ -3019,10 +3015,15 @@ async function openChatLayer() {
     setHint("请先登录后再使用私聊", true);
     return;
   }
+  mountMainViews();
   setChatHint("加载中…");
   setChatTab("friends");
+  if (els.viewHome) els.viewHome.hidden = true;
+  if (els.chatLayer) els.chatLayer.hidden = false;
   els.chatLayer?.classList.add("is-open");
   els.chatLayer?.setAttribute("aria-hidden", "false");
+  currentMainView = "chat";
+  syncNavActive("chat");
   if (els.chatInput) els.chatInput.disabled = true;
   if (els.chatSend) els.chatSend.disabled = true;
   if (els.chatEmojiBtn) els.chatEmojiBtn.disabled = true;
@@ -3067,10 +3068,16 @@ function closeChatLayer() {
   hideMsgCtxMenu();
   closeForwardPicker();
   closeChatGroupModal();
+  if (els.chatLayer) els.chatLayer.hidden = true;
   els.chatLayer?.classList.remove("is-open");
   els.chatLayer?.setAttribute("aria-hidden", "true");
   setChatHint("");
   refreshChatUnread({ silent: true });
+  if (currentMainView === "chat") {
+    currentMainView = "home";
+    if (els.viewHome) els.viewHome.hidden = false;
+    syncNavActive("home");
+  }
 }
 
 async function runChatSearch() {
@@ -6756,12 +6763,8 @@ async function deleteLocalSong(song) {
   }
 }
 
-els.likesEntry?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  openLikesLayer();
-});
-els.likesBack?.addEventListener("click", closeLikesLayer);
-els.likesBackdrop?.addEventListener("click", closeLikesLayer);
+els.likesBack?.addEventListener("click", () => setMainView("home"));
+els.likesBackdrop?.addEventListener("click", () => setMainView("home"));
 els.likesList?.addEventListener("click", (e) => {
   const item = e.target.closest(".likes-item");
   if (!item) return;
@@ -6848,12 +6851,8 @@ els.commentsReplyCancel?.addEventListener("click", () => {
   setCommentsHint("");
 });
 
-els.chatEntry?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  openChatLayer();
-});
-els.chatBack?.addEventListener("click", closeChatLayer);
-els.chatBackdrop?.addEventListener("click", closeChatLayer);
+els.chatBack?.addEventListener("click", () => setMainView("home"));
+els.chatBackdrop?.addEventListener("click", () => setMainView("home"));
 els.chatTabFriends?.addEventListener("click", () => setChatTab("friends"));
 els.chatTabAdd?.addEventListener("click", () => setChatTab("add"));
 els.chatNewGroupBtn?.addEventListener("click", () => openChatGroupModal("create"));
@@ -7728,36 +7727,20 @@ function paintMenuIdentity({
   honor = "",
   tone = ""
 } = {}) {
-  if (els.menuName) els.menuName.textContent = name;
-  if (els.menuAvatar) els.menuAvatar.src = avatarSrc || "./logo.jpg";
-  if (els.menuUserNo) {
-    els.menuUserNo.className = `menu-chip${tone ? ` ${tone}` : ""}`;
-    els.menuUserNo.textContent = userNoText;
-  }
-  if (els.menuHonorChip) {
+  if (els.navName) els.navName.textContent = name;
+  if (els.navAvatar) els.navAvatar.src = avatarSrc || "./logo.jpg";
+  if (els.navUserNo) {
     const title = String(honor || "").trim();
-    if (title) {
-      els.menuHonorChip.hidden = false;
-      els.menuHonorChip.className = `menu-chip menu-chip-honor${tone ? ` ${tone}` : ""}`;
-      els.menuHonorChip.textContent = title;
-    } else {
-      els.menuHonorChip.hidden = true;
-      els.menuHonorChip.textContent = "";
-    }
-  }
-  if (els.menuProfileHint) {
-    els.menuProfileHint.textContent =
-      name === "未登录" ? "登录后可编辑头像与昵称" : "点击编辑头像、昵称与密码";
+    els.navUserNo.className = `nav-sub${tone ? ` ${tone}` : ""}`;
+    els.navUserNo.textContent = title
+      ? `${userNoText} · ${title}`
+      : userNoText;
   }
   if (els.accountNameLabel) els.accountNameLabel.textContent = name;
   if (els.accountUserNo) {
-    els.accountUserNo.className = `menu-item-sub${tone ? ` ${tone}` : ""}`;
+    els.accountUserNo.className = `nav-item-sub${tone ? ` ${tone}` : ""}`;
     els.accountUserNo.textContent =
       userNoText === "用户号 —" ? "头像、昵称与密码" : userNoText;
-  }
-  if (els.menuLikesSub) {
-    const n = Object.keys(likedSongs || {}).length;
-    els.menuLikesSub.textContent = `${n} 首`;
   }
 }
 
@@ -8382,135 +8365,159 @@ function loadBgLightness() {
   applyBgLightness(v, hue);
 }
 
-let menuReturnView = "home";
+let currentMainView = "home";
+let mainViewsMounted = false;
+
+function mountMainViews() {
+  const pane = els.mainPane || document.getElementById("mainPane");
+  if (!pane || mainViewsMounted) return;
+  const ids = [
+    "likesLayer",
+    "chatLayer",
+    "wishLayer",
+    "profileLayer",
+    "settingsPanel",
+    "seekEmojiLayer"
+  ];
+  ids.forEach((id) => {
+    const node = document.getElementById(id);
+    if (node && node.parentElement !== pane) pane.appendChild(node);
+  });
+  mainViewsMounted = true;
+}
+
+function syncNavActive(view) {
+  document.querySelectorAll("[data-nav]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.nav === view);
+  });
+  els.settingsBtn?.classList.toggle("is-active", view === "settings");
+  els.settingsBtn?.classList.toggle("is-open", view === "settings");
+}
+
+function closeEmbeddedView(el) {
+  if (!el) return;
+  el.hidden = true;
+  el.classList.remove("is-open");
+  el.setAttribute("aria-hidden", "true");
+}
+
+function openEmbeddedView(el) {
+  if (!el) return;
+  el.hidden = false;
+  el.classList.add("is-open");
+  el.setAttribute("aria-hidden", "false");
+}
+
+function setMainView(view = "home") {
+  mountMainViews();
+  const next = String(view || "home");
+  currentMainView = next;
+
+  if (els.viewHome) els.viewHome.hidden = next !== "home";
+  closeEmbeddedView(els.likesLayer || document.getElementById("likesLayer"));
+  closeEmbeddedView(els.chatLayer || document.getElementById("chatLayer"));
+  closeEmbeddedView(document.getElementById("wishLayer"));
+  closeEmbeddedView(els.profileLayer || document.getElementById("profileLayer"));
+  closeEmbeddedView(els.settingsPanel || document.getElementById("settingsPanel"));
+  closeEmbeddedView(document.getElementById("seekEmojiLayer"));
+
+  if (next === "likes") {
+    openLikesLayer();
+  } else if (next === "chat") {
+    if (!window.LudongCloud?.enabled?.() || !window.LudongCloud?.isLoggedIn?.()) {
+      setHint("请先登录后再使用私聊", true);
+      currentMainView = "home";
+      if (els.viewHome) els.viewHome.hidden = false;
+      syncNavActive("home");
+      return;
+    }
+    openChatLayer().catch(() => setMainView("home"));
+  } else if (next === "wish") {
+    setWishLayerOpen(true);
+  } else if (next === "profile") {
+    setProfileLayerOpen(true);
+  } else if (next === "settings") {
+    openEmbeddedView(els.settingsPanel || document.getElementById("settingsPanel"));
+    refreshAccountLabel();
+  }
+
+  syncNavActive(currentMainView);
+}
 
 function isMenuOpen() {
-  return !!(els.menuLayer && els.menuLayer.classList.contains("is-open"));
+  return currentMainView === "settings";
 }
 
-function setMenuView(view = "home") {
-  const settings = view === "settings";
-  if (els.menuHome) els.menuHome.hidden = settings;
-  if (els.settingsPanel) els.settingsPanel.hidden = !settings;
-  menuReturnView = settings ? "settings" : "home";
+function setMenuOpen(on, view = "settings") {
+  if (on) setMainView(view === "home" ? "settings" : view);
+  else setMainView("home");
 }
 
-function setMenuOpen(on, view = "home") {
-  const layer = els.menuLayer || document.getElementById("menuLayer");
-  if (!layer) return;
-  els.menuLayer = layer;
-  const open = !!on;
-  layer.hidden = !open;
-  layer.classList.toggle("is-open", open);
-  layer.setAttribute("aria-hidden", open ? "false" : "true");
-  els.settingsBtn?.classList.toggle("is-open", open);
-  els.settingsBtn?.setAttribute("aria-expanded", open ? "true" : "false");
-  if (open) {
-    setMenuView(view);
-    refreshAccountLabel();
-  } else {
-    setMenuView("home");
-  }
-}
-
-/** 兼容旧调用：true 打开「我的」侧栏设置页，false 关闭侧栏 */
 function setSettingsOpen(on) {
-  if (on) setMenuOpen(true, "settings");
-  else setMenuOpen(false);
+  setMainView(on ? "settings" : "home");
 }
 
 function setProfileLayerOpen(on) {
+  const layer = els.profileLayer || document.getElementById("profileLayer");
+  if (!layer) return;
+  els.profileLayer = layer;
   if (on) {
-    if (isMenuOpen()) menuReturnView = els.settingsPanel?.hidden ? "home" : "settings";
-    setMenuOpen(false);
-    if (typeof window.__ludongOpenProfile === "function") {
-      window.__ludongOpenProfile();
-    } else {
-      const layer = els.profileLayer || document.getElementById("profileLayer");
-      if (!layer) return;
-      els.profileLayer = layer;
-      layer.hidden = false;
-      layer.classList.add("is-open");
-      layer.setAttribute("aria-hidden", "false");
-    }
+    if (els.viewHome) els.viewHome.hidden = true;
+    openEmbeddedView(layer);
+    currentMainView = "profile";
+    syncNavActive("profile");
     refreshProfileEditor().catch(() => {});
     setProfileStatus("");
     return;
   }
-  if (typeof window.__ludongCloseProfile === "function") {
-    window.__ludongCloseProfile();
-  } else {
-    const layer = els.profileLayer || document.getElementById("profileLayer");
-    if (!layer) return;
-    layer.hidden = true;
-    layer.classList.remove("is-open");
-    layer.setAttribute("aria-hidden", "true");
-    setMenuOpen(true, menuReturnView || "home");
-  }
+  closeEmbeddedView(layer);
+  if (currentMainView === "profile") setMainView("home");
 }
 
 window.__ludongOnProfileOpened = () => {
+  if (els.viewHome) els.viewHome.hidden = true;
+  currentMainView = "profile";
+  syncNavActive("profile");
   refreshProfileEditor().catch(() => {});
   setProfileStatus("");
 };
 
 window.__ludongOnProfileClosed = () => {
-  setMenuOpen(true, menuReturnView || "home");
+  if (currentMainView === "profile") setMainView("home");
 };
 
 function openProfileFromSettings(e) {
   e?.preventDefault?.();
   e?.stopPropagation?.();
-  setProfileLayerOpen(true);
+  setMainView("profile");
 }
 
-els.profileBackBtn?.addEventListener("click", () => setProfileLayerOpen(false));
-els.profileBackdrop?.addEventListener("click", () => setProfileLayerOpen(false));
-
-els.settingsBtn?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  if (isMenuOpen()) setMenuOpen(false);
-  else setMenuOpen(true, "home");
-});
-
-els.menuBackdrop?.addEventListener("click", () => setMenuOpen(false));
-els.menuCloseBtn?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  setMenuOpen(false);
-});
+els.profileBackBtn?.addEventListener("click", () => setMainView("home"));
+els.profileBackdrop?.addEventListener("click", () => setMainView("home"));
 els.menuSettingsBackBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
-  setMenuView("home");
+  setMainView("home");
 });
-els.menuOpenSettingsBtn?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  setMenuView("settings");
-});
-els.menuUserBtn?.addEventListener("click", openProfileFromSettings);
-els.menuHome?.addEventListener("click", (e) => {
-  const btn = e.target.closest?.("[data-menu-act]");
-  if (!btn) return;
-  e.stopPropagation();
-  const act = btn.dataset.menuAct;
-  if (act === "profile") {
-    openProfileFromSettings(e);
-    return;
-  }
-  if (act === "wish") {
-    setMenuOpen(false);
-    setWishLayerOpen(true);
-    return;
-  }
-  if (act === "chat") {
-    setMenuOpen(false);
-    openChatLayer().catch(() => {});
-    return;
-  }
-  if (act === "likes") {
-    setMenuOpen(false);
-    openLikesLayer();
-  }
-});
+
+function bindNavRail() {
+  const go = (view) => setMainView(view);
+  els.navHomeBtn?.addEventListener("click", () => go("home"));
+  els.navHomeBtn?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      go("home");
+    }
+  });
+  els.navRail?.addEventListener("click", (e) => {
+    const btn = e.target.closest?.("[data-nav]");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    go(btn.dataset.nav || "home");
+  });
+}
+bindNavRail();
+mountMainViews();
 
 
 document.getElementById("rankOpenBtn")?.addEventListener("click", (e) => {
@@ -8649,6 +8656,7 @@ function setSeekEmoji(kind, id, persist = true) {
 }
 
 function setSeekEmojiLayerOpen(on) {
+  mountMainViews();
   const layer = document.getElementById("seekEmojiLayer");
   if (!layer) return;
   const open = !!on;
@@ -8656,13 +8664,13 @@ function setSeekEmojiLayerOpen(on) {
   layer.classList.toggle("is-open", open);
   layer.setAttribute("aria-hidden", open ? "false" : "true");
   if (open) {
-    setSettingsOpen(false);
+    if (els.viewHome) els.viewHome.hidden = true;
     seekEmojiPickedId = isAudioPlaying() ? seekEmojiPlayId : seekEmojiPauseId;
     updateSeekEmojiPreviews();
     renderSeekEmojiGrid();
     setSeekEmojiStatus("");
-  } else if (els.settingsBtn) {
-    setSettingsOpen(true);
+  } else {
+    setMainView("settings");
   }
 }
 
@@ -8899,16 +8907,6 @@ document.getElementById("playerQueueList")?.addEventListener("click", (e) => {
   if (index >= 0) playAt(index);
 });
 
-document.querySelector(".sidebar-scroll")?.addEventListener("scroll", () => {
-  if (isMenuOpen()) setMenuOpen(false);
-});
-
-document.addEventListener("click", (e) => {
-  if (!isMenuOpen()) return;
-  if (els.homeSettings?.contains(e.target)) return;
-  if (els.menuLayer?.contains(e.target)) return;
-  setMenuOpen(false);
-});
 
 let wishTab = "open";
 let wishRows = [];
@@ -8980,6 +8978,7 @@ async function refreshWishes() {
 }
 
 function setWishLayerOpen(on) {
+  mountMainViews();
   const layer = document.getElementById("wishLayer");
   if (!layer) return;
   const open = !!on;
@@ -8987,27 +8986,29 @@ function setWishLayerOpen(on) {
   layer.classList.toggle("is-open", open);
   layer.setAttribute("aria-hidden", open ? "false" : "true");
   if (open) {
-    setSettingsOpen(false);
+    if (els.viewHome) els.viewHome.hidden = true;
+    currentMainView = "wish";
+    syncNavActive("wish");
     setWishStatus("");
     refreshWishes().catch((err) => {
       wishRows = [];
       renderWishList();
       setWishStatus(err?.message || "心愿单打不开", "error");
     });
+  } else if (currentMainView === "wish") {
+    currentMainView = "home";
+    if (els.viewHome) els.viewHome.hidden = false;
+    syncNavActive("home");
   }
 }
 
 function bindWishPage() {
-  document.getElementById("wishOpenBtn")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    setWishLayerOpen(true);
-  });
   document.getElementById("wishBackBtn")?.addEventListener("click", (e) => {
     e.stopPropagation();
-    setWishLayerOpen(false);
+    setMainView("home");
   });
   document.getElementById("wishBackdrop")?.addEventListener("click", () => {
-    setWishLayerOpen(false);
+    setMainView("home");
   });
   document.querySelectorAll("[data-wish-tab]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -9052,24 +9053,13 @@ function bindWishPage() {
 
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
-  const wishLayer = document.getElementById("wishLayer");
-  if (wishLayer?.classList.contains("is-open")) {
-    setWishLayerOpen(false);
-    return;
-  }
-  const seekLayer = document.getElementById("seekEmojiLayer");
-  if (seekLayer?.classList.contains("is-open")) {
-    setSeekEmojiLayerOpen(false);
-    return;
-  }
-  const layer = els.profileLayer || document.getElementById("profileLayer");
-  if (layer?.classList.contains("is-open")) {
-    setProfileLayerOpen(false);
-    return;
-  }
-  if (isMenuOpen()) {
-    if (els.settingsPanel && !els.settingsPanel.hidden) setMenuView("home");
-    else setMenuOpen(false);
+  if (currentMainView && currentMainView !== "home") {
+    const seekLayer = document.getElementById("seekEmojiLayer");
+    if (seekLayer?.classList.contains("is-open")) {
+      setSeekEmojiLayerOpen(false);
+      return;
+    }
+    setMainView("home");
   }
 });
 

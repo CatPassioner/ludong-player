@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03menu2" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03shell1" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -67,113 +67,128 @@
   </div>
 
   <div class="app" id="app" hidden>
-    <aside class="sidebar">
-      <div class="sidebar-scroll">
-    <div class="home-settings" id="homeSettings">
-      <button type="button" class="settings-btn" id="wishOpenBtn" aria-label="心愿单" title="心愿单">
-        心愿单
-      </button>
-      <button type="button" class="settings-btn" id="settingsBtn" aria-label="我的" aria-expanded="false" title="我的">
-        我的
-      </button>
-    </div>
-
-      <header class="brand-block">
-        <div class="brand-row">
-          <img class="brand-logo" src="./logo.jpg" alt="猫耳律动" width="48" height="48" />
+    <div class="app-body">
+      <aside class="nav-rail" id="navRail">
+        <header class="nav-brand" id="navHomeBtn" role="button" tabindex="0" title="回曲库">
+          <img class="brand-logo" src="./logo.jpg" alt="猫耳律动" width="40" height="40" />
           <div class="brand-text">
             <h1 class="brand">猫耳律动</h1>
             <p class="tagline">今晚想听什么</p>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <form class="search" id="searchForm" autocomplete="off">
-        <input
-          type="search"
-          id="searchInput"
-          placeholder="搜索歌名、歌手…"
-          enterkeyhint="search"
-        />
-        <button type="submit" id="searchBtn" aria-label="搜索">搜索</button>
-        <div class="search-suggest" id="searchSuggest" hidden></div>
-      </form>
-      <p class="search-hint" id="searchHint"></p>
-
-      <section class="rank-row" id="rankRow" aria-label="听歌次数排行">
-        <button type="button" class="rank-head rank-open" id="rankOpenBtn">
-          <span class="rank-title">听歌排行</span>
-          <span class="rank-sub" id="rankSub">按播放次数</span>
+        <button type="button" class="nav-user" id="navUserBtn" data-nav="profile" aria-label="个人信息">
+          <img class="nav-avatar" id="navAvatar" src="./logo.jpg" alt="" />
+          <span class="nav-user-meta">
+            <span class="nav-name" id="navName">未登录</span>
+            <span class="nav-sub" id="navUserNo">用户号 —</span>
+          </span>
         </button>
-        <div class="rank-track" id="rankTrack">
-          <div class="rank-empty" id="rankEmpty">播过的歌会出现在这里</div>
+
+        <nav class="nav-list" aria-label="主导航">
+          <button type="button" class="nav-item is-active" data-nav="home">
+            <span class="nav-item-title">曲库</span>
+            <span class="nav-item-sub">搜索与歌单</span>
+          </button>
+          <button type="button" class="nav-item" data-nav="likes" id="likesEntry">
+            <span class="nav-item-title">我喜欢</span>
+            <span class="nav-item-sub" id="likesCountLabel">0 首</span>
+          </button>
+          <button type="button" class="nav-item" data-nav="wish" id="wishOpenBtn">
+            <span class="nav-item-title">心愿单</span>
+            <span class="nav-item-sub">想听与已完成</span>
+          </button>
+          <button type="button" class="nav-item" data-nav="chat" id="chatEntry">
+            <span class="nav-item-title">私聊</span>
+            <span class="nav-item-sub" id="chatEntrySub">和好友聊天</span>
+            <span class="nav-item-badge" id="chatEntryBadge" hidden>0</span>
+          </button>
+          <button type="button" class="nav-item" data-nav="profile" id="profileOpenBtn">
+            <span class="nav-item-title">我的信息</span>
+            <span class="nav-item-sub" id="accountUserNo">头像、昵称与密码</span>
+          </button>
+        </nav>
+
+        <div class="nav-footer">
+          <button type="button" class="nav-settings-btn" data-nav="settings" id="settingsBtn">
+            <span aria-hidden="true">⚙</span>
+            <span>设置</span>
+          </button>
+          <span class="nav-footer-hint" id="accountNameLabel">未登录</span>
         </div>
-      </section>
+      </aside>
 
-      <button type="button" class="likes-entry" id="likesEntry" aria-label="打开我喜欢">
-        <span class="likes-entry-heart" aria-hidden="true"></span>
-        <span class="likes-entry-text">
-          <span class="likes-entry-title">我喜欢</span>
-          <span class="likes-entry-sub" id="likesCountLabel">0 首</span>
-        </span>
-        <span class="likes-entry-arrow" aria-hidden="true"></span>
-      </button>
-
-      <button type="button" class="likes-entry chat-entry" id="chatEntry" aria-label="打开私聊">
-        <span class="chat-entry-ico" aria-hidden="true"></span>
-        <span class="likes-entry-text">
-          <span class="likes-entry-title">私聊</span>
-          <span class="likes-entry-sub" id="chatEntrySub">和好友聊天</span>
-        </span>
-        <span class="chat-entry-badge" id="chatEntryBadge" hidden>0</span>
-        <span class="likes-entry-arrow" aria-hidden="true"></span>
-      </button>
-
-      <div class="section-head">
-        <span>歌单</span>
-        <span class="section-head-actions">
-          <button type="button" class="playlist-new-btn" id="newPlaylistBtn">新建歌单</button>
-          <span class="count" id="songCount">0 首</span>
-        </span>
-      </div>
-
-      <ul class="playlist" id="playlist"></ul>
-      </div>
-      <div class="now-card" id="nowCard" hidden>
-        <div class="now-main">
-          <img class="now-cover" id="nowCover" alt="" />
-          <div class="now-meta">
-            <div class="now-title" id="nowTitle"></div>
-            <div class="now-artist" id="nowArtist"></div>
-          </div>
-          <div class="now-controls">
-            <button type="button" class="now-skip now-prev" id="nowPrev" aria-label="上一首" title="上一首"></button>
-            <button type="button" class="icon-btn now-toggle" id="nowToggle" aria-label="播放/暂停"></button>
-            <button type="button" class="now-skip now-next" id="nowNext" aria-label="下一首" title="下一首"></button>
-          </div>
-        </div>
-        <div class="now-progress" id="nowProgress">
-          <div class="now-seek-wrap" id="nowSeekWrap">
-            <div class="now-seek-track">
-              <div class="now-seek-fill" id="nowSeekFill"></div>
-            </div>
+      <main class="main-pane" id="mainPane">
+        <div class="main-home sidebar-scroll" id="viewHome">
+          <form class="search" id="searchForm" autocomplete="off">
             <input
-              type="range"
-              id="nowSeek"
-              min="0"
-              max="1000"
-              value="0"
-              step="1"
-              aria-label="播放进度"
+              type="search"
+              id="searchInput"
+              placeholder="搜索歌名、歌手…"
+              enterkeyhint="search"
             />
+            <button type="submit" id="searchBtn" aria-label="搜索">搜索</button>
+            <div class="search-suggest" id="searchSuggest" hidden></div>
+          </form>
+          <p class="search-hint" id="searchHint"></p>
+
+          <section class="rank-row" id="rankRow" aria-label="听歌次数排行">
+            <button type="button" class="rank-head rank-open" id="rankOpenBtn">
+              <span class="rank-title">听歌排行</span>
+              <span class="rank-sub" id="rankSub">按播放次数</span>
+            </button>
+            <div class="rank-track" id="rankTrack">
+              <div class="rank-empty" id="rankEmpty">播过的歌会出现在这里</div>
+            </div>
+          </section>
+
+          <div class="section-head">
+            <span>歌单</span>
+            <span class="section-head-actions">
+              <button type="button" class="playlist-new-btn" id="newPlaylistBtn">新建歌单</button>
+              <span class="count" id="songCount">0 首</span>
+            </span>
           </div>
-          <div class="now-time-row">
-            <span id="nowCurrentTime">0:00</span>
-            <span id="nowDuration">0:00</span>
-          </div>
+
+          <ul class="playlist" id="playlist"></ul>
+        </div>
+      </main>
+    </div>
+
+    <div class="now-card" id="nowCard" hidden>
+      <div class="now-main">
+        <img class="now-cover" id="nowCover" alt="" />
+        <div class="now-meta">
+          <div class="now-title" id="nowTitle"></div>
+          <div class="now-artist" id="nowArtist"></div>
+        </div>
+        <div class="now-controls">
+          <button type="button" class="now-skip now-prev" id="nowPrev" aria-label="上一首" title="上一首"></button>
+          <button type="button" class="icon-btn now-toggle" id="nowToggle" aria-label="播放/暂停"></button>
+          <button type="button" class="now-skip now-next" id="nowNext" aria-label="下一首" title="下一首"></button>
         </div>
       </div>
-    </aside>
+      <div class="now-progress" id="nowProgress">
+        <div class="now-seek-wrap" id="nowSeekWrap">
+          <div class="now-seek-track">
+            <div class="now-seek-fill" id="nowSeekFill"></div>
+          </div>
+          <input
+            type="range"
+            id="nowSeek"
+            min="0"
+            max="1000"
+            value="0"
+            step="1"
+            aria-label="播放进度"
+          />
+        </div>
+        <div class="now-time-row">
+          <span id="nowCurrentTime">0:00</span>
+          <span id="nowDuration">0:00</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 二级窗口：唱片 / 歌词播放页 -->
@@ -441,84 +456,17 @@
     </section>
   </div>
 
-  <!-- 我的：资料页布局，设置在底部进入 -->
-  <div class="menu-layer" id="menuLayer" hidden aria-hidden="true">
-    <div class="menu-backdrop" id="menuBackdrop"></div>
-    <aside class="menu-drawer" id="menuDrawer" role="dialog" aria-modal="true" aria-labelledby="menuName">
-      <div class="menu-home" id="menuHome">
-        <header class="menu-topbar">
-          <button type="button" class="likes-back" id="menuCloseBtn" aria-label="返回">
-            <span class="likes-back-ico"></span>
-            返回
-          </button>
-          <h2 class="likes-panel-title">我的</h2>
-          <span class="profile-panel-spacer" aria-hidden="true"></span>
-        </header>
-        <button type="button" class="menu-profile-card" id="menuUserBtn" aria-label="打开个人信息">
-          <img class="menu-avatar" id="menuAvatar" src="./logo.jpg" alt="" />
-          <span class="menu-user-meta">
-            <span class="menu-name" id="menuName">未登录</span>
-            <span class="menu-badges" id="menuBadges">
-              <span class="menu-chip" id="menuUserNo">用户号 —</span>
-              <span class="menu-chip menu-chip-honor" id="menuHonorChip" hidden></span>
-            </span>
-            <span class="menu-sub" id="menuProfileHint">点击编辑头像、昵称与密码</span>
-          </span>
-          <span class="menu-user-arrow" aria-hidden="true">›</span>
-        </button>
-        <nav class="menu-list" aria-label="我的功能">
-          <button type="button" class="menu-item" data-menu-act="profile">
-            <span class="menu-item-ico" aria-hidden="true">◎</span>
-            <span class="menu-item-text">
-              <span class="menu-item-title">我的信息</span>
-              <span class="menu-item-sub" id="accountUserNo">头像、昵称与密码</span>
-            </span>
-            <span class="menu-item-arrow" aria-hidden="true">›</span>
-          </button>
-          <button type="button" class="menu-item" data-menu-act="wish">
-            <span class="menu-item-ico" aria-hidden="true">♡</span>
-            <span class="menu-item-text">
-              <span class="menu-item-title">心愿单</span>
-              <span class="menu-item-sub">想听与已完成</span>
-            </span>
-            <span class="menu-item-arrow" aria-hidden="true">›</span>
-          </button>
-          <button type="button" class="menu-item" data-menu-act="chat">
-            <span class="menu-item-ico" aria-hidden="true">✉</span>
-            <span class="menu-item-text">
-              <span class="menu-item-title">私聊</span>
-              <span class="menu-item-sub" id="menuChatSub">和好友聊天</span>
-            </span>
-            <span class="menu-item-badge" id="menuChatBadge" hidden>0</span>
-            <span class="menu-item-arrow" aria-hidden="true">›</span>
-          </button>
-          <button type="button" class="menu-item" data-menu-act="likes">
-            <span class="menu-item-ico" aria-hidden="true">♥</span>
-            <span class="menu-item-text">
-              <span class="menu-item-title">我喜欢</span>
-              <span class="menu-item-sub" id="menuLikesSub">0 首</span>
-            </span>
-            <span class="menu-item-arrow" aria-hidden="true">›</span>
-          </button>
-        </nav>
-        <footer class="menu-footer">
-          <button type="button" class="menu-footer-btn" id="menuOpenSettingsBtn">
-            <span class="menu-footer-ico" aria-hidden="true">⚙</span>
-            <span>设置</span>
-          </button>
-          <span class="menu-footer-hint" id="accountNameLabel">未登录</span>
-        </footer>
-      </div>
-      <div class="menu-settings" id="settingsPanel" hidden>
-        <header class="menu-settings-bar">
-          <button type="button" class="likes-back" id="menuSettingsBackBtn" aria-label="返回">
-            <span class="likes-back-ico"></span>
-            返回
-          </button>
-          <h2 class="likes-panel-title">设置</h2>
-          <span class="profile-panel-spacer" aria-hidden="true"></span>
-        </header>
-        <div class="menu-settings-body">
+  <!-- 设置：嵌在右侧主区 -->
+  <div class="pane-view settings-view" id="settingsPanel" hidden aria-hidden="true">
+    <header class="pane-view-bar">
+      <button type="button" class="likes-back" id="menuSettingsBackBtn" aria-label="返回曲库">
+        <span class="likes-back-ico"></span>
+        返回
+      </button>
+      <h2 class="likes-panel-title">设置</h2>
+      <span class="profile-panel-spacer" aria-hidden="true"></span>
+    </header>
+    <div class="menu-settings-body pane-view-body">
           <div class="settings-row">
             <span class="settings-label">界面风格</span>
             <span class="settings-hint">整体主题</span>
@@ -659,9 +607,7 @@
             <span class="settings-hint" id="menuAccountHint">本机与网站共用</span>
           </div>
           <button type="button" class="import-btn import-btn-ghost" id="logoutBtn">退出登录</button>
-        </div>
-      </div>
-    </aside>
+    </div>
   </div>
 
   <!-- 心愿单：想听 / 已完成 同页切换 -->
@@ -1040,20 +986,12 @@
           try {
             window.__ludongOnProfileClosed();
           } catch (err) {}
-        } else {
-          var panel = document.getElementById("settingsPanel");
-          var sbtn = document.getElementById("settingsBtn");
-          if (panel) panel.hidden = false;
-          if (sbtn) {
-            sbtn.classList.add("is-open");
-            sbtn.setAttribute("aria-expanded", "true");
-          }
         }
       } catch (err2) {}
     };
   </script>
   <script src="cloud-config.js"></script>
-  <script src="cloud-comments.js?v=2.0.03menu2"></script>
-  <script src="app.js?v=2.0.03menu2"></script>
+  <script src="cloud-comments.js?v=2.0.03shell1"></script>
+  <script src="app.js?v=2.0.03shell1"></script>
 </body>
 </html>
