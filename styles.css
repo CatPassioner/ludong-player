@@ -129,14 +129,10 @@ html[data-shell-bg="1"] .app-body {
 
 html[data-shell-bg="1"] .nav-rail {
   background: color-mix(in srgb, var(--bg) var(--shell-rail, 55%), transparent) !important;
-  backdrop-filter: blur(var(--shell-blur, 8px)) saturate(1.05);
-  -webkit-backdrop-filter: blur(var(--shell-blur, 8px)) saturate(1.05);
 }
 
 html[data-shell-bg="1"] .main-pane {
   background: color-mix(in srgb, var(--bg-soft) var(--shell-pane, 50%), transparent) !important;
-  backdrop-filter: blur(var(--shell-blur, 8px)) saturate(1.05);
-  -webkit-backdrop-filter: blur(var(--shell-blur, 8px)) saturate(1.05);
 }
 
 html[data-shell-bg="1"] .main-pane > .pane-view,
@@ -147,14 +143,10 @@ html[data-shell-bg="1"] .main-pane > .profile-layer,
 html[data-shell-bg="1"] .main-pane > .wish-layer,
 html[data-shell-bg="1"] .main-pane > .seek-emoji-layer {
   background: color-mix(in srgb, var(--bg-soft) var(--shell-view, 52%), transparent) !important;
-  backdrop-filter: blur(var(--shell-blur, 8px));
-  -webkit-backdrop-filter: blur(var(--shell-blur, 8px));
 }
 
 html[data-shell-bg="1"] .app > .now-card {
   background: color-mix(in srgb, var(--bg) var(--shell-bar, 54%), transparent) !important;
-  backdrop-filter: blur(var(--shell-blur, 8px));
-  -webkit-backdrop-filter: blur(var(--shell-blur, 8px));
 }
 
 .shell-bg-level {
@@ -177,11 +169,15 @@ html[data-shell-bg="1"] .app > .now-card {
   max-height: 220px;
 }
 
+#shellBgRotateRow {
+  margin-bottom: 0;
+}
+
 .shell-bg-interval {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 12px;
+  margin: 16px 0 16px;
   color: var(--muted);
   font-size: 0.82rem;
 }
