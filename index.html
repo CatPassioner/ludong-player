@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03shellbg3" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03shellbg4" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -530,20 +530,32 @@
             <span class="settings-label">界面背景图</span>
             <span class="settings-hint">整窗一张</span>
           </div>
-          <p class="settings-note">上传一张图铺满窗口。左侧、右侧和底栏盖半透明磨砂，文字仍写在面板上，不会发糊。只保存在当前账号的本机。</p>
-          <div class="shell-bg-preview" id="shellBgPreview" hidden>
-            <img id="shellBgPreviewImg" alt="" />
-          </div>
+          <p class="settings-note">可上传多张，点选当前背景。也可每隔一段时间自动换图，按顺序或随机。左侧、右侧和底栏盖半透明磨砂，文字不会发糊。只保存在当前账号的本机，最多 6 张。</p>
+          <div class="shell-bg-grid" id="shellBgGrid"></div>
           <label class="shell-bg-level" for="shellBgLevel">
             <span>无</span>
             <input type="range" id="shellBgLevel" min="0" max="100" step="1" value="55" aria-label="背景亮度" />
             <span>原亮度</span>
           </label>
+          <div class="settings-row">
+            <span class="settings-label">自动切换</span>
+            <span class="settings-hint">至少两张才会换</span>
+          </div>
+          <div class="bg-hue-row" id="shellBgRotateRow" role="group" aria-label="自动切换">
+            <button type="button" class="bg-hue is-active" data-shell-rotate="off">关闭</button>
+            <button type="button" class="bg-hue" data-shell-rotate="order">顺序</button>
+            <button type="button" class="bg-hue" data-shell-rotate="random">随机</button>
+          </div>
+          <label class="shell-bg-interval" id="shellBgIntervalWrap" hidden>
+            每隔
+            <input type="number" id="shellBgInterval" min="1" max="180" step="1" value="5" />
+            分钟换一张
+          </label>
           <div class="import-actions">
             <button type="button" class="import-btn" id="shellBgPickBtn">上传背景</button>
             <button type="button" class="import-btn import-btn-ghost" id="shellBgClearBtn">恢复默认</button>
           </div>
-          <input type="file" id="shellBgFile" accept="image/*,.jpg,.jpeg,.png,.webp,.gif" hidden />
+          <input type="file" id="shellBgFile" accept="image/*,.jpg,.jpeg,.png,.webp,.gif" multiple hidden />
 
           <div class="settings-divider"></div>
           <div class="settings-row">
@@ -1045,6 +1057,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03shell3"></script>
-  <script src="app.js?v=2.0.03shellbg3"></script>
+  <script src="app.js?v=2.0.03shellbg4"></script>
 </body>
 </html>

@@ -9408,6 +9408,8 @@ loadUiStyle();
 applyShellBackground();
 
 const SHELL_BG_KEY = "ludong-shell-bg-v1";
+const SHELL_BG_MAX = 6;
+let shellBgTimer = 0;
 
 function shellLevelFromSaved(data) {
   const n = Number(data?.level);
@@ -9417,34 +9419,61 @@ function shellLevelFromSaved(data) {
   return 55;
 }
 
+function emptyShellBackground() {
+  return { items: [], activeId: "", level: 55, rotate: "off", intervalMin: 5 };
+}
+
+function normalizeShellBackground(data) {
+  let items = (Array.isArray(data?.items) ? data.items : [])
+    .map((item) => ({
+      id: String(item?.id || ""),
+      image: String(item?.image || "")
+    }))
+    .filter((item) => item.id && item.image.startsWith("data:image/"));
+  const legacy = String(data?.image || "");
+  if (!items.length && legacy.startsWith("data:image/")) {
+    items = [{ id: "bg-legacy", image: legacy }];
+  }
+  items = items.slice(0, SHELL_BG_MAX);
+  const activeId = items.some((item) => item.id === data?.activeId)
+    ? data.activeId
+    : items[0]?.id || "";
+  const rotate = ["off", "order", "random"].includes(data?.rotate) ? data.rotate : "off";
+  let intervalMin = Number(data?.intervalMin);
+  if (!Number.isFinite(intervalMin)) intervalMin = 5;
+  intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
+  return {
+    items,
+    activeId,
+    level: shellLevelFromSaved(data || {}),
+    rotate,
+    intervalMin
+  };
+}
+
 function readShellBackground() {
   try {
     const raw = localStorage.getItem(scopedStorageKey(SHELL_BG_KEY));
-    const data = raw ? JSON.parse(raw) : null;
-    const image = String(data?.image || "");
-    if (!image.startsWith("data:image/")) return { image: "", level: 55 };
-    return { image, level: shellLevelFromSaved(data) };
+    return normalizeShellBackground(raw ? JSON.parse(raw) : null);
   } catch {
-    return { image: "", level: 55 };
+    return emptyShellBackground();
   }
+}
+
+function shellImageOf(state) {
+  return state.items.find((item) => item.id === state.activeId)?.image || "";
 }
 
 function writeShellBackground(next) {
   const key = scopedStorageKey(SHELL_BG_KEY);
+  const state = normalizeShellBackground(next);
   try {
-    if (!next?.image) localStorage.removeItem(key);
-    else {
-      localStorage.setItem(
-        key,
-        JSON.stringify({
-          image: next.image,
-          level: shellLevelFromSaved(next)
-        })
-      );
-    }
+    if (!state.items.length) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(state));
   } catch {
-    throw new Error("图片太大，本机存不下，请换一张小一点的");
+    throw new Error("图片太多或太大，本机存不下");
   }
+  return state;
 }
 
 function applyShellLevel(level) {
@@ -9463,14 +9492,66 @@ function applyShellLevel(level) {
   }
 }
 
+function renderShellBackgroundPicker(state) {
+  const grid = document.getElementById("shellBgGrid");
+  if (grid) {
+    grid.innerHTML = state.items
+      .map(
+        (item) => `<button type="button" class="shell-bg-thumb${
+          item.id === state.activeId ? " is-on" : ""
+        }" data-shell-id="${escapeHtml(item.id)}" title="设为当前背景">
+          <img src="${item.image}" alt="" />
+          <span class="shell-bg-thumb-del" data-shell-del="${escapeHtml(item.id)}" title="删除">×</span>
+        </button>`
+      )
+      .join("");
+  }
+  document.querySelectorAll("#shellBgRotateRow [data-shell-rotate]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.shellRotate === state.rotate);
+  });
+  const wrap = document.getElementById("shellBgIntervalWrap");
+  const interval = document.getElementById("shellBgInterval");
+  if (wrap) wrap.hidden = state.rotate === "off" || state.items.length < 2;
+  if (interval && document.activeElement !== interval) {
+    interval.value = String(state.intervalMin);
+  }
+}
+
+function scheduleShellBackgroundRotate(state = readShellBackground()) {
+  clearInterval(shellBgTimer);
+  shellBgTimer = 0;
+  if (state.rotate === "off" || state.items.length < 2) return;
+  const ms = state.intervalMin * 60 * 1000;
+  shellBgTimer = setInterval(() => {
+    advanceShellBackground();
+  }, ms);
+}
+
+function advanceShellBackground() {
+  const state = readShellBackground();
+  if (state.items.length < 2 || state.rotate === "off") return;
+  const index = state.items.findIndex((item) => item.id === state.activeId);
+  let nextId = state.items[0].id;
+  if (state.rotate === "random") {
+    const pool = state.items.filter((item) => item.id !== state.activeId);
+    nextId = pool[Math.floor(Math.random() * pool.length)]?.id || nextId;
+  } else {
+    nextId = state.items[(Math.max(index, 0) + 1) % state.items.length].id;
+  }
+  if (nextId === state.activeId) return;
+  writeShellBackground({ ...state, activeId: nextId });
+  applyShellBackground();
+}
+
 function applyShellBackground() {
   const data = readShellBackground();
+  const image = shellImageOf(data);
   const root = document.documentElement;
   const layer = document.getElementById("shellBgLayer");
-  const on = !!data.image;
+  const on = !!image;
   if (on) {
     root.setAttribute("data-shell-bg", "1");
-    root.style.setProperty("--shell-bg-image", `url("${data.image}")`);
+    root.style.setProperty("--shell-bg-image", `url("${image}")`);
     applyShellLevel(data.level);
   } else {
     root.removeAttribute("data-shell-bg");
@@ -9480,14 +9561,12 @@ function applyShellBackground() {
   if (layer) {
     layer.hidden = !on;
     layer.setAttribute("aria-hidden", on ? "false" : "true");
-    layer.style.backgroundImage = on ? `url("${data.image}")` : "";
+    layer.style.backgroundImage = on ? `url("${image}")` : "";
   }
   const slider = document.getElementById("shellBgLevel");
   if (slider) slider.value = String(data.level);
-  const preview = document.getElementById("shellBgPreview");
-  const img = document.getElementById("shellBgPreviewImg");
-  if (preview) preview.hidden = !on;
-  if (img) img.src = on ? data.image : "";
+  renderShellBackgroundPicker(data);
+  scheduleShellBackgroundRotate(data);
 }
 
 function compressShellBackgroundFile(file) {
@@ -9541,18 +9620,109 @@ document.getElementById("shellBgPickBtn")?.addEventListener("click", () => {
 
 document.getElementById("shellBgFile")?.addEventListener("change", async (e) => {
   const input = e.target;
-  const file = input?.files?.[0];
+  const files = [...(input?.files || [])];
   if (input) input.value = "";
-  if (!file) return;
+  if (!files.length) return;
+  const prev = readShellBackground();
+  const items = prev.items.slice();
+  let added = 0;
+  let activeId = prev.activeId;
   try {
-    const image = await compressShellBackgroundFile(file);
-    const prev = readShellBackground();
-    writeShellBackground({ image, level: prev.level });
+    for (const file of files) {
+      if (items.length >= SHELL_BG_MAX) break;
+      const image = await compressShellBackgroundFile(file);
+      const id = `bg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      items.push({ id, image });
+      if (!activeId) activeId = id;
+      added += 1;
+    }
+    if (!added) {
+      setHint(`最多保存 ${SHELL_BG_MAX} 张背景`, true);
+      return;
+    }
+    writeShellBackground({ ...prev, items, activeId });
     applyShellBackground();
-    setHint("界面背景已更新");
+    const skipped = files.length - added;
+    setHint(
+      skipped > 0
+        ? `已加入 ${added} 张，最多 ${SHELL_BG_MAX} 张`
+        : `已加入 ${added} 张背景`
+    );
   } catch (err) {
+    if (added) {
+      try {
+        writeShellBackground({ ...prev, items, activeId });
+        applyShellBackground();
+      } catch {
+        /* ignore */
+      }
+    }
     setHint(err?.message || "背景上传失败", true);
   }
+});
+
+document.getElementById("shellBgGrid")?.addEventListener("click", (e) => {
+  const del = e.target.closest?.("[data-shell-del]");
+  const state = readShellBackground();
+  if (del) {
+    e.stopPropagation();
+    const id = del.dataset.shellDel || "";
+    const items = state.items.filter((item) => item.id !== id);
+    const activeId = state.activeId === id ? items[0]?.id || "" : state.activeId;
+    try {
+      writeShellBackground({ ...state, items, activeId });
+    } catch (err) {
+      setHint(err?.message || "删除失败", true);
+      return;
+    }
+    applyShellBackground();
+    setHint(items.length ? "已删除这张背景" : "已恢复默认背景");
+    return;
+  }
+  const thumb = e.target.closest?.("[data-shell-id]");
+  if (!thumb) return;
+  const activeId = thumb.dataset.shellId || "";
+  if (!activeId || activeId === state.activeId) return;
+  try {
+    writeShellBackground({ ...state, activeId });
+  } catch (err) {
+    setHint(err?.message || "切换失败", true);
+    return;
+  }
+  applyShellBackground();
+});
+
+document.getElementById("shellBgRotateRow")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-shell-rotate]");
+  if (!btn) return;
+  const rotate = btn.dataset.shellRotate || "off";
+  const state = readShellBackground();
+  if (rotate !== "off" && state.items.length < 2) {
+    setHint("至少上传两张才能自动切换", true);
+    return;
+  }
+  try {
+    writeShellBackground({ ...state, rotate });
+  } catch (err) {
+    setHint(err?.message || "保存失败", true);
+    return;
+  }
+  applyShellBackground();
+});
+
+document.getElementById("shellBgInterval")?.addEventListener("change", (e) => {
+  let intervalMin = Number(e.target?.value);
+  if (!Number.isFinite(intervalMin)) intervalMin = 5;
+  intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
+  if (e.target) e.target.value = String(intervalMin);
+  const state = readShellBackground();
+  try {
+    writeShellBackground({ ...state, intervalMin });
+  } catch (err) {
+    setHint(err?.message || "保存失败", true);
+    return;
+  }
+  scheduleShellBackgroundRotate();
 });
 
 document.getElementById("shellBgClearBtn")?.addEventListener("click", () => {
@@ -9568,20 +9738,20 @@ document.getElementById("shellBgClearBtn")?.addEventListener("click", () => {
 document.getElementById("shellBgLevel")?.addEventListener("input", (e) => {
   const level = Number(e.target?.value);
   const prev = readShellBackground();
-  if (!prev.image) return;
+  if (!shellImageOf(prev)) return;
   applyShellLevel(level);
 });
 
 document.getElementById("shellBgLevel")?.addEventListener("change", (e) => {
   const level = Number(e.target?.value);
   const prev = readShellBackground();
-  if (!prev.image) {
+  if (!shellImageOf(prev)) {
     setHint("请先上传一张背景图", true);
     if (e.target) e.target.value = "55";
     return;
   }
   try {
-    writeShellBackground({ image: prev.image, level });
+    writeShellBackground({ ...prev, level });
   } catch (err) {
     setHint(err?.message || "保存失败", true);
   }
