@@ -722,27 +722,11 @@ function renderLikesList() {
 }
 
 function openLikesLayer() {
-  mountMainViews();
-  renderLikesList();
-  if (!els.likesLayer) return;
-  if (els.viewHome) els.viewHome.hidden = true;
-  els.likesLayer.hidden = false;
-  els.likesLayer.classList.add("is-open");
-  els.likesLayer.setAttribute("aria-hidden", "false");
-  currentMainView = "likes";
-  syncNavActive("likes");
+  openPlaylistDetail({ kind: "likes" });
 }
 
 function closeLikesLayer() {
-  if (!els.likesLayer) return;
-  els.likesLayer.hidden = true;
-  els.likesLayer.classList.remove("is-open");
-  els.likesLayer.setAttribute("aria-hidden", "true");
-  if (currentMainView === "likes") {
-    currentMainView = "home";
-    if (els.viewHome) els.viewHome.hidden = false;
-    syncNavActive("home");
-  }
+  if (playlistDetailState?.kind === "likes") closePlaylistDetail();
 }
 
 async function loadLikes() {
@@ -811,7 +795,7 @@ async function toggleLikeSong(song, forceLiked) {
     btn.title = on ? "取消喜欢" : "喜欢";
   });
   syncPlayerLikeButton(song);
-  if (els.likesLayer?.classList.contains("is-open")) renderLikesList();
+  renderList();
 
   try {
     await fetch(withUserQuery("/api/likes"), {
@@ -3922,7 +3906,8 @@ function readUserPlaylists() {
       .map((p) => ({
         id: String(p.id || ""),
         name: String(p.name || "未命名歌单").slice(0, 24),
-        songIds: [...new Set((p.songIds || []).map(String).filter(Boolean))]
+        songIds: [...new Set((p.songIds || []).map(String).filter(Boolean))],
+        cover: String(p.cover || "").trim()
       }))
       .filter((p) => p.id);
   } catch {
@@ -3950,7 +3935,8 @@ function normalizePlaylistRows(lists) {
     .map((p) => ({
       id: String(p?.id || ""),
       name: String(p?.name || "未命名歌单").slice(0, 24),
-      songIds: [...new Set((p?.songIds || []).map(String).filter(Boolean))]
+      songIds: [...new Set((p?.songIds || []).map(String).filter(Boolean))],
+      cover: String(p?.cover || "").trim()
     }))
     .filter((p) => p.id);
 }
@@ -3968,7 +3954,12 @@ function mergePlaylistRows(localLists, cloudLists) {
     other.songIds.forEach((id) => {
       if (!songIds.includes(id)) songIds.push(id);
     });
-    map.set(p.id, { id: p.id, name: p.name || other.name, songIds });
+    map.set(p.id, {
+      id: p.id,
+      name: p.name || other.name,
+      songIds,
+      cover: p.cover || other.cover || ""
+    });
   });
   return [...map.values()];
 }
@@ -4148,7 +4139,7 @@ function librarySongById(id) {
   );
 }
 
-function songRowHtml(song, indexInPlaylist, { listId = "", displayIndex = 0 } = {}) {
+function songRowHtml(song, indexInPlaylist, { listId = "", queueId = "", displayIndex = 0 } = {}) {
   const i = indexInPlaylist;
   const canFileDelete = !!(
     (song.cloud && song.canDelete) ||
@@ -4156,6 +4147,7 @@ function songRowHtml(song, indexInPlaylist, { listId = "", displayIndex = 0 } = 
   );
   const liked = isSongLiked(song);
   const inCustom = !!listId;
+  const playQueueId = queueId || listId || "";
   const menu = [];
   menu.push(
     `<button type="button" class="song-menu-item" data-action="save" data-index="${i}" data-list-id="${escapeHtml(listId)}">保存到歌单</button>`
@@ -4174,7 +4166,7 @@ function songRowHtml(song, indexInPlaylist, { listId = "", displayIndex = 0 } = 
     );
   }
   return `
-      <li class="song" data-index="${i}" data-song-id="${escapeHtml(song.id || "")}" data-list-id="${escapeHtml(listId)}">
+      <li class="song" data-index="${i}" data-song-id="${escapeHtml(song.id || "")}" data-list-id="${escapeHtml(listId)}" data-queue-id="${escapeHtml(playQueueId)}">
         <span class="idx">${String(displayIndex + 1).padStart(2, "0")}</span>
         <img src="${escapeHtml(song.cover || "./logo.jpg")}" alt="" loading="lazy" />
         <div class="song-meta">
@@ -4200,123 +4192,321 @@ function songRowHtml(song, indexInPlaylist, { listId = "", displayIndex = 0 } = 
       </li>`;
 }
 
-const PLAYLIST_FOLD_KEY = "ludong-playlist-fold-v1";
+const LIKES_COVER_KEY = "ludong-likes-cover-v1";
+let playlistEditing = false;
+let playlistDetailState = null;
 
-function readPlaylistFold() {
+function readLikesCover() {
   try {
-    const raw = localStorage.getItem(scopedStorageKey(PLAYLIST_FOLD_KEY));
-    const data = raw ? JSON.parse(raw) : null;
-    return data && typeof data === "object" ? data : {};
+    return localStorage.getItem(scopedStorageKey(LIKES_COVER_KEY)) || "";
   } catch {
-    return {};
+    return "";
   }
 }
 
-function isPlaylistFolded(key, { searching = false } = {}) {
-  if (searching) return false;
-  const map = readPlaylistFold();
-  if (Object.prototype.hasOwnProperty.call(map, key)) return !!map[key];
-  return key === "cloud" || key === "local";
-}
-
-function togglePlaylistFold(key) {
-  const map = readPlaylistFold();
-  const next = !isPlaylistFolded(key);
-  map[key] = next;
+function writeLikesCover(url) {
   try {
-    localStorage.setItem(scopedStorageKey(PLAYLIST_FOLD_KEY), JSON.stringify(map));
+    if (url) localStorage.setItem(scopedStorageKey(LIKES_COVER_KEY), url);
+    else localStorage.removeItem(scopedStorageKey(LIKES_COVER_KEY));
   } catch {
     /* ignore */
   }
 }
 
-function playlistBlockHtml(name, songsHtml, { kind = "", listId = "", count = 0, foldKey = "", folded = false } = {}) {
+function coverFromSongs(songs, fallback = "./logo.jpg") {
+  const hit = (Array.isArray(songs) ? songs : []).find((s) => s?.cover);
+  return hit?.cover || fallback;
+}
+
+function resolvePlaylistBundle(kind, listId = "") {
+  const lib = librarySongs();
+  if (kind === "likes") {
+    const songs = likedSongsInOrder();
+    return {
+      kind: "likes",
+      listId: "",
+      queueId: "likes",
+      title: "我喜欢",
+      songs,
+      cover: readLikesCover() || coverFromSongs(songs),
+      coverEditable: true
+    };
+  }
+  if (kind === "cloud") {
+    const songs = lib.filter((s) => s.cloud);
+    return {
+      kind: "cloud",
+      listId: "",
+      queueId: "cloud",
+      title: "云端",
+      songs,
+      cover: coverFromSongs(songs),
+      coverEditable: false
+    };
+  }
+  if (kind === "local") {
+    const songs = lib.filter((s) => s.local && !s.cloud);
+    return {
+      kind: "local",
+      listId: "",
+      queueId: "local",
+      title: "本地",
+      songs,
+      cover: coverFromSongs(songs),
+      coverEditable: false
+    };
+  }
+  const p = readUserPlaylists().find((item) => item.id === listId);
+  if (!p) return null;
+  const songs = p.songIds.map((id) => librarySongById(id)).filter(Boolean);
+  return {
+    kind: "custom",
+    listId: p.id,
+    queueId: p.id,
+    title: p.name,
+    songs,
+    cover: p.cover || coverFromSongs(songs),
+    coverEditable: true
+  };
+}
+
+function playlistBlockHtml(name, {
+  kind = "",
+  listId = "",
+  count = 0,
+  openKind = "",
+  cover = "./logo.jpg"
+} = {}) {
   const actions = listId
     ? `<span class="playlist-block-actions">
         <button type="button" class="playlist-mini-btn" data-pl-act="rename" data-list-id="${escapeHtml(listId)}">重命名</button>
         <button type="button" class="playlist-mini-btn is-danger" data-pl-act="delete" data-list-id="${escapeHtml(listId)}">删除</button>
       </span>`
     : "";
-  const body = folded
-    ? ""
-    : songsHtml
-      ? `<ul class="playlist-block-songs">${songsHtml}</ul>`
-      : `<div class="playlist-empty">这里还没有歌</div>`;
-  return `<li class="playlist-block${kind ? ` is-${kind}` : ""}${folded ? " is-folded" : ""}">
-    <div class="playlist-block-head" data-fold-key="${escapeHtml(foldKey)}" aria-expanded="${folded ? "false" : "true"}">
-      <span class="playlist-fold-ico" aria-hidden="true"></span>
-      <span class="playlist-block-name">${escapeHtml(name)}</span>
-      <span class="playlist-block-count">${count} 首</span>
+  return `<li class="playlist-block${kind ? ` is-${kind}` : ""}">
+    <div class="playlist-block-row">
+      <button type="button" class="playlist-block-head" data-open-kind="${escapeHtml(
+        openKind || kind
+      )}" data-open-id="${escapeHtml(listId)}">
+        <img class="playlist-block-cover" src="${escapeHtml(cover || "./logo.jpg")}" alt="" loading="lazy" />
+        <span class="playlist-block-text">
+          <span class="playlist-block-name">${escapeHtml(name)}</span>
+          <span class="playlist-block-count">${count} 首</span>
+        </span>
+      </button>
       ${actions}
     </div>
-    ${body}
   </li>`;
 }
 
+function syncPlaylistEditBtn() {
+  const btn = document.getElementById("playlistEditBtn");
+  if (!btn) return;
+  btn.classList.toggle("is-on", playlistEditing);
+  btn.setAttribute("aria-pressed", playlistEditing ? "true" : "false");
+  btn.textContent = playlistEditing ? "完成" : "编辑";
+  els.playlist?.classList.toggle("is-editing", playlistEditing);
+}
+
 function renderList() {
-  const cloud = [];
-  const local = [];
-  playlist.forEach((song, i) => {
-    const row = { song, i };
-    if (song.cloud) cloud.push(row);
-    else if (song.local) local.push(row);
-  });
+  const cloud = librarySongs().filter((s) => s.cloud);
+  const local = librarySongs().filter((s) => s.local && !s.cloud);
+  const likes = likedSongsInOrder();
   const custom = readUserPlaylists().map((p) => {
-    const rows = p.songIds
-      .map((id) => librarySongById(id))
-      .filter(Boolean)
-      .map((song) => ({
-        song,
-        i: playlist.findIndex((s) => String(s.id) === String(song.id))
-      }))
-      .filter((row) => row.i >= 0);
-    return { ...p, rows };
+    const songs = p.songIds.map((id) => librarySongById(id)).filter(Boolean);
+    return { ...p, songs };
   });
   if (els.songCount) els.songCount.textContent = `${playlist.length} 首`;
-  if (!playlist.length && !custom.length) {
+  if (!playlist.length && !custom.length && !likes.length) {
     els.playlist.innerHTML =
       '<li class="empty-tip">暂无歌曲。可到设置上传云端共同曲库，或导入私人空间</li>';
+    syncPlaylistEditBtn();
     return;
   }
   const blocks = [
-    playlistBlockHtml(
-      "云端",
-      cloud.map((row, n) => songRowHtml(row.song, row.i, { displayIndex: n })).join(""),
-      {
-        kind: "cloud",
-        count: cloud.length,
-        foldKey: "cloud",
-        folded: isPlaylistFolded("cloud")
-      }
-    ),
-    playlistBlockHtml(
-      "本地",
-      local.map((row, n) => songRowHtml(row.song, row.i, { displayIndex: n })).join(""),
-      {
-        kind: "local",
-        count: local.length,
-        foldKey: "local",
-        folded: isPlaylistFolded("local")
-      }
-    )
+    playlistBlockHtml("我喜欢", {
+      kind: "likes",
+      openKind: "likes",
+      count: likes.length,
+      cover: readLikesCover() || coverFromSongs(likes)
+    }),
+    playlistBlockHtml("云端", {
+      kind: "cloud",
+      openKind: "cloud",
+      count: cloud.length,
+      cover: coverFromSongs(cloud)
+    }),
+    playlistBlockHtml("本地", {
+      kind: "local",
+      openKind: "local",
+      count: local.length,
+      cover: coverFromSongs(local)
+    })
   ];
   custom.forEach((p) => {
     blocks.push(
-      playlistBlockHtml(
-        p.name,
-        p.rows.map((row, n) => songRowHtml(row.song, row.i, { listId: p.id, displayIndex: n })).join(""),
-        {
-          kind: "mine",
-          listId: p.id,
-          count: p.rows.length,
-          foldKey: p.id,
-          folded: isPlaylistFolded(p.id)
-        }
-      )
+      playlistBlockHtml(p.name, {
+        kind: "mine",
+        openKind: "custom",
+        listId: p.id,
+        count: p.songs.length,
+        cover: p.cover || coverFromSongs(p.songs)
+      })
     );
   });
   els.playlist.innerHTML = blocks.join("");
+  syncPlaylistEditBtn();
   updateActive();
+  if (playlistDetailState) renderPlaylistDetail();
+}
+
+function compressPlaylistCoverFile(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !String(file.type || "").startsWith("image/")) {
+      reject(new Error("请选择图片文件"));
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      reject(new Error("图片请小于 12MB"));
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const size = 320;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        const s = Math.min(img.width, img.height) || 1;
+        const sx = (img.width - s) / 2;
+        const sy = (img.height - s) / 2;
+        ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+        let quality = 0.82;
+        let out = canvas.toDataURL("image/jpeg", quality);
+        while (out.length > 220000 && quality > 0.45) {
+          quality -= 0.08;
+          out = canvas.toDataURL("image/jpeg", quality);
+        }
+        resolve(out);
+      } catch (err) {
+        reject(err);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("无法读取图片"));
+    };
+    img.src = url;
+  });
+}
+
+function renderPlaylistDetail() {
+  const layer = document.getElementById("playlistDetailLayer");
+  if (!layer || !playlistDetailState) return;
+  const bundle = resolvePlaylistBundle(
+    playlistDetailState.kind,
+    playlistDetailState.listId || ""
+  );
+  if (!bundle) {
+    closePlaylistDetail();
+    return;
+  }
+  playlistDetailState = {
+    kind: bundle.kind,
+    listId: bundle.listId || ""
+  };
+  const titleEl = document.getElementById("playlistDetailTitle");
+  const nameEl = document.getElementById("playlistDetailName");
+  const countEl = document.getElementById("playlistDetailCount");
+  const coverEl = document.getElementById("playlistDetailCover");
+  const coverBtn = document.getElementById("playlistCoverBtn");
+  const listEl = document.getElementById("playlistDetailList");
+  if (titleEl) titleEl.textContent = bundle.title;
+  if (nameEl) nameEl.textContent = bundle.title;
+  if (countEl) countEl.textContent = `${bundle.songs.length} 首`;
+  if (coverEl) coverEl.src = bundle.cover || "./logo.jpg";
+  if (coverBtn) coverBtn.hidden = !bundle.coverEditable;
+  if (listEl) {
+    if (!bundle.songs.length) {
+      listEl.innerHTML = '<li class="playlist-empty">这里还没有歌</li>';
+    } else {
+      listEl.innerHTML = bundle.songs
+        .map((song, n) => {
+          const i = playlistIndexOf(song);
+          if (i < 0) return "";
+          return songRowHtml(song, i, {
+            listId: bundle.kind === "custom" ? bundle.listId : "",
+            queueId: bundle.queueId,
+            displayIndex: n
+          });
+        })
+        .filter(Boolean)
+        .join("");
+    }
+  }
+  updateActive();
+}
+
+function openPlaylistDetail({ kind, listId = "" } = {}) {
+  mountMainViews();
+  const bundle = resolvePlaylistBundle(kind, listId);
+  if (!bundle) {
+    setHint("找不到这个歌单", true);
+    return;
+  }
+  playlistDetailState = { kind: bundle.kind, listId: bundle.listId || "" };
+  if (els.viewHome) els.viewHome.hidden = true;
+  closeEmbeddedView(els.likesLayer || document.getElementById("likesLayer"));
+  closeEmbeddedView(els.chatLayer || document.getElementById("chatLayer"));
+  closeEmbeddedView(document.getElementById("wishLayer"));
+  closeEmbeddedView(els.profileLayer || document.getElementById("profileLayer"));
+  closeEmbeddedView(els.settingsPanel || document.getElementById("settingsPanel"));
+  closeEmbeddedView(document.getElementById("seekEmojiLayer"));
+  const layer = document.getElementById("playlistDetailLayer");
+  openEmbeddedView(layer);
+  currentMainView = bundle.kind === "likes" ? "likes" : "playlistDetail";
+  syncNavActive(bundle.kind === "likes" ? "likes" : "home");
+  renderPlaylistDetail();
+}
+
+function closePlaylistDetail() {
+  const layer = document.getElementById("playlistDetailLayer");
+  closeEmbeddedView(layer);
+  playlistDetailState = null;
+  if (currentMainView === "playlistDetail" || currentMainView === "likes") {
+    currentMainView = "home";
+    if (els.viewHome) els.viewHome.hidden = false;
+    syncNavActive("home");
+  }
+}
+
+async function playPlaylistDetailAll() {
+  if (!playlistDetailState) return;
+  const bundle = resolvePlaylistBundle(
+    playlistDetailState.kind,
+    playlistDetailState.listId || ""
+  );
+  if (!bundle?.songs?.length) {
+    setHint("这个歌单还没有歌", true);
+    return;
+  }
+  const first = bundle.songs[0];
+  let index = playlistIndexOf(first);
+  if (index < 0) {
+    playlist = [...DEFAULT_PLAYLIST];
+    index = playlistIndexOf(first);
+  }
+  if (index < 0) {
+    setHint("这首歌当前不在曲库里", true);
+    return;
+  }
+  setPlayQueueForSong(first, bundle.queueId);
+  openPlayerWindow();
+  await playAt(index);
 }
 
 function escapeHtml(str) {
@@ -5868,6 +6058,12 @@ function setPlayQueueForSong(song, listId) {
   if (id === "likes") {
     playQueueKind = "likes";
     ids = likedSongsInOrder().map((item) => item.id);
+  } else if (id === "cloud") {
+    playQueueKind = "cloud";
+    ids = lib.filter((item) => item.cloud).map((item) => item.id);
+  } else if (id === "local") {
+    playQueueKind = "local";
+    ids = lib.filter((item) => item.local && !item.cloud).map((item) => item.id);
   } else if (id) {
     playQueueKind = id;
     const list = readUserPlaylists().find((p) => p.id === id);
@@ -6428,15 +6624,85 @@ function runSearch(rawQuery) {
 renderList();
 setHint("正在读取本地歌单…");
 
-els.playlist.addEventListener("click", async (e) => {
-  const foldBtn = e.target.closest("[data-fold-key]");
-  if (foldBtn && !e.target.closest("[data-pl-act]")) {
+async function handleSongListClick(e) {
+  const likeBtn = e.target.closest(".song-like");
+  if (likeBtn) {
     e.stopPropagation();
-    togglePlaylistFold(foldBtn.dataset.foldKey || "");
-    renderList();
-    return;
+    const index = Number(likeBtn.dataset.index);
+    toggleLikeSong(playlist[index]);
+    return true;
   }
 
+  const moreBtn = e.target.closest(".song-more");
+  if (moreBtn) {
+    e.stopPropagation();
+    const wrap = moreBtn.closest(".song-more-wrap");
+    const menu = wrap?.querySelector(".song-menu");
+    const wasOpen = menu && !menu.hidden;
+    closeSongMenus();
+    if (menu && !wasOpen) {
+      menu.hidden = false;
+      moreBtn.classList.add("is-open");
+    }
+    return true;
+  }
+
+  const menuItem = e.target.closest(".song-menu-item");
+  if (menuItem) {
+    e.stopPropagation();
+    const index = Number(menuItem.dataset.index);
+    const action = menuItem.dataset.action;
+    const listId = menuItem.dataset.listId || "";
+    const song = playlist[index];
+    closeSongMenus();
+    if (!song) return true;
+    if (action === "delete") askDeleteSong(index);
+    if (action === "remove") {
+      removeSongFromUserPlaylist(listId, song);
+      renderList();
+      setHint(`已从歌单移除「${song.title}」`);
+    }
+    if (action === "save") {
+      const picked = await pickUserPlaylist({
+        title: `保存「${song.title}」到`,
+        excludeId: listId
+      });
+      if (!picked) return true;
+      const lists = readUserPlaylists();
+      const dest = lists.find((p) => p.id === picked);
+      if (dest?.songIds.includes(String(song.id))) {
+        setHint("这首歌已经在该歌单里");
+        return true;
+      }
+      addSongToUserPlaylist(picked, song);
+      renderList();
+      setHint("已保存到歌单");
+    }
+    if (action === "move") {
+      const picked = await pickUserPlaylist({
+        title: `转移「${song.title}」到`,
+        excludeId: listId
+      });
+      if (!picked) return true;
+      addSongToUserPlaylist(picked, song);
+      if (listId) removeSongFromUserPlaylist(listId, song);
+      renderList();
+      setHint("已转移到歌单");
+    }
+    return true;
+  }
+
+  const item = e.target.closest(".song");
+  if (!item) return false;
+  const index = Number(item.dataset.index);
+  const queueId = item.dataset.queueId || item.dataset.listId || "";
+  setPlayQueueForSong(playlist[index], queueId);
+  openPlayerWindow();
+  playAt(index);
+  return true;
+}
+
+els.playlist.addEventListener("click", async (e) => {
   const plBtn = e.target.closest("[data-pl-act]");
   if (plBtn) {
     e.stopPropagation();
@@ -6465,85 +6731,29 @@ els.playlist.addEventListener("click", async (e) => {
       );
       if (!ok) return;
       writeUserPlaylists(lists.filter((p) => p.id !== listId));
+      if (
+        playlistDetailState?.kind === "custom" &&
+        playlistDetailState.listId === listId
+      ) {
+        closePlaylistDetail();
+      }
       renderList();
       setHint("歌单已删除");
     }
     return;
   }
 
-  const likeBtn = e.target.closest(".song-like");
-  if (likeBtn) {
+  const openBtn = e.target.closest("[data-open-kind]");
+  if (openBtn) {
     e.stopPropagation();
-    const index = Number(likeBtn.dataset.index);
-    toggleLikeSong(playlist[index]);
+    openPlaylistDetail({
+      kind: openBtn.dataset.openKind || "",
+      listId: openBtn.dataset.openId || ""
+    });
     return;
   }
 
-  const moreBtn = e.target.closest(".song-more");
-  if (moreBtn) {
-    e.stopPropagation();
-    const wrap = moreBtn.closest(".song-more-wrap");
-    const menu = wrap?.querySelector(".song-menu");
-    const wasOpen = menu && !menu.hidden;
-    closeSongMenus();
-    if (menu && !wasOpen) {
-      menu.hidden = false;
-      moreBtn.classList.add("is-open");
-    }
-    return;
-  }
-
-  const menuItem = e.target.closest(".song-menu-item");
-  if (menuItem) {
-    e.stopPropagation();
-    const index = Number(menuItem.dataset.index);
-    const action = menuItem.dataset.action;
-    const listId = menuItem.dataset.listId || "";
-    const song = playlist[index];
-    closeSongMenus();
-    if (!song) return;
-    if (action === "delete") askDeleteSong(index);
-    if (action === "remove") {
-      removeSongFromUserPlaylist(listId, song);
-      renderList();
-      setHint(`已从歌单移除「${song.title}」`);
-    }
-    if (action === "save") {
-      const picked = await pickUserPlaylist({
-        title: `保存「${song.title}」到`,
-        excludeId: listId
-      });
-      if (!picked) return;
-      const lists = readUserPlaylists();
-      const dest = lists.find((p) => p.id === picked);
-      if (dest?.songIds.includes(String(song.id))) {
-        setHint("这首歌已经在该歌单里");
-        return;
-      }
-      addSongToUserPlaylist(picked, song);
-      renderList();
-      setHint("已保存到歌单");
-    }
-    if (action === "move") {
-      const picked = await pickUserPlaylist({
-        title: `转移「${song.title}」到`,
-        excludeId: listId
-      });
-      if (!picked) return;
-      addSongToUserPlaylist(picked, song);
-      if (listId) removeSongFromUserPlaylist(listId, song);
-      renderList();
-      setHint("已转移到歌单");
-    }
-    return;
-  }
-
-  const item = e.target.closest(".song");
-  if (!item) return;
-  const index = Number(item.dataset.index);
-  setPlayQueueForSong(playlist[index], item.dataset.listId || "");
-  openPlayerWindow();
-  playAt(index);
+  await handleSongListClick(e);
 });
 
 function closeSongMenus() {
@@ -6561,6 +6771,13 @@ els.playlistPickList?.addEventListener("click", (e) => {
   if (!btn) return;
   closePlaylistPicker(btn.dataset.pickId || "");
 });
+document.getElementById("playlistEditBtn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  playlistEditing = !playlistEditing;
+  syncPlaylistEditBtn();
+  renderList();
+});
+
 els.newPlaylistBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
   const next = window.prompt("新建歌单名称", "我的歌单");
@@ -6574,11 +6791,66 @@ els.newPlaylistBtn?.addEventListener("click", (e) => {
   lists.push({
     id: `pl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
     name,
-    songIds: []
+    songIds: [],
+    cover: ""
   });
   writeUserPlaylists(lists);
+  playlistEditing = false;
   renderList();
   setHint(`已新建歌单「${name}」`);
+});
+
+document.getElementById("playlistDetailBack")?.addEventListener("click", () => {
+  closePlaylistDetail();
+});
+
+document.getElementById("playlistPlayAllBtn")?.addEventListener("click", () => {
+  playPlaylistDetailAll().catch(() => {});
+});
+
+document.getElementById("playlistCoverBtn")?.addEventListener("click", () => {
+  if (!playlistDetailState) return;
+  const bundle = resolvePlaylistBundle(
+    playlistDetailState.kind,
+    playlistDetailState.listId || ""
+  );
+  if (!bundle?.coverEditable) return;
+  document.getElementById("playlistCoverInput")?.click();
+});
+
+document.getElementById("playlistCoverInput")?.addEventListener("change", async (e) => {
+  const input = e.target;
+  const file = input?.files?.[0];
+  if (input) input.value = "";
+  if (!file || !playlistDetailState) return;
+  const bundle = resolvePlaylistBundle(
+    playlistDetailState.kind,
+    playlistDetailState.listId || ""
+  );
+  if (!bundle?.coverEditable) return;
+  try {
+    const dataUrl = await compressPlaylistCoverFile(file);
+    if (bundle.kind === "likes") {
+      writeLikesCover(dataUrl);
+    } else if (bundle.kind === "custom" && bundle.listId) {
+      const lists = readUserPlaylists();
+      const target = lists.find((p) => p.id === bundle.listId);
+      if (!target) {
+        setHint("找不到这个歌单", true);
+        return;
+      }
+      target.cover = dataUrl;
+      writeUserPlaylists(lists);
+    }
+    renderList();
+    setHint("封面已更新");
+  } catch (err) {
+    setHint(err?.message || "封面上传失败", true);
+  }
+});
+
+document.getElementById("playlistDetailList")?.addEventListener("click", async (e) => {
+  await handleSongListClick(e);
 });
 
 document.addEventListener("click", () => closeSongMenus());
@@ -7078,6 +7350,11 @@ document.addEventListener("keydown", (e) => {
   }
   if (els.commentsLayer?.classList.contains("is-open")) {
     closeCommentsLayer();
+    return;
+  }
+  const detailLayer = document.getElementById("playlistDetailLayer");
+  if (detailLayer?.classList.contains("is-open") || playlistDetailState) {
+    closePlaylistDetail();
     return;
   }
   if (els.likesLayer?.classList.contains("is-open")) {
@@ -8373,6 +8650,7 @@ function mountMainViews() {
   if (!pane || mainViewsMounted) return;
   const ids = [
     "likesLayer",
+    "playlistDetailLayer",
     "chatLayer",
     "wishLayer",
     "profileLayer",
@@ -8413,7 +8691,6 @@ function setMainView(view = "home") {
   const next = String(view || "home");
   currentMainView = next;
 
-  if (els.viewHome) els.viewHome.hidden = next !== "home";
   closeEmbeddedView(els.likesLayer || document.getElementById("likesLayer"));
   closeEmbeddedView(els.chatLayer || document.getElementById("chatLayer"));
   closeEmbeddedView(document.getElementById("wishLayer"));
@@ -8423,7 +8700,13 @@ function setMainView(view = "home") {
 
   if (next === "likes") {
     openLikesLayer();
-  } else if (next === "chat") {
+  } else {
+    closeEmbeddedView(document.getElementById("playlistDetailLayer"));
+    playlistDetailState = null;
+    if (els.viewHome) els.viewHome.hidden = next !== "home";
+  }
+
+  if (next === "chat") {
     if (!window.LudongCloud?.enabled?.() || !window.LudongCloud?.isLoggedIn?.()) {
       setHint("请先登录后再使用私聊", true);
       currentMainView = "home";
