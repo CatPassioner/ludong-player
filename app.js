@@ -107,6 +107,10 @@ const els = {
   menuUserBtn: document.getElementById("menuUserBtn"),
   menuOpenSettingsBtn: document.getElementById("menuOpenSettingsBtn"),
   menuSettingsBackBtn: document.getElementById("menuSettingsBackBtn"),
+  menuCloseBtn: document.getElementById("menuCloseBtn"),
+  menuHonorChip: document.getElementById("menuHonorChip"),
+  menuLikesSub: document.getElementById("menuLikesSub"),
+  menuProfileHint: document.getElementById("menuProfileHint"),
   bgLightness: document.getElementById("bgLightness"),
   bgBlack: document.getElementById("bgBlack"),
   bgWhite: document.getElementById("bgWhite"),
@@ -7721,19 +7725,39 @@ function paintMenuIdentity({
   name = "未登录",
   avatarSrc = "./logo.jpg",
   userNoText = "用户号 —",
+  honor = "",
   tone = ""
 } = {}) {
   if (els.menuName) els.menuName.textContent = name;
   if (els.menuAvatar) els.menuAvatar.src = avatarSrc || "./logo.jpg";
   if (els.menuUserNo) {
-    els.menuUserNo.className = `menu-sub${tone ? ` ${tone}` : ""}`;
+    els.menuUserNo.className = `menu-chip${tone ? ` ${tone}` : ""}`;
     els.menuUserNo.textContent = userNoText;
+  }
+  if (els.menuHonorChip) {
+    const title = String(honor || "").trim();
+    if (title) {
+      els.menuHonorChip.hidden = false;
+      els.menuHonorChip.className = `menu-chip menu-chip-honor${tone ? ` ${tone}` : ""}`;
+      els.menuHonorChip.textContent = title;
+    } else {
+      els.menuHonorChip.hidden = true;
+      els.menuHonorChip.textContent = "";
+    }
+  }
+  if (els.menuProfileHint) {
+    els.menuProfileHint.textContent =
+      name === "未登录" ? "登录后可编辑头像与昵称" : "点击编辑头像、昵称与密码";
   }
   if (els.accountNameLabel) els.accountNameLabel.textContent = name;
   if (els.accountUserNo) {
     els.accountUserNo.className = `menu-item-sub${tone ? ` ${tone}` : ""}`;
     els.accountUserNo.textContent =
       userNoText === "用户号 —" ? "头像、昵称与密码" : userNoText;
+  }
+  if (els.menuLikesSub) {
+    const n = Object.keys(likedSongs || {}).length;
+    els.menuLikesSub.textContent = `${n} 首`;
   }
 }
 
@@ -7773,6 +7797,7 @@ async function refreshProfileEditor() {
     name,
     avatarSrc: avatarUrl,
     userNoText: noLabel ? `用户号 ${noLabel}` : "用户号 —",
+    honor,
     tone
   });
   if (els.profileEditName) els.profileEditName.textContent = name;
@@ -8449,6 +8474,10 @@ els.settingsBtn?.addEventListener("click", (e) => {
 });
 
 els.menuBackdrop?.addEventListener("click", () => setMenuOpen(false));
+els.menuCloseBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setMenuOpen(false);
+});
 els.menuSettingsBackBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
   setMenuView("home");
@@ -8475,6 +8504,11 @@ els.menuHome?.addEventListener("click", (e) => {
   if (act === "chat") {
     setMenuOpen(false);
     openChatLayer().catch(() => {});
+    return;
+  }
+  if (act === "likes") {
+    setMenuOpen(false);
+    openLikesLayer();
   }
 });
 

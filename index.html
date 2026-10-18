@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03menu1" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03menu2" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -441,16 +441,28 @@
     </section>
   </div>
 
-  <!-- 我的：左侧抽屉，设置在底部进入 -->
+  <!-- 我的：资料页布局，设置在底部进入 -->
   <div class="menu-layer" id="menuLayer" hidden aria-hidden="true">
     <div class="menu-backdrop" id="menuBackdrop"></div>
     <aside class="menu-drawer" id="menuDrawer" role="dialog" aria-modal="true" aria-labelledby="menuName">
       <div class="menu-home" id="menuHome">
-        <button type="button" class="menu-user" id="menuUserBtn" aria-label="打开个人信息">
+        <header class="menu-topbar">
+          <button type="button" class="likes-back" id="menuCloseBtn" aria-label="返回">
+            <span class="likes-back-ico"></span>
+            返回
+          </button>
+          <h2 class="likes-panel-title">我的</h2>
+          <span class="profile-panel-spacer" aria-hidden="true"></span>
+        </header>
+        <button type="button" class="menu-profile-card" id="menuUserBtn" aria-label="打开个人信息">
           <img class="menu-avatar" id="menuAvatar" src="./logo.jpg" alt="" />
           <span class="menu-user-meta">
             <span class="menu-name" id="menuName">未登录</span>
-            <span class="menu-sub" id="menuUserNo">用户号 —</span>
+            <span class="menu-badges" id="menuBadges">
+              <span class="menu-chip" id="menuUserNo">用户号 —</span>
+              <span class="menu-chip menu-chip-honor" id="menuHonorChip" hidden></span>
+            </span>
+            <span class="menu-sub" id="menuProfileHint">点击编辑头像、昵称与密码</span>
           </span>
           <span class="menu-user-arrow" aria-hidden="true">›</span>
         </button>
@@ -478,6 +490,14 @@
               <span class="menu-item-sub" id="menuChatSub">和好友聊天</span>
             </span>
             <span class="menu-item-badge" id="menuChatBadge" hidden>0</span>
+            <span class="menu-item-arrow" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="menu-item" data-menu-act="likes">
+            <span class="menu-item-ico" aria-hidden="true">♥</span>
+            <span class="menu-item-text">
+              <span class="menu-item-title">我喜欢</span>
+              <span class="menu-item-sub" id="menuLikesSub">0 首</span>
+            </span>
             <span class="menu-item-arrow" aria-hidden="true">›</span>
           </button>
         </nav>
@@ -1033,7 +1053,7 @@
     };
   </script>
   <script src="cloud-config.js"></script>
-  <script src="cloud-comments.js?v=2.0.03menu1"></script>
-  <script src="app.js?v=2.0.03menu1"></script>
+  <script src="cloud-comments.js?v=2.0.03menu2"></script>
+  <script src="app.js?v=2.0.03menu2"></script>
 </body>
 </html>

@@ -118,13 +118,13 @@ button {
   background: rgba(232, 165, 75, 0.12);
 }
 
-/* 左侧「我的」抽屉 */
+/* 「我的」资料页：大头像 + 昵称，设置在底部 */
 .menu-layer {
   position: fixed;
   inset: 0;
   z-index: 88;
   display: flex;
-  justify-content: flex-start;
+  justify-content: stretch;
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -145,27 +145,28 @@ button {
 .menu-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(8, 10, 14, 0.42);
+  background: rgba(8, 10, 14, 0.28);
 }
 
 .menu-drawer {
   position: relative;
   z-index: 1;
-  width: min(318px, 86vw);
+  width: 100%;
+  max-width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: color-mix(in srgb, var(--bg-soft) 96%, var(--bg));
-  border-right: 1px solid var(--line);
-  box-shadow: 12px 0 36px rgba(0, 0, 0, 0.28);
+  background:
+    radial-gradient(ellipse 90% 50% at 10% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 55%),
+    color-mix(in srgb, var(--bg-soft) 94%, var(--bg));
   color: var(--text);
-  transform: translateX(-12px);
+  transform: translateY(10px);
   transition: transform 0.22s ease;
   overflow: hidden;
 }
 
 .menu-layer.is-open .menu-drawer {
-  transform: translateX(0);
+  transform: translateY(0);
 }
 
 .menu-home {
@@ -179,50 +180,93 @@ button {
   display: none !important;
 }
 
-.menu-user {
+.menu-topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: 100%;
-  margin: 0;
-  padding: 22px 18px 16px;
-  border: 0;
-  background: transparent;
+  gap: 8px;
+  padding: 14px 14px 8px;
+  flex-shrink: 0;
+}
+
+.menu-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: calc(100% - 28px);
+  margin: 4px 14px 14px;
+  padding: 18px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg-soft) 88%, transparent);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--text) 8%, transparent);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.menu-user:hover {
-  background: color-mix(in srgb, var(--text) 5%, transparent);
+.menu-profile-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-soft));
 }
 
 .menu-avatar {
-  width: 52px;
-  height: 52px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid var(--line);
+  border: 2px solid color-mix(in srgb, var(--text) 12%, transparent);
   flex-shrink: 0;
   background: var(--bg);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--text) 12%, transparent);
 }
 
 .menu-user-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
   flex: 1;
 }
 
 .menu-name {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: 1.28rem;
+  font-weight: 800;
   letter-spacing: 0.02em;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.menu-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.menu-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.menu-chip[hidden] {
+  display: none !important;
+}
+
+.menu-chip-honor {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text);
 }
 
 .menu-sub {
@@ -232,15 +276,20 @@ button {
 
 .menu-user-arrow {
   flex-shrink: 0;
-  font-size: 1.25rem;
+  align-self: center;
+  font-size: 1.35rem;
   color: var(--dim);
 }
 
 .menu-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px 10px 12px;
+  gap: 4px;
+  margin: 0 14px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg-soft) 80%, transparent);
   overflow-y: auto;
   flex: 1;
   min-height: 0;
@@ -252,7 +301,7 @@ button {
   gap: 12px;
   width: 100%;
   margin: 0;
-  padding: 12px 10px;
+  padding: 13px 12px;
   border: 0;
   border-radius: 12px;
   background: transparent;
@@ -283,7 +332,7 @@ button {
 }
 
 .menu-item-title {
-  font-size: 0.92rem;
+  font-size: 0.94rem;
   color: var(--text);
 }
 
@@ -320,9 +369,10 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  margin-top: 10px;
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--line);
-  background: color-mix(in srgb, var(--bg) 55%, var(--bg-soft));
+  background: color-mix(in srgb, var(--bg) 40%, var(--bg-soft));
   flex-shrink: 0;
 }
 
@@ -330,13 +380,13 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 14px;
+  padding: 10px 16px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg-soft) 80%, transparent);
   color: var(--text);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   cursor: pointer;
 }
 
@@ -764,7 +814,8 @@ button {
 .honor-title.is-gold,
 .settings-hint.is-gold,
 .menu-sub.is-gold,
-.menu-item-sub.is-gold {
+.menu-item-sub.is-gold,
+.menu-chip.is-gold {
   color: #e8c547;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -774,7 +825,8 @@ button {
 .honor-title.is-obsidian,
 .settings-hint.is-obsidian,
 .menu-sub.is-obsidian,
-.menu-item-sub.is-obsidian {
+.menu-item-sub.is-obsidian,
+.menu-chip.is-obsidian {
   font-weight: 800;
   letter-spacing: 0.04em;
   background: linear-gradient(
@@ -6431,29 +6483,29 @@ html.theme-manga .auth-submit {
 }
 
 html.theme-manga .menu-drawer,
-html.theme-manga .menu-settings,
-html.theme-manga .now-card,
-html.theme-manga .comments-panel,
-html.theme-manga .comments-panel.is-docked {
-  background: #fffdf8;
-  border-color: #1a1612;
-  box-shadow: 4px 0 0 #1a1612;
+html.theme-manga .menu-settings {
+  background:
+    radial-gradient(#1a1612 0.55px, transparent 0.7px) 0 0 / 5px 5px,
+    #f7f3ea;
+  box-shadow: none;
 }
 
-html.theme-manga .menu-drawer {
-  border-right: 2.5px solid #1a1612;
-  border-radius: 0;
+html.theme-manga .menu-profile-card,
+html.theme-manga .menu-list {
+  background: #fffdf8;
+  border: 2.5px solid #1a1612;
+  border-radius: 8px;
+  box-shadow: 3px 3px 0 #1a1612;
+}
+
+html.theme-manga .menu-profile-card:hover {
+  background: #fff8ec;
+  border-color: #1a1612;
 }
 
 html.theme-manga .menu-footer {
   background: #f3eee4;
   border-top: 2px solid #1a1612;
-}
-
-html.theme-manga .menu-footer-btn,
-html.theme-manga .menu-item:hover,
-html.theme-manga .menu-user:hover {
-  border-color: #1a1612;
 }
 
 html.theme-manga .menu-footer-btn {
@@ -6464,8 +6516,16 @@ html.theme-manga .menu-footer-btn {
 }
 
 html.theme-manga .menu-avatar {
+  border: 2.5px solid #1a1612;
+  border-radius: 50%;
+  box-shadow: 3px 3px 0 #1a1612;
+}
+
+html.theme-manga .menu-chip {
   border: 2px solid #1a1612;
-  border-radius: 8px;
+  border-radius: 4px;
+  background: #fffdf8;
+  color: #1a1612;
 }
 
 html.theme-manga .menu-item-badge {
@@ -6476,6 +6536,7 @@ html.theme-manga .menu-item-badge {
 html.theme-manga .now-card,
 html.theme-manga .comments-panel,
 html.theme-manga .comments-panel.is-docked {
+  background: #fffdf8;
   border: 2.5px solid #1a1612;
   border-radius: 8px;
   box-shadow: 4px 4px 0 #1a1612;
