@@ -9409,18 +9409,23 @@ applyShellBackground();
 
 const SHELL_BG_KEY = "ludong-shell-bg-v1";
 
+function shellLevelFromSaved(data) {
+  const n = Number(data?.level);
+  if (Number.isFinite(n)) return Math.max(0, Math.min(100, Math.round(n)));
+  if (data?.strength === "soft") return 28;
+  if (data?.strength === "strong") return 82;
+  return 55;
+}
+
 function readShellBackground() {
   try {
     const raw = localStorage.getItem(scopedStorageKey(SHELL_BG_KEY));
     const data = raw ? JSON.parse(raw) : null;
     const image = String(data?.image || "");
-    if (!image.startsWith("data:image/")) return { image: "", strength: "mid" };
-    const strength = ["soft", "mid", "strong"].includes(data?.strength)
-      ? data.strength
-      : "mid";
-    return { image, strength };
+    if (!image.startsWith("data:image/")) return { image: "", level: 55 };
+    return { image, level: shellLevelFromSaved(data) };
   } catch {
-    return { image: "", strength: "mid" };
+    return { image: "", level: 55 };
   }
 }
 
@@ -9433,12 +9438,28 @@ function writeShellBackground(next) {
         key,
         JSON.stringify({
           image: next.image,
-          strength: next.strength || "mid"
+          level: shellLevelFromSaved(next)
         })
       );
     }
   } catch {
     throw new Error("图片太大，本机存不下，请换一张小一点的");
+  }
+}
+
+function applyShellLevel(level) {
+  const t = Math.max(0, Math.min(100, Number(level) || 0)) / 100;
+  const root = document.documentElement;
+  const pct = (from, to) => `${Math.round(from + (to - from) * t)}%`;
+  root.style.setProperty("--shell-dim", pct(100, 0));
+  root.style.setProperty("--shell-rail", pct(100, 18));
+  root.style.setProperty("--shell-pane", pct(100, 8));
+  root.style.setProperty("--shell-view", pct(100, 12));
+  root.style.setProperty("--shell-bar", pct(100, 16));
+  root.style.setProperty("--shell-blur", `${Math.round((1 - t) * 16)}px`);
+  const slider = document.getElementById("shellBgLevel");
+  if (slider && Number(slider.value) !== Math.round(t * 100)) {
+    slider.value = String(Math.round(t * 100));
   }
 }
 
@@ -9449,8 +9470,8 @@ function applyShellBackground() {
   const on = !!data.image;
   if (on) {
     root.setAttribute("data-shell-bg", "1");
-    root.setAttribute("data-shell-strength", data.strength || "mid");
     root.style.setProperty("--shell-bg-image", `url("${data.image}")`);
+    applyShellLevel(data.level);
   } else {
     root.removeAttribute("data-shell-bg");
     root.removeAttribute("data-shell-strength");
@@ -9461,9 +9482,8 @@ function applyShellBackground() {
     layer.setAttribute("aria-hidden", on ? "false" : "true");
     layer.style.backgroundImage = on ? `url("${data.image}")` : "";
   }
-  document.querySelectorAll("#shellBgStrengthRow [data-shell-strength]").forEach((btn) => {
-    btn.classList.toggle("is-active", btn.dataset.shellStrength === (data.strength || "mid"));
-  });
+  const slider = document.getElementById("shellBgLevel");
+  if (slider) slider.value = String(data.level);
   const preview = document.getElementById("shellBgPreview");
   const img = document.getElementById("shellBgPreviewImg");
   if (preview) preview.hidden = !on;
@@ -9527,7 +9547,7 @@ document.getElementById("shellBgFile")?.addEventListener("change", async (e) => 
   try {
     const image = await compressShellBackgroundFile(file);
     const prev = readShellBackground();
-    writeShellBackground({ image, strength: prev.strength || "mid" });
+    writeShellBackground({ image, level: prev.level });
     applyShellBackground();
     setHint("界面背景已更新");
   } catch (err) {
@@ -9545,22 +9565,26 @@ document.getElementById("shellBgClearBtn")?.addEventListener("click", () => {
   setHint("已恢复默认背景");
 });
 
-document.getElementById("shellBgStrengthRow")?.addEventListener("click", (e) => {
-  const btn = e.target.closest?.("[data-shell-strength]");
-  if (!btn) return;
-  const strength = btn.dataset.shellStrength || "mid";
+document.getElementById("shellBgLevel")?.addEventListener("input", (e) => {
+  const level = Number(e.target?.value);
+  const prev = readShellBackground();
+  if (!prev.image) return;
+  applyShellLevel(level);
+});
+
+document.getElementById("shellBgLevel")?.addEventListener("change", (e) => {
+  const level = Number(e.target?.value);
   const prev = readShellBackground();
   if (!prev.image) {
     setHint("请先上传一张背景图", true);
+    if (e.target) e.target.value = "55";
     return;
   }
   try {
-    writeShellBackground({ image: prev.image, strength });
+    writeShellBackground({ image: prev.image, level });
   } catch (err) {
     setHint(err?.message || "保存失败", true);
-    return;
   }
-  applyShellBackground();
 });
 loadSeekEmojiPicker();
 bindWishPage();
