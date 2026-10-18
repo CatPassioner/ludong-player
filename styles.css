@@ -313,12 +313,19 @@ button {
   flex-direction: column;
   background: transparent;
   overflow: hidden;
+  /* 右侧整体留白：避免搜索/按钮贴窗边 */
+  padding-right: 18px;
 }
 
 .main-home {
   flex: 1;
   min-height: 0;
-  padding: 16px 28px 12px 20px;
+  padding: 16px 18px 12px 18px;
+}
+
+/* sidebar-scroll 的 padding-right:2px 会冲掉主区右边距，这里盖回去 */
+.main-home.sidebar-scroll {
+  padding: 16px 22px 12px 18px;
 }
 
 .main-home[hidden] {
@@ -327,7 +334,7 @@ button {
 
 .app > .now-card {
   flex-shrink: 0;
-  margin: 0 22px 12px 12px;
+  margin: 0 30px 12px 12px;
   z-index: 6;
 }
 
@@ -394,7 +401,7 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 28px 10px 16px;
+  padding: 14px 22px 10px 16px;
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
@@ -403,7 +410,7 @@ button {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 14px 28px 24px 16px;
+  padding: 14px 22px 24px 16px;
 }
 
 .settings-btn {
@@ -4268,7 +4275,7 @@ html[data-bg-light="1"] .comment-item {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 14px 28px 24px 16px;
+  padding: 14px 22px 24px 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
