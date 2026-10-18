@@ -410,6 +410,11 @@ function resetAccountScopedUi() {
   if (els.rankSub) els.rankSub.textContent = "播完才计 1 次";
   if (els.likesCountLabel) els.likesCountLabel.textContent = "0 首";
   if (els.likesPanelCount) els.likesPanelCount.textContent = "0 首";
+  try {
+    applyShellBackground();
+  } catch {
+    /* 背景图函数尚未就绪时忽略 */
+  }
 }
 
 let mediaCacheBust = String(Date.now());
@@ -9400,6 +9405,157 @@ document.addEventListener("keydown", (e) => {
 loadBgLightness();
 loadSwitchAnim();
 loadUiStyle();
+applyShellBackground();
+
+const SHELL_BG_KEY = "ludong-shell-bg-v1";
+
+function readShellBackground() {
+  try {
+    const raw = localStorage.getItem(scopedStorageKey(SHELL_BG_KEY));
+    const data = raw ? JSON.parse(raw) : null;
+    const image = String(data?.image || "");
+    if (!image.startsWith("data:image/")) return { image: "", strength: "mid" };
+    const strength = ["soft", "mid", "strong"].includes(data?.strength)
+      ? data.strength
+      : "mid";
+    return { image, strength };
+  } catch {
+    return { image: "", strength: "mid" };
+  }
+}
+
+function writeShellBackground(next) {
+  const key = scopedStorageKey(SHELL_BG_KEY);
+  try {
+    if (!next?.image) localStorage.removeItem(key);
+    else {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          image: next.image,
+          strength: next.strength || "mid"
+        })
+      );
+    }
+  } catch {
+    throw new Error("图片太大，本机存不下，请换一张小一点的");
+  }
+}
+
+function applyShellBackground() {
+  const data = readShellBackground();
+  const root = document.documentElement;
+  const on = !!data.image;
+  root.toggleAttribute("data-shell-bg", on);
+  if (on) {
+    root.setAttribute("data-shell-strength", data.strength);
+    root.style.setProperty("--shell-bg-image", `url("${data.image}")`);
+  } else {
+    root.removeAttribute("data-shell-strength");
+    root.style.removeProperty("--shell-bg-image");
+  }
+  document.querySelectorAll("[data-shell-strength]").forEach((btn) => {
+    if (!btn.classList.contains("bg-hue")) return;
+    btn.classList.toggle("is-active", btn.dataset.shellStrength === (data.strength || "mid"));
+  });
+  const preview = document.getElementById("shellBgPreview");
+  const img = document.getElementById("shellBgPreviewImg");
+  if (preview) preview.hidden = !on;
+  if (img) img.src = on ? data.image : "";
+}
+
+function compressShellBackgroundFile(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !String(file.type || "").startsWith("image/")) {
+      reject(new Error("请选择图片文件"));
+      return;
+    }
+    if (file.size > 18 * 1024 * 1024) {
+      reject(new Error("图片请小于 18MB"));
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      try {
+        const maxEdge = 1600;
+        const scale = Math.min(1, maxEdge / Math.max(img.width, img.height, 1));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        let quality = 0.78;
+        let out = canvas.toDataURL("image/jpeg", quality);
+        while (out.length > 420000 && quality > 0.42) {
+          quality -= 0.08;
+          out = canvas.toDataURL("image/jpeg", quality);
+        }
+        if (out.length > 900000) {
+          reject(new Error("压缩后仍然太大，请换一张"));
+          return;
+        }
+        resolve(out);
+      } catch (err) {
+        reject(err);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("无法读取图片"));
+    };
+    img.src = url;
+  });
+}
+
+document.getElementById("shellBgPickBtn")?.addEventListener("click", () => {
+  document.getElementById("shellBgFile")?.click();
+});
+
+document.getElementById("shellBgFile")?.addEventListener("change", async (e) => {
+  const input = e.target;
+  const file = input?.files?.[0];
+  if (input) input.value = "";
+  if (!file) return;
+  try {
+    const image = await compressShellBackgroundFile(file);
+    const prev = readShellBackground();
+    writeShellBackground({ image, strength: prev.strength || "mid" });
+    applyShellBackground();
+    setHint("界面背景已更新");
+  } catch (err) {
+    setHint(err?.message || "背景上传失败", true);
+  }
+});
+
+document.getElementById("shellBgClearBtn")?.addEventListener("click", () => {
+  try {
+    writeShellBackground(null);
+  } catch {
+    /* ignore */
+  }
+  applyShellBackground();
+  setHint("已恢复默认背景");
+});
+
+document.getElementById("shellBgStrengthRow")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-shell-strength]");
+  if (!btn) return;
+  const strength = btn.dataset.shellStrength || "mid";
+  const prev = readShellBackground();
+  if (!prev.image) {
+    setHint("请先上传一张背景图", true);
+    return;
+  }
+  try {
+    writeShellBackground({ image: prev.image, strength });
+  } catch (err) {
+    setHint(err?.message || "保存失败", true);
+    return;
+  }
+  applyShellBackground();
+});
 loadSeekEmojiPicker();
 bindWishPage();
 
