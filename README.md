@@ -44,6 +44,8 @@ python desktop_app.py
 
 相关 SQL 脚本：`supabase_*.sql`，在 Supabase SQL 编辑器中按需执行。
 
+云端听歌白名单（创世神管理员）：执行 `supabase_cloud_listen_acl.sql`。限制开启后，未勾选好友只能听自己上传的云端歌。
+
 ## 如何导入音乐
 
 ### 从视频提取素材（推荐先看）

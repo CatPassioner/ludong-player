@@ -2318,6 +2318,118 @@
     }
   }
 
+  async function fetchCloudListenAcl() {
+    const empty = {
+      restrictEnabled: true,
+      friendIds: [],
+      canListenShared: false,
+      isAdmin: false
+    };
+    if (!cloudEnabled()) return empty;
+    try {
+      const me = await currentUserId();
+      let myNo = null;
+      try {
+        const prof = await fetchMyProfile();
+        myNo = parseUserNo(prof?.userNo ?? prof?.user_no);
+      } catch {
+        /* ignore */
+      }
+      const isAdmin = isCreatorUserNo(myNo);
+      let restrictEnabled = true;
+      try {
+        const rows = await rest(
+          "cloud_listen_settings?id=eq.1&select=restrict_enabled&limit=1"
+        );
+        if (Array.isArray(rows) && rows[0]) {
+          restrictEnabled = rows[0].restrict_enabled !== false;
+        }
+      } catch (err) {
+        const msg = String(err?.message || "");
+        if (/cloud_listen_settings|schema cache|relation|does not exist/i.test(msg)) {
+          return { ...empty, isAdmin, canListenShared: !restrictEnabled || isAdmin };
+        }
+        throw err;
+      }
+      let friendIds = [];
+      try {
+        if (isAdmin) {
+          const rows = await rest(
+            "cloud_listen_allowlist?select=friend_id&order=created_at.asc"
+          );
+          friendIds = (Array.isArray(rows) ? rows : [])
+            .map((r) => String(r.friend_id || ""))
+            .filter(Boolean);
+        } else if (me) {
+          const rows = await rest(
+            `cloud_listen_allowlist?friend_id=eq.${encodeURIComponent(me)}&select=friend_id&limit=1`
+          );
+          if (Array.isArray(rows) && rows.length) friendIds = [me];
+        }
+      } catch {
+        friendIds = [];
+      }
+      const onAllowlist = !!(me && friendIds.includes(me));
+      const canListenShared = !restrictEnabled || isAdmin || onAllowlist;
+      return { restrictEnabled, friendIds, canListenShared, isAdmin };
+    } catch (err) {
+      console.warn("[LudongCloud] fetchCloudListenAcl", err);
+      return empty;
+    }
+  }
+
+  async function saveCloudListenAcl({ restrictEnabled, friendIds } = {}) {
+    if (!cloudEnabled()) throw new Error("云端未配置");
+    const me = await currentUserId();
+    if (!me) throw new Error("请先登录");
+    const prof = await fetchMyProfile();
+    if (!isCreatorUserNo(prof?.userNo ?? prof?.user_no)) {
+      throw new Error("仅管理员可设置云端听歌权限");
+    }
+    const enabled = !!restrictEnabled;
+    const ids = [
+      ...new Set(
+        (Array.isArray(friendIds) ? friendIds : [])
+          .map((id) => String(id || "").trim())
+          .filter(Boolean)
+      )
+    ].filter((id) => id !== me);
+
+    await rest("cloud_listen_settings?id=eq.1", {
+      method: "PATCH",
+      body: {
+        restrict_enabled: enabled,
+        updated_by: me,
+        updated_at: new Date().toISOString()
+      },
+      prefer: "return=minimal"
+    });
+
+    const existing = await rest("cloud_listen_allowlist?select=friend_id");
+    const oldIds = (Array.isArray(existing) ? existing : [])
+      .map((r) => String(r.friend_id || ""))
+      .filter(Boolean);
+    const want = new Set(ids);
+    const old = new Set(oldIds);
+    const toAdd = ids.filter((id) => !old.has(id));
+    const toRemove = oldIds.filter((id) => !want.has(id));
+
+    for (const id of toRemove) {
+      await rest(
+        `cloud_listen_allowlist?friend_id=eq.${encodeURIComponent(id)}`,
+        { method: "DELETE", prefer: "return=minimal" }
+      );
+    }
+    if (toAdd.length) {
+      await rest("cloud_listen_allowlist", {
+        method: "POST",
+        body: toAdd.map((friend_id) => ({ friend_id, added_by: me })),
+        prefer: "return=minimal"
+      });
+    }
+    return fetchCloudListenAcl();
+  }
+
   async function listCloudSongs() {
     if (!cloudEnabled()) return [];
     const c = cfg();
@@ -2326,7 +2438,7 @@
       const session = await ensureAuthSession();
       if (session?.access_token) token = session.access_token;
     } catch {
-      /* 游客用 anon 读公开表 */
+      /* 游客用 anon；限制开启时 RLS 会返回空列表 */
     }
     try {
       const rows = await restWithToken(
@@ -2642,6 +2754,8 @@
     storagePublicUrl,
     listCloudSongs,
     uploadCloudSong,
-    deleteCloudSong
+    deleteCloudSong,
+    fetchCloudListenAcl,
+    saveCloudListenAcl
   };
 })(window);

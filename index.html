@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03shellbg6" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03cloudacl1" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -801,6 +801,28 @@
           <input type="password" id="profileNewPassword2" maxlength="64" placeholder="再输入一次" autocomplete="new-password" />
         </label>
         <button type="button" class="import-btn import-btn-ghost" id="profilePasswordBtn">修改密码</button>
+
+        <div class="settings-divider"></div>
+        <div class="cloud-acl-box" id="cloudAclBox">
+          <div class="settings-row">
+            <span class="settings-label">云端听歌权限</span>
+            <span class="settings-hint" id="cloudAclHint">共同曲库</span>
+          </div>
+          <p class="settings-note" id="cloudAclNote">加载中…</p>
+          <div id="cloudAclAdmin" hidden>
+            <div class="bg-hue-row" id="cloudAclModeRow" role="group" aria-label="云端听歌模式">
+              <button type="button" class="bg-hue is-active" data-cloud-acl-mode="restrict">仅白名单可听全部</button>
+              <button type="button" class="bg-hue" data-cloud-acl-mode="open">全员可听共同云端</button>
+            </div>
+            <p class="settings-note">限制开启时：未勾选的好友只能听自己上传的云端歌，看不到别人的。勾选的好友和管理员可听全部共同云端。</p>
+            <div class="cloud-acl-friends" id="cloudAclFriends"></div>
+            <div class="import-actions">
+              <button type="button" class="import-btn" id="cloudAclSaveBtn">保存云端权限</button>
+            </div>
+          </div>
+          <p class="import-status" id="cloudAclStatus" aria-live="polite"></p>
+        </div>
+
         <p class="import-status" id="profileStatus" aria-live="polite"></p>
       </div>
     </section>
@@ -1060,7 +1082,7 @@
     };
   </script>
   <script src="cloud-config.js"></script>
-  <script src="cloud-comments.js?v=2.0.03shell3"></script>
-  <script src="app.js?v=2.0.03shellbg6"></script>
+  <script src="cloud-comments.js?v=2.0.03cloudacl1"></script>
+  <script src="app.js?v=2.0.03cloudacl1"></script>
 </body>
 </html>

@@ -8144,6 +8144,123 @@ async function refreshProfileEditor() {
     els.profileEditAvatar.src = avatarUrl;
   }
   bindProfileAvatarPicker();
+  refreshCloudAclPanel().catch(() => {});
+}
+
+let cloudAclState = {
+  restrictEnabled: true,
+  friendIds: new Set(),
+  isAdmin: false,
+  canListenShared: false,
+  friends: []
+};
+
+function setCloudAclStatus(text, isError = false) {
+  const el = document.getElementById("cloudAclStatus");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("is-error", !!isError);
+  el.classList.toggle("is-ok", !!text && !isError);
+}
+
+function syncCloudAclModeButtons() {
+  const mode = cloudAclState.restrictEnabled ? "restrict" : "open";
+  document.querySelectorAll("#cloudAclModeRow [data-cloud-acl-mode]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.cloudAclMode === mode);
+  });
+}
+
+function renderCloudAclFriends() {
+  const box = document.getElementById("cloudAclFriends");
+  if (!box) return;
+  const friends = cloudAclState.friends || [];
+  if (!friends.length) {
+    box.innerHTML = '<p class="cloud-acl-empty">还没有好友。先去私聊加好友，再勾选可听共同云端的人。</p>';
+    return;
+  }
+  box.innerHTML = friends
+    .map((f) => {
+      const id = String(f.id || f.friendId || "");
+      const on = cloudAclState.friendIds.has(id);
+      const name = f.remark || f.name || f.displayName || "好友";
+      const sub = f.userNoLabel ? `用户号 ${f.userNoLabel}` : "好友";
+      const avatar = window.LudongCloud?.avatarSrc?.(f.avatarUrl || f.avatar || "preset:1", name) || "./logo.jpg";
+      return `<button type="button" class="cloud-acl-friend${on ? " is-on" : ""}" data-cloud-acl-friend="${escapeHtml(id)}">
+        <img src="${escapeHtml(avatar)}" alt="" />
+        <span class="cloud-acl-friend-meta">
+          <span class="cloud-acl-friend-name">${escapeHtml(name)}</span>
+          <span class="cloud-acl-friend-sub">${escapeHtml(sub)}</span>
+        </span>
+        <span class="cloud-acl-check" aria-hidden="true"></span>
+      </button>`;
+    })
+    .join("");
+}
+
+async function refreshCloudAclPanel() {
+  const note = document.getElementById("cloudAclNote");
+  const admin = document.getElementById("cloudAclAdmin");
+  const hint = document.getElementById("cloudAclHint");
+  if (!window.LudongCloud?.fetchCloudListenAcl) {
+    if (note) note.textContent = "当前版本未接入云端权限接口。";
+    if (admin) admin.hidden = true;
+    return;
+  }
+  if (!window.LudongCloud?.isLoggedIn?.()) {
+    if (note) note.textContent = "登录后可查看云端听歌权限。";
+    if (admin) admin.hidden = true;
+    if (hint) hint.textContent = "共同曲库";
+    return;
+  }
+  try {
+    const acl = await window.LudongCloud.fetchCloudListenAcl();
+    cloudAclState.restrictEnabled = acl.restrictEnabled !== false;
+    cloudAclState.isAdmin = !!acl.isAdmin;
+    cloudAclState.canListenShared = !!acl.canListenShared;
+    cloudAclState.friendIds = new Set(
+      (Array.isArray(acl.friendIds) ? acl.friendIds : []).map(String)
+    );
+    if (cloudAclState.isAdmin && window.LudongCloud.listFriends) {
+      const friends = await window.LudongCloud.listFriends();
+      cloudAclState.friends = Array.isArray(friends) ? friends : [];
+    } else {
+      cloudAclState.friends = [];
+    }
+    if (admin) admin.hidden = !cloudAclState.isAdmin;
+    if (hint) {
+      hint.textContent = cloudAclState.canListenShared ? "可听共同云端" : "仅自己上传";
+    }
+    if (note) {
+      if (cloudAclState.isAdmin) {
+        note.textContent = cloudAclState.restrictEnabled
+          ? "限制已开启：只有你和勾选的好友能听全部共同云端。"
+          : "当前全员可听共同云端（旧行为）。";
+      } else if (cloudAclState.canListenShared) {
+        note.textContent = "你已被允许收听全部共同云端歌曲。";
+      } else if (!cloudAclState.restrictEnabled) {
+        note.textContent = "共同云端对全员开放，你可收听全部云端歌曲。";
+      } else {
+        note.textContent = "当前仅能听自己上传的云端歌，看不到其他人上传的歌。";
+      }
+    }
+    syncCloudAclModeButtons();
+    if (cloudAclState.isAdmin) renderCloudAclFriends();
+  } catch (err) {
+    if (note) note.textContent = err?.message || "云端权限加载失败";
+    if (admin) admin.hidden = true;
+  }
+}
+
+async function reloadLibraryAfterAcl() {
+  try {
+    const next = await loadLocalPlaylist();
+    DEFAULT_PLAYLIST = Array.isArray(next) ? next : [];
+    playlist = [...DEFAULT_PLAYLIST];
+    renderList();
+    renderRankRow(playRanking);
+  } catch (err) {
+    console.warn("reloadLibraryAfterAcl", err);
+  }
 }
 
 function refreshAccountLabel() {
@@ -8404,6 +8521,52 @@ els.profileAvatarFile?.addEventListener("change", async () => {
     setProfileStatus(err?.message || "头像上传失败", "error");
   } finally {
     if (els.profileAvatarFile) els.profileAvatarFile.value = "";
+  }
+});
+
+document.getElementById("cloudAclModeRow")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-cloud-acl-mode]");
+  if (!btn || !cloudAclState.isAdmin) return;
+  cloudAclState.restrictEnabled = btn.dataset.cloudAclMode !== "open";
+  syncCloudAclModeButtons();
+  const note = document.getElementById("cloudAclNote");
+  if (note) {
+    note.textContent = cloudAclState.restrictEnabled
+      ? "限制已开启：只有你和勾选的好友能听全部共同云端。"
+      : "当前全员可听共同云端（旧行为）。";
+  }
+});
+
+document.getElementById("cloudAclFriends")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-cloud-acl-friend]");
+  if (!btn || !cloudAclState.isAdmin) return;
+  const id = btn.dataset.cloudAclFriend || "";
+  if (!id) return;
+  if (cloudAclState.friendIds.has(id)) cloudAclState.friendIds.delete(id);
+  else cloudAclState.friendIds.add(id);
+  renderCloudAclFriends();
+});
+
+document.getElementById("cloudAclSaveBtn")?.addEventListener("click", async () => {
+  if (!cloudAclState.isAdmin || !window.LudongCloud?.saveCloudListenAcl) return;
+  setCloudAclStatus("正在保存…");
+  try {
+    const next = await window.LudongCloud.saveCloudListenAcl({
+      restrictEnabled: cloudAclState.restrictEnabled,
+      friendIds: [...cloudAclState.friendIds]
+    });
+    cloudAclState.restrictEnabled = next.restrictEnabled !== false;
+    cloudAclState.canListenShared = !!next.canListenShared;
+    cloudAclState.friendIds = new Set(
+      (Array.isArray(next.friendIds) ? next.friendIds : []).map(String)
+    );
+    syncCloudAclModeButtons();
+    renderCloudAclFriends();
+    await reloadLibraryAfterAcl();
+    setCloudAclStatus("云端权限已保存，曲库已刷新");
+    setHint("云端听歌权限已更新");
+  } catch (err) {
+    setCloudAclStatus(err?.message || "保存失败", true);
   }
 });
 

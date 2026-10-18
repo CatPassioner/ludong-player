@@ -193,6 +193,100 @@ html[data-shell-bg="1"] .app > .now-card {
   font: inherit;
 }
 
+.cloud-acl-box {
+  margin-top: 4px;
+}
+
+.cloud-acl-friends {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  margin: 10px 0 12px;
+  padding: 4px 2px;
+}
+
+.cloud-acl-friend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 40%, transparent);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.cloud-acl-friend.is-on {
+  border-color: rgba(232, 165, 75, 0.55);
+  background: rgba(232, 165, 75, 0.1);
+}
+
+.cloud-acl-friend img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+.cloud-acl-friend-meta {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cloud-acl-friend-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cloud-acl-friend-sub {
+  font-size: 0.72rem;
+  color: var(--dim);
+}
+
+.cloud-acl-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.cloud-acl-friend.is-on .cloud-acl-check {
+  border-color: rgba(232, 165, 75, 0.8);
+  background: rgba(232, 165, 75, 0.25);
+}
+
+.cloud-acl-friend.is-on .cloud-acl-check::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--text);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.cloud-acl-empty {
+  font-size: 0.78rem;
+  color: var(--dim);
+  padding: 6px 2px;
+}
+
 .app-body {
   flex: 1;
   min-height: 0;
