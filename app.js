@@ -9949,23 +9949,20 @@ function applyShellLevel(level) {
   const root = document.documentElement;
   const isLightUi = root.dataset.bgLight === "1";
   const paper = Number.isFinite(shellPaperBright) ? shellPaperBright : 0.45;
-  // 亮壁纸 + 浅色字（深色界面）时额外护底，避免字被冲掉
-  const clash = !isLightUi && paper > 0.42 ? Math.min(1, (paper - 0.42) * 1.6) : 0;
-  const protect = Math.min(0.7, t * 0.22 + clash * t * 0.9);
-  const withFloor = (base, min, boost) =>
-    Math.round(Math.min(100, Math.max(min, base + protect * boost)));
-  const dim = withFloor(100 - t * 70, 28, 30);
-  const rail = withFloor(100 - t * 44, 46, 22);
-  const pane = withFloor(100 - t * 50, 42, 24);
-  const view = withFloor(100 - t * 48, 44, 22);
-  const bar = withFloor(100 - t * 46, 46, 22);
+  const mix = (from, to) => Math.round(from + (to - from) * t);
+  // 拉满时整窗遮罩去掉，面板只留很薄一层，壁纸回到原本亮度
+  const dim = mix(100, 0);
+  const rail = mix(92, 14);
+  const pane = mix(88, 4);
+  const view = mix(90, 8);
+  const bar = mix(92, 12);
   root.style.setProperty("--shell-dim", `${dim}%`);
   root.style.setProperty("--shell-rail", `${rail}%`);
   root.style.setProperty("--shell-pane", `${pane}%`);
   root.style.setProperty("--shell-view", `${view}%`);
   root.style.setProperty("--shell-bar", `${bar}%`);
   root.style.setProperty("--shell-blur", `${Math.round((1 - t) * 16)}px`);
-  const read = Math.min(1, t * 0.9 + protect * 0.45);
+  const read = t;
   root.style.setProperty("--shell-read", String(read));
   if (read < 0.04) {
     root.style.setProperty("--shell-text-shadow", "none");
