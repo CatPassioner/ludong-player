@@ -9950,19 +9950,19 @@ function applyShellLevel(level) {
   const isLightUi = root.dataset.bgLight === "1";
   const paper = Number.isFinite(shellPaperBright) ? shellPaperBright : 0.45;
   const mix = (from, to) => Math.round(from + (to - from) * t);
-  // 拉满时整窗遮罩去掉，面板只留很薄一层，壁纸回到原本亮度
-  const dim = mix(100, 0);
-  const rail = mix(92, 14);
-  const pane = mix(88, 4);
-  const view = mix(90, 8);
-  const bar = mix(92, 12);
+  // 遮罩在前三分之一就退开，画面早点出来；面板始终托住字
+  const dim = Math.round(Math.pow(1 - t, 3) * 100);
+  const rail = mix(84, 58);
+  const pane = mix(82, 52);
+  const view = mix(84, 58);
+  const bar = mix(86, 62);
   root.style.setProperty("--shell-dim", `${dim}%`);
   root.style.setProperty("--shell-rail", `${rail}%`);
   root.style.setProperty("--shell-pane", `${pane}%`);
   root.style.setProperty("--shell-view", `${view}%`);
   root.style.setProperty("--shell-bar", `${bar}%`);
   root.style.setProperty("--shell-blur", `${Math.round((1 - t) * 16)}px`);
-  const read = t;
+  const read = Math.min(1, 0.35 + t * 0.65);
   root.style.setProperty("--shell-read", String(read));
   if (read < 0.04) {
     root.style.setProperty("--shell-text-shadow", "none");
