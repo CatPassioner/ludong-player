@@ -9957,10 +9957,10 @@ function applyShellLevel(level) {
   const tone = (from, to) => Math.round(from + (to - from) * open);
   // 整窗遮罩早点退开；拉满时外层不再叠一层，画面回到接近原亮度
   const dim = Math.round(Math.pow(1 - t, 3) * 100);
-  const rail = tone(84, 18);
+  const rail = tone(84, 24);
   const pane = tone(70, 0);
-  const view = tone(78, 16);
-  const bar = tone(86, 20);
+  const view = tone(78, 22);
+  const bar = tone(86, 26);
   root.style.setProperty("--shell-dim", `${dim}%`);
   root.style.setProperty("--shell-rail", `${rail}%`);
   root.style.setProperty("--shell-pane", `${pane}%`);
@@ -10311,7 +10311,7 @@ function clipShellBackgroundVideo(file) {
         return;
       }
       const clip = Math.min(CLIP_SEC, Math.max(video.duration || CLIP_SEC, 0.8));
-      const scale = Math.min(1, 960 / Math.max(width, height));
+      const scale = Math.min(1, 1600 / Math.max(width, height));
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(2, Math.round(width * scale));
       canvas.height = Math.max(2, Math.round(height * scale));
@@ -10320,8 +10320,10 @@ function clipShellBackgroundVideo(file) {
         fail(new Error("无法裁剪这段视频"));
         return;
       }
-      const stream = canvas.captureStream(20);
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 900000 });
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      const stream = canvas.captureStream(30);
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2800000 });
       const chunks = [];
       rec.ondataavailable = (e) => {
         if (e.data && e.data.size) chunks.push(e.data);
@@ -10333,7 +10335,7 @@ function clipShellBackgroundVideo(file) {
       video.currentTime = 0;
       video.play().then(() => {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const poster = canvas.toDataURL("image/jpeg", 0.72);
+        const poster = canvas.toDataURL("image/jpeg", 0.9);
         rec.start(200);
         const started = performance.now();
         const tick = () => {
@@ -10391,13 +10393,16 @@ function compressShellBackgroundFile(file) {
         resolve(blob);
       };
       try {
-        const maxEdge = 1280;
+        const maxEdge = 2560;
         const scale = Math.min(1, maxEdge / Math.max(img.width, img.height, 1));
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(img.width * scale));
         canvas.height = Math.max(1, Math.round(img.height * scale));
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => finish(blob), "image/jpeg", 0.72);
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => finish(blob), "image/jpeg", 0.92);
       } catch (err) {
         URL.revokeObjectURL(url);
         reject(err);
