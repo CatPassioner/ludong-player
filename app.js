@@ -9956,11 +9956,11 @@ function applyShellLevel(level) {
   const open = 1 - Math.pow(1 - t, 1.45);
   const tone = (from, to) => Math.round(from + (to - from) * open);
   // 整窗遮罩早点退开；拉满时外层不再叠一层，画面回到接近原亮度
-  const dim = Math.round(Math.pow(1 - t, 3) * 100);
-  const rail = tone(84, 24);
-  const pane = tone(70, 0);
-  const view = tone(78, 22);
-  const bar = tone(86, 26);
+  const dim = Math.round(8 + Math.pow(1 - t, 3) * 92);
+  const rail = tone(84, 30);
+  const pane = tone(70, 6);
+  const view = tone(78, 28);
+  const bar = tone(86, 32);
   root.style.setProperty("--shell-dim", `${dim}%`);
   root.style.setProperty("--shell-rail", `${rail}%`);
   root.style.setProperty("--shell-pane", `${pane}%`);
