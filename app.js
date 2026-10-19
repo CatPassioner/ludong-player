@@ -9695,15 +9695,29 @@ function shellLevelFromSaved(data) {
 }
 
 function emptyShellBackground() {
-  return { ids: [], images: {}, activeId: "", level: 55, rotate: "off", intervalMin: 5 };
+  return { ids: [], images: {}, posters: {}, activeId: "", level: 55, rotate: "off", intervalMin: 5 };
+}
+
+function isShellStill(src) {
+  return String(src || "").startsWith("data:image/");
+}
+
+function isShellMotion(src) {
+  return String(src || "").startsWith("data:video/");
 }
 
 function normalizeShellBackground(data) {
   const images = {};
+  const posters = {};
   const incoming = data?.images && typeof data.images === "object" ? data.images : {};
   Object.entries(incoming).forEach(([id, image]) => {
     const src = String(image || "");
-    if (id && src.startsWith("data:image/")) images[id] = src;
+    if (id && (isShellStill(src) || isShellMotion(src))) images[id] = src;
+  });
+  const incomingPosters = data?.posters && typeof data.posters === "object" ? data.posters : {};
+  Object.entries(incomingPosters).forEach(([id, image]) => {
+    const src = String(image || "");
+    if (id && isShellStill(src)) posters[id] = src;
   });
   if (Array.isArray(data?.items)) {
     data.items.forEach((item) => {
@@ -9725,6 +9739,9 @@ function normalizeShellBackground(data) {
     ids = ["bg-legacy"];
   }
   ids = ids.filter((id) => images[id]).slice(0, SHELL_BG_MAX);
+  Object.keys(posters).forEach((id) => {
+    if (!ids.includes(id)) delete posters[id];
+  });
   const activeId = ids.includes(data?.activeId) ? data.activeId : ids[0] || "";
   const rotate = ["off", "order", "random"].includes(data?.rotate) ? data.rotate : "off";
   let intervalMin = Number(data?.intervalMin);
@@ -9733,6 +9750,7 @@ function normalizeShellBackground(data) {
   return {
     ids,
     images,
+    posters,
     activeId,
     level: shellLevelFromSaved(data || {}),
     rotate,
@@ -9746,6 +9764,12 @@ function readShellBackground() {
 
 function shellImageOf(state) {
   return state?.images?.[state.activeId] || "";
+}
+
+function shellPosterOf(state) {
+  const src = shellImageOf(state);
+  if (isShellStill(src)) return src;
+  return state?.posters?.[state.activeId] || "";
 }
 
 function writeShellBackground(next) {
@@ -9983,12 +10007,15 @@ function renderShellBackgroundPicker(state) {
   if (grid) {
     grid.innerHTML = state.ids
       .map((id) => {
-        const url = state.images?.[id] || "";
-        if (!url) return "";
+        const media = state.images?.[id] || "";
+        const thumb = state.posters?.[id] || (isShellStill(media) ? media : "");
+        if (!thumb) return "";
+        const motion = isShellMotion(media) ? `<span class="wallpaper-library-motion">动</span>` : "";
         return `<button type="button" class="wallpaper-library-item${
           id === state.activeId ? " is-selected" : ""
         }" data-shell-id="${escapeHtml(id)}" title="设为当前背景">
-          <img src="${url}" alt="" />
+          <img src="${thumb}" alt="" />
+          ${motion}
           <span class="wallpaper-library-del" data-shell-del="${escapeHtml(id)}" title="删除">×</span>
         </button>`;
       })
@@ -10045,34 +10072,69 @@ function clearShellReadabilityVars() {
   root.style.removeProperty("--shell-bg-image");
 }
 
+function syncShellBgVideo(src) {
+  const video = document.getElementById("shellBgVideo");
+  if (!video) return;
+  if (!isShellMotion(src)) {
+    video.pause();
+    if (video.getAttribute("data-src")) {
+      video.removeAttribute("src");
+      video.removeAttribute("data-src");
+      video.load();
+    }
+    video.hidden = true;
+    return;
+  }
+  video.hidden = false;
+  if (video.getAttribute("data-src") !== src) {
+    video.src = src;
+    video.setAttribute("data-src", src);
+  }
+  const canPlay = !document.hidden && !document.body.classList.contains("is-auth-screen");
+  if (canPlay) video.play().catch(() => {});
+  else video.pause();
+}
+
 function applyShellBackground() {
   const data = readShellBackground();
-  const image = shellImageOf(data);
+  const media = shellImageOf(data);
+  const still = shellPosterOf(data);
   const root = document.documentElement;
   const layer = document.getElementById("shellBgLayer");
-  const on = !!image;
+  const on = !!media;
   if (on) {
     root.setAttribute("data-shell-bg", "1");
-    root.style.setProperty("--shell-bg-image", `url("${image}")`);
+    const motion = isShellMotion(media);
+    if (motion) {
+      root.style.removeProperty("--shell-bg-image");
+      if (layer) layer.style.backgroundImage = "";
+    } else {
+      root.style.setProperty("--shell-bg-image", `url("${media}")`);
+      if (layer) layer.style.backgroundImage = `url("${media}")`;
+    }
     if (layer) {
       layer.hidden = false;
       layer.setAttribute("aria-hidden", "false");
-      layer.style.backgroundImage = `url("${image}")`;
     }
+    syncShellBgVideo(motion ? media : "");
     const slider = document.getElementById("shellBgLevel");
     if (slider) slider.value = String(data.level);
     renderShellBackgroundPicker(data);
     scheduleShellBackgroundRotate(data);
-    sampleShellPaperBright(image).then(() => {
-      if (shellImageOf(readShellBackground()) !== image) return;
-      applyShellLevel(data.level);
-    });
+    const sample = still || (isShellStill(media) ? media : "");
+    if (sample) {
+      sampleShellPaperBright(sample).then(() => {
+        if (shellImageOf(readShellBackground()) !== media) return;
+        applyShellLevel(data.level);
+      });
+    }
     applyShellLevel(data.level);
     return;
   }
   root.removeAttribute("data-shell-bg");
   root.removeAttribute("data-shell-strength");
   clearShellReadabilityVars();
+  syncShellBgVideo("");
   if (layer) {
     layer.hidden = true;
     layer.setAttribute("aria-hidden", "true");
@@ -10085,6 +10147,117 @@ function applyShellBackground() {
   if (slider) slider.value = String(data.level);
   renderShellBackgroundPicker(data);
   scheduleShellBackgroundRotate(data);
+}
+
+function isShellVideoFile(file) {
+  const type = String(file?.type || "");
+  return type.startsWith("video/") || /\.(mp4|webm|mov|m4v|mkv)$/i.test(file?.name || "");
+}
+
+function clipShellBackgroundVideo(file) {
+  const CLIP_SEC = 6;
+  return new Promise((resolve, reject) => {
+    if (!file || !isShellVideoFile(file)) {
+      reject(new Error("请选择视频"));
+      return;
+    }
+    if (file.size > 80 * 1024 * 1024) {
+      reject(new Error("视频请小于 80MB"));
+      return;
+    }
+    if (typeof MediaRecorder === "undefined" || !HTMLCanvasElement.prototype.captureStream) {
+      reject(new Error("当前浏览器不能裁动态背景"));
+      return;
+    }
+    const mime = ["video/webm;codecs=vp8", "video/webm"].find((item) => MediaRecorder.isTypeSupported(item));
+    if (!mime) {
+      reject(new Error("当前浏览器不能裁动态背景"));
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.src = url;
+    let settled = false;
+    const cleanup = () => {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(url);
+    };
+    const fail = (err) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(err instanceof Error ? err : new Error("裁剪失败"));
+    };
+    video.onerror = () => fail(new Error("无法读取这段视频"));
+    video.onloadedmetadata = () => {
+      const width = video.videoWidth || 0;
+      const height = video.videoHeight || 0;
+      if (!width || !height) {
+        fail(new Error("无法读取这段视频"));
+        return;
+      }
+      const clip = Math.min(CLIP_SEC, Math.max(video.duration || CLIP_SEC, 0.8));
+      const scale = Math.min(1, 960 / Math.max(width, height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(2, Math.round(width * scale));
+      canvas.height = Math.max(2, Math.round(height * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        fail(new Error("无法裁剪这段视频"));
+        return;
+      }
+      const stream = canvas.captureStream(20);
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 900000 });
+      const chunks = [];
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size) chunks.push(e.data);
+      };
+      const stopped = new Promise((res, rej) => {
+        rec.onstop = () => res();
+        rec.onerror = () => rej(new Error("裁剪失败"));
+      });
+      video.currentTime = 0;
+      video.play().then(() => {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const poster = canvas.toDataURL("image/jpeg", 0.72);
+        rec.start(200);
+        const started = performance.now();
+        const tick = () => {
+          const elapsed = (performance.now() - started) / 1000;
+          if (video.ended || video.currentTime >= clip - 0.05 || elapsed >= clip + 0.4) {
+            if (rec.state !== "inactive") rec.stop();
+            return;
+          }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          requestAnimationFrame(tick);
+        };
+        tick();
+        stopped.then(async () => {
+          if (settled) return;
+          cleanup();
+          const blob = new Blob(chunks, { type: "video/webm" });
+          if (blob.size < 800) {
+            fail(new Error("裁出来的片段是空的"));
+            return;
+          }
+          const dataUrl = await blobToDataUrl(blob);
+          if (settled) return;
+          if (!isShellMotion(dataUrl) || !isShellStill(poster)) {
+            fail(new Error("无法保存这段动态背景"));
+            return;
+          }
+          settled = true;
+          resolve({ dataUrl, poster });
+        }).catch(fail);
+      }).catch(() => fail(new Error("无法播放这段视频")));
+    };
+  });
 }
 
 function compressShellBackgroundFile(file) {
@@ -10141,17 +10314,26 @@ document.getElementById("shellBgFile")?.addEventListener("change", async (e) => 
   if (!files.length) return;
   const prev = readShellBackground();
   const ids = prev.ids.slice();
+  prev.images = { ...(prev.images || {}) };
+  prev.posters = { ...(prev.posters || {}) };
   let activeId = prev.activeId;
   let added = 0;
   setShellBgStatus("正在加入背景库…");
   try {
     for (const file of files) {
       if (ids.length >= SHELL_BG_MAX) break;
-      const blob = await compressShellBackgroundFile(file);
-      const image = await blobToDataUrl(blob);
-      if (!image.startsWith("data:image/")) throw new Error("无法保存这张图");
       const id = `bg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-      prev.images[id] = image;
+      if (isShellVideoFile(file)) {
+        setShellBgStatus("正在裁成约 6 秒循环…");
+        const clipped = await clipShellBackgroundVideo(file);
+        prev.images[id] = clipped.dataUrl;
+        prev.posters[id] = clipped.poster;
+      } else {
+        const blob = await compressShellBackgroundFile(file);
+        const image = await blobToDataUrl(blob);
+        if (!isShellStill(image)) throw new Error("无法保存这张图");
+        prev.images[id] = image;
+      }
       ids.push(id);
       if (!activeId) activeId = id;
       added += 1;
@@ -10160,7 +10342,7 @@ document.getElementById("shellBgFile")?.addEventListener("change", async (e) => 
       setShellBgStatus(`背景库最多 ${SHELL_BG_MAX} 张`, true);
       return;
     }
-    writeShellBackground({ ...prev, ids, images: prev.images, activeId });
+    writeShellBackground({ ...prev, ids, images: prev.images, posters: prev.posters, activeId });
     applyShellBackground();
     const skipped = files.length - added;
     setShellBgStatus(
@@ -10168,7 +10350,7 @@ document.getElementById("shellBgFile")?.addEventListener("change", async (e) => 
     );
   } catch (err) {
     if (added) {
-      writeShellBackground({ ...prev, ids, images: prev.images, activeId });
+      writeShellBackground({ ...prev, ids, images: prev.images, posters: prev.posters, activeId });
       applyShellBackground();
     }
     setShellBgStatus(err?.message || "背景上传失败", true);
@@ -10182,10 +10364,12 @@ document.getElementById("shellBgGrid")?.addEventListener("click", async (e) => {
     e.stopPropagation();
     const id = del.dataset.shellDel || "";
     const images = { ...(state.images || {}) };
+    const posters = { ...(state.posters || {}) };
     delete images[id];
+    delete posters[id];
     const ids = state.ids.filter((item) => item !== id);
     const activeId = state.activeId === id ? ids[0] || "" : state.activeId;
-    writeShellBackground({ ...state, ids, images, activeId });
+    writeShellBackground({ ...state, ids, images, posters, activeId });
     applyShellBackground();
     setShellBgStatus(ids.length ? "已从背景库删除" : "背景库已清空");
     return;
@@ -10248,6 +10432,9 @@ document.getElementById("shellBgLevel")?.addEventListener("change", (e) => {
   } catch (err) {
     setHint(err?.message || "保存失败", true);
   }
+});
+document.addEventListener("visibilitychange", () => {
+  syncShellBgVideo(shellImageOf(readShellBackground()));
 });
 hydrateShellBackground();
 loadSeekEmojiPicker();

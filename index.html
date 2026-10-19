@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03shellread1" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03shellmotion1" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -19,7 +19,9 @@
   </script>
 </head>
 <body class="is-auth-screen">
-  <div class="shell-bg-layer" id="shellBgLayer" aria-hidden="true"></div>
+  <div class="shell-bg-layer" id="shellBgLayer" aria-hidden="true">
+    <video id="shellBgVideo" muted playsinline loop hidden></video>
+  </div>
   <!-- 启动登录（独立浅色小窗构图） -->
   <div class="auth-layer" id="authLayer" aria-hidden="false">
     <div class="auth-shell">
@@ -530,7 +532,7 @@
             <span class="settings-label">界面背景图</span>
             <span class="settings-hint">整窗一张</span>
           </div>
-          <p class="settings-note">背景库可存多张，点一张即可使用。也可每隔一段时间自动换图，按顺序或随机。拖亮度时面板和字会一起加压，尽量保持看得清。存在当前账号的本机，最多 12 张。</p>
+          <p class="settings-note">背景库可存图片，也可上传自己的视频。视频会裁成约 6 秒并循环播放。点一张即可使用，也可每隔一段时间自动换。拖亮度时面板和字会一起加压。存在当前账号的本机，最多 12 个。</p>
           <div class="wallpaper-library shell-bg-library" id="shellBgLibrary">
             <p class="wallpaper-library-empty" id="shellBgEmpty">背景库还是空的，点下方上传</p>
             <div class="wallpaper-library-grid" id="shellBgGrid"></div>
@@ -559,7 +561,7 @@
             <button type="button" class="import-btn" id="shellBgPickBtn">上传背景</button>
             <button type="button" class="import-btn import-btn-ghost" id="shellBgClearBtn">恢复默认</button>
           </div>
-          <input type="file" id="shellBgFile" accept="image/*,.jpg,.jpeg,.png,.webp,.gif" multiple hidden />
+          <input type="file" id="shellBgFile" accept="image/*,video/mp4,video/webm,video/quicktime,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm,.mov,.m4v" multiple hidden />
 
           <div class="settings-divider"></div>
           <div class="settings-row">
@@ -1083,6 +1085,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03cloudacl1"></script>
-  <script src="app.js?v=2.0.03shellread1"></script>
+  <script src="app.js?v=2.0.03shellmotion1"></script>
 </body>
 </html>

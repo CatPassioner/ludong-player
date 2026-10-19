@@ -108,11 +108,34 @@ html[data-shell-bg="1"] .shell-bg-layer:not([hidden]) {
   display: block;
 }
 
+.shell-bg-layer video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
 html[data-shell-bg="1"] .shell-bg-layer::after {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 1;
   background: color-mix(in srgb, var(--bg) var(--shell-dim, 45%), transparent);
+}
+
+.wallpaper-library-motion {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  pointer-events: none;
 }
 
 html[data-shell-bg="1"] body:not(.is-auth-screen) {
