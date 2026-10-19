@@ -8837,6 +8837,9 @@ function applyBgLightness(value, hue) {
   } catch {
     /* ignore */
   }
+  if (root.getAttribute("data-shell-bg") === "1") {
+    applyShellLevel(readShellBackground().level);
+  }
 }
 
 function loadBgLightness() {
@@ -9876,16 +9879,97 @@ async function hydrateShellBackground() {
   applyShellBackground();
 }
 
+let shellPaperBright = 0.45;
+
+function sampleShellPaperBright(dataUrl) {
+  if (!dataUrl || !String(dataUrl).startsWith("data:image/")) {
+    shellPaperBright = 0.45;
+    return Promise.resolve(shellPaperBright);
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 24;
+        canvas.height = 24;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) {
+          shellPaperBright = 0.45;
+          resolve(shellPaperBright);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, 24, 24);
+        const data = ctx.getImageData(0, 0, 24, 24).data;
+        let sum = 0;
+        const n = data.length / 4;
+        for (let i = 0; i < data.length; i += 4) {
+          sum += (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+        }
+        shellPaperBright = Math.max(0, Math.min(1, sum / Math.max(n, 1)));
+      } catch {
+        shellPaperBright = 0.45;
+      }
+      resolve(shellPaperBright);
+    };
+    img.onerror = () => {
+      shellPaperBright = 0.45;
+      resolve(shellPaperBright);
+    };
+    img.src = dataUrl;
+  });
+}
+
 function applyShellLevel(level) {
   const t = Math.max(0, Math.min(100, Number(level) || 0)) / 100;
   const root = document.documentElement;
-  const pct = (from, to) => `${Math.round(from + (to - from) * t)}%`;
-  root.style.setProperty("--shell-dim", pct(100, 0));
-  root.style.setProperty("--shell-rail", pct(100, 18));
-  root.style.setProperty("--shell-pane", pct(100, 8));
-  root.style.setProperty("--shell-view", pct(100, 12));
-  root.style.setProperty("--shell-bar", pct(100, 16));
+  const isLightUi = root.dataset.bgLight === "1";
+  const paper = Number.isFinite(shellPaperBright) ? shellPaperBright : 0.45;
+  // 亮壁纸 + 浅色字（深色界面）时额外护底，避免字被冲掉
+  const clash = !isLightUi && paper > 0.42 ? Math.min(1, (paper - 0.42) * 1.6) : 0;
+  const protect = Math.min(0.7, t * 0.22 + clash * t * 0.9);
+  const withFloor = (base, min, boost) =>
+    Math.round(Math.min(100, Math.max(min, base + protect * boost)));
+  const dim = withFloor(100 - t * 70, 28, 30);
+  const rail = withFloor(100 - t * 44, 46, 22);
+  const pane = withFloor(100 - t * 50, 42, 24);
+  const view = withFloor(100 - t * 48, 44, 22);
+  const bar = withFloor(100 - t * 46, 46, 22);
+  root.style.setProperty("--shell-dim", `${dim}%`);
+  root.style.setProperty("--shell-rail", `${rail}%`);
+  root.style.setProperty("--shell-pane", `${pane}%`);
+  root.style.setProperty("--shell-view", `${view}%`);
+  root.style.setProperty("--shell-bar", `${bar}%`);
   root.style.setProperty("--shell-blur", `${Math.round((1 - t) * 16)}px`);
+  const read = Math.min(1, t * 0.9 + protect * 0.45);
+  root.style.setProperty("--shell-read", String(read));
+  if (read < 0.04) {
+    root.style.setProperty("--shell-text-shadow", "none");
+  } else if (isLightUi) {
+    root.style.setProperty(
+      "--shell-text-shadow",
+      `0 1px 0 rgba(255,255,255,${(0.22 * read).toFixed(3)}), 0 0 10px rgba(255,253,248,${(0.4 * read).toFixed(3)})`
+    );
+  } else {
+    root.style.setProperty(
+      "--shell-text-shadow",
+      `0 1px 2px rgba(0,0,0,${(0.42 + 0.4 * read).toFixed(3)}), 0 0 14px rgba(0,0,0,${(0.28 + 0.4 * read).toFixed(3)})`
+    );
+  }
+  // 壁纸很亮且界面仍是浅色字时，局部改成深色字保证可读
+  if (!isLightUi && paper > 0.58 && t > 0.48) {
+    root.setAttribute("data-shell-ink", "dark");
+  } else {
+    root.removeAttribute("data-shell-ink");
+  }
+  if (typeof bgLight === "number" && !root.classList.contains("theme-manga")) {
+    const uiT = clamp(bgLight, 0, 1);
+    const textCol = mixHex("#f2efe8", "#1a1f28", uiT);
+    const mutedBase = mixHex("#8b93a0", "#5a6472", uiT);
+    const dimBase = mixHex("#5a6270", "#8a93a0", uiT);
+    root.style.setProperty("--muted", mixHex(mutedBase, textCol, read * 0.58));
+    root.style.setProperty("--dim", mixHex(dimBase, textCol, read * 0.42));
+  }
   const slider = document.getElementById("shellBgLevel");
   if (slider && Number(slider.value) !== Math.round(t * 100)) {
     slider.value = String(Math.round(t * 100));
@@ -9947,6 +10031,20 @@ function advanceShellBackground() {
   applyShellBackground();
 }
 
+function clearShellReadabilityVars() {
+  const root = document.documentElement;
+  root.removeAttribute("data-shell-ink");
+  root.style.removeProperty("--shell-dim");
+  root.style.removeProperty("--shell-rail");
+  root.style.removeProperty("--shell-pane");
+  root.style.removeProperty("--shell-view");
+  root.style.removeProperty("--shell-bar");
+  root.style.removeProperty("--shell-blur");
+  root.style.removeProperty("--shell-read");
+  root.style.removeProperty("--shell-text-shadow");
+  root.style.removeProperty("--shell-bg-image");
+}
+
 function applyShellBackground() {
   const data = readShellBackground();
   const image = shellImageOf(data);
@@ -9956,16 +10054,32 @@ function applyShellBackground() {
   if (on) {
     root.setAttribute("data-shell-bg", "1");
     root.style.setProperty("--shell-bg-image", `url("${image}")`);
+    if (layer) {
+      layer.hidden = false;
+      layer.setAttribute("aria-hidden", "false");
+      layer.style.backgroundImage = `url("${image}")`;
+    }
+    const slider = document.getElementById("shellBgLevel");
+    if (slider) slider.value = String(data.level);
+    renderShellBackgroundPicker(data);
+    scheduleShellBackgroundRotate(data);
+    sampleShellPaperBright(image).then(() => {
+      if (shellImageOf(readShellBackground()) !== image) return;
+      applyShellLevel(data.level);
+    });
     applyShellLevel(data.level);
-  } else {
-    root.removeAttribute("data-shell-bg");
-    root.removeAttribute("data-shell-strength");
-    root.style.removeProperty("--shell-bg-image");
+    return;
   }
+  root.removeAttribute("data-shell-bg");
+  root.removeAttribute("data-shell-strength");
+  clearShellReadabilityVars();
   if (layer) {
-    layer.hidden = !on;
-    layer.setAttribute("aria-hidden", on ? "false" : "true");
-    layer.style.backgroundImage = on ? `url("${image}")` : "";
+    layer.hidden = true;
+    layer.setAttribute("aria-hidden", "true");
+    layer.style.backgroundImage = "";
+  }
+  if (!root.classList.contains("theme-manga")) {
+    applyBgLightness(Math.round((bgLight || 0) * 100), bgHue);
   }
   const slider = document.getElementById("shellBgLevel");
   if (slider) slider.value = String(data.level);

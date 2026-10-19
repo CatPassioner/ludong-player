@@ -149,6 +149,45 @@ html[data-shell-bg="1"] .app > .now-card {
   background: color-mix(in srgb, var(--bg) var(--shell-bar, 54%), transparent) !important;
 }
 
+/* 背景越亮，字加一层描边阴影，避免被壁纸冲掉 */
+html[data-shell-bg="1"] .nav-brand .brand,
+html[data-shell-bg="1"] .nav-item,
+html[data-shell-bg="1"] .nav-item-title,
+html[data-shell-bg="1"] .nav-item-sub,
+html[data-shell-bg="1"] .nav-user,
+html[data-shell-bg="1"] .nav-user-meta,
+html[data-shell-bg="1"] .nav-name,
+html[data-shell-bg="1"] .nav-sub,
+html[data-shell-bg="1"] .settings-label,
+html[data-shell-bg="1"] .settings-hint,
+html[data-shell-bg="1"] .settings-note,
+html[data-shell-bg="1"] .settings-title,
+html[data-shell-bg="1"] .pane-view-bar,
+html[data-shell-bg="1"] .shell-bg-level,
+html[data-shell-bg="1"] .shell-bg-interval,
+html[data-shell-bg="1"] .wallpaper-library-empty,
+html[data-shell-bg="1"] .import-status,
+html[data-shell-bg="1"] .now-card .now-title,
+html[data-shell-bg="1"] .now-card .now-artist,
+html[data-shell-bg="1"] .now-card .now-meta,
+html[data-shell-bg="1"] .list-title,
+html[data-shell-bg="1"] .list-sub,
+html[data-shell-bg="1"] .section-title,
+html[data-shell-bg="1"] .section-sub {
+  text-shadow: var(--shell-text-shadow, none);
+}
+
+/* 亮壁纸 + 深色界面时，主区域临时改成深色字 */
+html[data-shell-bg="1"][data-shell-ink="dark"] .nav-rail,
+html[data-shell-bg="1"][data-shell-ink="dark"] .main-pane,
+html[data-shell-bg="1"][data-shell-ink="dark"] .app > .now-card {
+  --text: #1a1f28;
+  --muted: #3a4250;
+  --dim: #5a6270;
+  --line: rgba(0, 0, 0, 0.12);
+  --shell-text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 10px rgba(255, 253, 248, 0.45);
+}
+
 .shell-bg-level {
   display: flex;
   align-items: center;
