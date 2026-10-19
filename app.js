@@ -9953,13 +9953,14 @@ function applyShellLevel(level) {
   const root = document.documentElement;
   const isLightUi = root.dataset.bgLight === "1";
   const paper = Number.isFinite(shellPaperBright) ? shellPaperBright : 0.45;
-  const mix = (from, to) => Math.round(from + (to - from) * t);
-  // 遮罩在前三分之一就退开，画面早点出来；面板始终托住字
+  const open = 1 - Math.pow(1 - t, 1.45);
+  const tone = (from, to) => Math.round(from + (to - from) * open);
+  // 整窗遮罩早点退开；拉满时外层不再叠一层，画面回到接近原亮度
   const dim = Math.round(Math.pow(1 - t, 3) * 100);
-  const rail = mix(84, 58);
-  const pane = mix(82, 52);
-  const view = mix(84, 58);
-  const bar = mix(86, 62);
+  const rail = tone(84, 30);
+  const pane = tone(70, 0);
+  const view = tone(78, 30);
+  const bar = tone(86, 32);
   root.style.setProperty("--shell-dim", `${dim}%`);
   root.style.setProperty("--shell-rail", `${rail}%`);
   root.style.setProperty("--shell-pane", `${pane}%`);
