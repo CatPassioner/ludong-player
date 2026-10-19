@@ -277,6 +277,19 @@ html[data-shell-bg="1"][data-shell-ink="dark"] .app > .now-card {
   margin-bottom: 0;
 }
 
+#shellBgMotionRow {
+  margin: 16px 0 0;
+}
+
+#shellBgMotionPick {
+  margin-top: 16px;
+  margin-bottom: 0;
+}
+
+#shellBgMotionPick + .import-actions {
+  margin-top: 16px;
+}
+
 .shell-bg-interval {
   display: flex;
   align-items: center;
