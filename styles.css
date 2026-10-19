@@ -166,7 +166,13 @@ html[data-shell-bg="1"] .app > .now-card {
 }
 
 .shell-bg-library .wallpaper-library-grid {
-  max-height: 220px;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px;
+  max-height: 248px;
+}
+
+.shell-bg-library .wallpaper-library-item {
+  aspect-ratio: 4 / 3;
 }
 
 #shellBgRotateRow {
@@ -1542,22 +1548,28 @@ html[data-shell-bg="1"] .app > .now-card {
 
 .wallpaper-library-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  max-height: 168px;
-  overflow: auto;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+  max-height: 200px;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 2px;
+  align-content: start;
 }
 
 .wallpaper-library-item {
   position: relative;
-  aspect-ratio: 16 / 10;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 4 / 3;
   border: 1px solid rgba(100, 120, 150, 0.2);
   border-radius: 8px;
   overflow: hidden;
   padding: 0;
   background: rgba(0, 0, 0, 0.18);
   cursor: pointer;
+  align-self: start;
 }
 
 .wallpaper-library-item img {
