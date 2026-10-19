@@ -108,6 +108,42 @@ html[data-shell-bg="1"] .shell-bg-layer:not([hidden]) {
   display: block;
 }
 
+.shell-bg-frame {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: none;
+  z-index: 0;
+  transition: opacity 1s ease, transform 1.15s ease;
+}
+
+.shell-bg-frame.is-front {
+  opacity: 1;
+  z-index: 1;
+  transform: none;
+}
+
+.shell-bg-frame.is-front.is-leaving,
+.shell-bg-frame.is-leaving,
+.shell-bg-frame.is-out {
+  opacity: 0;
+}
+
+.shell-bg-layer.is-instant .shell-bg-frame {
+  transition: none;
+}
+
+.shell-bg-layer[data-shell-move="drift"] .shell-bg-frame:not(.is-front) {
+  transform: translate3d(4%, 0, 0) scale(1.04);
+}
+
+.shell-bg-layer[data-shell-move="drift"] .shell-bg-frame.is-out {
+  transform: translate3d(-3%, 0, 0) scale(1.02);
+}
+
 .shell-bg-layer video {
   position: absolute;
   inset: 0;
@@ -121,7 +157,7 @@ html[data-shell-bg="1"] .shell-bg-layer::after {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   background: color-mix(in srgb, var(--bg) var(--shell-dim, 45%), transparent);
 }
 

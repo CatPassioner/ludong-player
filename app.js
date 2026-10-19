@@ -9576,6 +9576,8 @@ const SHELL_BG_KEY = "ludong-shell-bg-v1";
 const SHELL_BG_MAX = 12;
 const shellBgUrls = new Map();
 let shellBgTimer = 0;
+let shellShownId = "";
+let shellFadeTimer = 0;
 
 function setShellBgStatus(text, isError = false) {
   const el = document.getElementById("shellBgStatus");
@@ -9695,7 +9697,7 @@ function shellLevelFromSaved(data) {
 }
 
 function emptyShellBackground() {
-  return { ids: [], images: {}, posters: {}, activeId: "", level: 55, rotate: "off", intervalMin: 5 };
+  return { ids: [], images: {}, posters: {}, activeId: "", level: 55, rotate: "off", intervalMin: 5, transition: "fade" };
 }
 
 function isShellStill(src) {
@@ -9744,6 +9746,7 @@ function normalizeShellBackground(data) {
   });
   const activeId = ids.includes(data?.activeId) ? data.activeId : ids[0] || "";
   const rotate = ["off", "order", "random"].includes(data?.rotate) ? data.rotate : "off";
+  const transition = ["fade", "veil", "drift"].includes(data?.transition) ? data.transition : "fade";
   let intervalMin = Number(data?.intervalMin);
   if (!Number.isFinite(intervalMin)) intervalMin = 5;
   intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
@@ -9754,7 +9757,8 @@ function normalizeShellBackground(data) {
     activeId,
     level: shellLevelFromSaved(data || {}),
     rotate,
-    intervalMin
+    intervalMin,
+    transition
   };
 }
 
@@ -10027,6 +10031,14 @@ function renderShellBackgroundPicker(state) {
   if (interval && document.activeElement !== interval) {
     interval.value = String(state.intervalMin);
   }
+  const canMove = state.ids.length >= 2;
+  const motionRow = document.getElementById("shellBgMotionRow");
+  const motionPick = document.getElementById("shellBgMotionPick");
+  if (motionRow) motionRow.hidden = !canMove;
+  if (motionPick) motionPick.hidden = !canMove;
+  document.querySelectorAll("#shellBgMotionPick [data-shell-motion]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.shellMotion === (state.transition || "fade"));
+  });
 }
 
 function scheduleShellBackgroundRotate(state = readShellBackground()) {
@@ -10052,7 +10064,20 @@ function advanceShellBackground() {
   }
   if (nextId === state.activeId) return;
   writeShellBackground({ ...state, activeId: nextId });
-  applyShellBackground();
+  applyShellBackground({ motion: state.transition || "fade" });
+}
+
+function previewShellBackgroundSwitch(transition) {
+  const state = readShellBackground();
+  if (state.ids.length < 2) {
+    setShellBgStatus("至少两张才能看切换", true);
+    return;
+  }
+  const mode = ["fade", "veil", "drift"].includes(transition) ? transition : state.transition || "fade";
+  const index = state.ids.indexOf(state.activeId);
+  const nextId = state.ids[(Math.max(index, 0) + 1) % state.ids.length];
+  writeShellBackground({ ...state, activeId: nextId, transition: mode });
+  applyShellBackground({ motion: mode });
 }
 
 function clearShellReadabilityVars() {
@@ -10069,30 +10094,112 @@ function clearShellReadabilityVars() {
   root.style.removeProperty("--shell-bg-image");
 }
 
-function syncShellBgVideo(src) {
-  const video = document.getElementById("shellBgVideo");
+function paintShellFrame(frame, state, id) {
+  if (!frame) return;
+  const media = state?.images?.[id] || "";
+  const poster = isShellStill(media) ? media : state?.posters?.[id] || "";
+  const video = frame.querySelector("video");
+  frame.style.backgroundImage = poster ? `url("${poster}")` : "";
   if (!video) return;
-  if (!isShellMotion(src)) {
-    video.pause();
-    if (video.getAttribute("data-src")) {
-      video.removeAttribute("src");
-      video.removeAttribute("data-src");
-      video.load();
+  if (isShellMotion(media)) {
+    video.hidden = false;
+    if (video.getAttribute("data-src") !== media) {
+      video.src = media;
+      video.setAttribute("data-src", media);
     }
-    video.hidden = true;
     return;
   }
-  video.hidden = false;
-  if (video.getAttribute("data-src") !== src) {
-    video.src = src;
-    video.setAttribute("data-src", src);
-  }
-  const canPlay = !document.hidden && !document.body.classList.contains("is-auth-screen");
-  if (canPlay) video.play().catch(() => {});
+  video.pause();
+  video.hidden = true;
+}
+
+function playShellFrame(frame, on) {
+  const video = frame?.querySelector("video");
+  if (!video || video.hidden || !video.getAttribute("data-src")) return;
+  const can = on && !document.hidden && !document.body.classList.contains("is-auth-screen");
+  if (can) video.play().catch(() => {});
   else video.pause();
 }
 
-function applyShellBackground() {
+function frontShellFrame() {
+  return document.querySelector(".shell-bg-frame.is-front") || document.getElementById("shellBgFrameA");
+}
+
+function syncShellFramePlayback() {
+  document.querySelectorAll(".shell-bg-frame").forEach((frame) => {
+    const on = frame.classList.contains("is-front") && !frame.classList.contains("is-out") && !frame.classList.contains("is-leaving");
+    playShellFrame(frame, on);
+  });
+}
+
+function snapShellFrames(state) {
+  const layer = document.getElementById("shellBgLayer");
+  const front = document.getElementById("shellBgFrameA");
+  const back = document.getElementById("shellBgFrameB");
+  if (!layer || !front || !back) return;
+  window.clearTimeout(shellFadeTimer);
+  layer.classList.add("is-instant");
+  layer.classList.remove("is-moving");
+  layer.dataset.shellMove = state.transition || "fade";
+  paintShellFrame(front, state, state.activeId);
+  front.classList.add("is-front");
+  front.classList.remove("is-out", "is-leaving");
+  back.classList.remove("is-front", "is-out", "is-leaving");
+  back.style.backgroundImage = "";
+  playShellFrame(front, true);
+  playShellFrame(back, false);
+  shellShownId = state.activeId || "";
+  window.requestAnimationFrame(() => layer.classList.remove("is-instant"));
+}
+
+function crossfadeShell(state, mode) {
+  const layer = document.getElementById("shellBgLayer");
+  const front = frontShellFrame();
+  const back = front?.id === "shellBgFrameB"
+    ? document.getElementById("shellBgFrameA")
+    : document.getElementById("shellBgFrameB");
+  if (!layer || !front || !back) {
+    snapShellFrames(state);
+    return;
+  }
+  window.clearTimeout(shellFadeTimer);
+  const move = ["fade", "veil", "drift"].includes(mode) ? mode : "fade";
+  paintShellFrame(back, state, state.activeId);
+  layer.classList.add("is-instant");
+  layer.classList.remove("is-moving");
+  layer.dataset.shellMove = move;
+  back.classList.remove("is-front", "is-out", "is-leaving");
+  front.classList.remove("is-out", "is-leaving");
+  void layer.offsetWidth;
+  layer.classList.remove("is-instant");
+  void back.offsetWidth;
+  if (move === "veil") {
+    front.classList.add("is-leaving");
+    playShellFrame(front, false);
+    shellFadeTimer = window.setTimeout(() => {
+      back.classList.add("is-front");
+      playShellFrame(back, true);
+      shellFadeTimer = window.setTimeout(() => {
+        front.classList.remove("is-front", "is-leaving");
+        playShellFrame(front, false);
+      }, 820);
+    }, 760);
+  } else {
+    layer.classList.add("is-moving");
+    front.classList.add("is-out");
+    back.classList.add("is-front");
+    playShellFrame(back, true);
+    playShellFrame(front, false);
+    shellFadeTimer = window.setTimeout(() => {
+      front.classList.remove("is-front", "is-out");
+      layer.classList.remove("is-moving");
+      playShellFrame(front, false);
+    }, 1150);
+  }
+  shellShownId = state.activeId || "";
+}
+
+function applyShellBackground(opts = {}) {
   const data = readShellBackground();
   const media = shellImageOf(data);
   const still = shellPosterOf(data);
@@ -10101,19 +10208,16 @@ function applyShellBackground() {
   const on = !!media;
   if (on) {
     root.setAttribute("data-shell-bg", "1");
-    const motion = isShellMotion(media);
-    if (motion) {
-      root.style.removeProperty("--shell-bg-image");
-      if (layer) layer.style.backgroundImage = "";
-    } else {
-      root.style.setProperty("--shell-bg-image", `url("${media}")`);
-      if (layer) layer.style.backgroundImage = `url("${media}")`;
-    }
+    root.style.removeProperty("--shell-bg-image");
     if (layer) {
       layer.hidden = false;
       layer.setAttribute("aria-hidden", "false");
+      layer.style.backgroundImage = "";
     }
-    syncShellBgVideo(motion ? media : "");
+    const motion = opts.motion || "";
+    if (motion && shellShownId && shellShownId !== data.activeId) crossfadeShell(data, motion);
+    else if (shellShownId !== data.activeId) snapShellFrames(data);
+    else syncShellFramePlayback();
     const slider = document.getElementById("shellBgLevel");
     if (slider) slider.value = String(data.level);
     renderShellBackgroundPicker(data);
@@ -10128,14 +10232,20 @@ function applyShellBackground() {
     applyShellLevel(data.level);
     return;
   }
+  shellShownId = "";
   root.removeAttribute("data-shell-bg");
   root.removeAttribute("data-shell-strength");
   clearShellReadabilityVars();
-  syncShellBgVideo("");
+  document.querySelectorAll(".shell-bg-frame").forEach((frame) => {
+    frame.classList.remove("is-front", "is-out", "is-leaving");
+    frame.style.backgroundImage = "";
+    playShellFrame(frame, false);
+  });
   if (layer) {
     layer.hidden = true;
     layer.setAttribute("aria-hidden", "true");
     layer.style.backgroundImage = "";
+    layer.classList.remove("is-moving");
   }
   if (!root.classList.contains("theme-manga")) {
     applyBgLightness(Math.round((bgLight || 0) * 100), bgHue);
@@ -10380,6 +10490,21 @@ document.getElementById("shellBgGrid")?.addEventListener("click", async (e) => {
   setShellBgStatus("已换成这张背景");
 });
 
+document.getElementById("shellBgMotionPick")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-shell-motion]");
+  if (!btn) return;
+  const transition = btn.dataset.shellMotion || "fade";
+  const state = readShellBackground();
+  if (state.ids.length < 2) {
+    setShellBgStatus("至少两张才能看切换", true);
+    return;
+  }
+  writeShellBackground({ ...state, transition });
+  previewShellBackgroundSwitch(transition);
+  const label = transition === "veil" ? "淡过" : transition === "drift" ? "轻移" : "叠化";
+  setShellBgStatus(`正在用「${label}」换到下一张`);
+});
+
 document.getElementById("shellBgRotateRow")?.addEventListener("click", (e) => {
   const btn = e.target.closest?.("[data-shell-rotate]");
   if (!btn) return;
@@ -10431,7 +10556,7 @@ document.getElementById("shellBgLevel")?.addEventListener("change", (e) => {
   }
 });
 document.addEventListener("visibilitychange", () => {
-  syncShellBgVideo(shellImageOf(readShellBackground()));
+  syncShellFramePlayback();
 });
 hydrateShellBackground();
 loadSeekEmojiPicker();
