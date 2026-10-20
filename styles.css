@@ -6021,11 +6021,12 @@ html[data-bg-light="1"] .confirm-backdrop {
   display: none !important;
 }
 
-/* 剧场进度条：始终用默认主题细条+表情滑块（不用漫画分格） */
+/* 剧场进度条：默认细条 + 动态表情滑块（勿裁切 thumb） */
 .player-window.is-view-theater .seek-wrap,
 html.theme-manga .player-window.is-view-theater .seek-wrap {
-  height: 36px !important;
+  height: 40px !important;
   outline: none;
+  overflow: visible !important;
 }
 
 .player-window.is-view-theater .seek-track,
@@ -6039,7 +6040,7 @@ html.theme-manga .player-window.is-view-theater .seek-track {
   border-radius: 999px !important;
   background: rgba(255, 255, 255, 0.22) !important;
   box-shadow: none !important;
-  overflow: hidden;
+  overflow: visible !important;
 }
 
 .player-window.is-view-theater .seek-fill,
@@ -6052,19 +6053,35 @@ html.theme-manga .player-window.is-view-theater .seek-fill {
     var(--cover-accent, #f0b45e),
     var(--cover-accent-deep, var(--accent-deep))
   ) !important;
+  overflow: hidden;
 }
 
 .player-window.is-view-theater .seek-thumb,
 html.theme-manga .player-window.is-view-theater .seek-thumb {
   top: 50% !important;
-  width: 26px !important;
-  height: 26px !important;
-  margin-top: -13px !important;
-  margin-left: -13px !important;
+  width: 28px !important;
+  height: 28px !important;
+  margin-top: -14px !important;
+  margin-left: -14px !important;
   border: none !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
+  overflow: visible !important;
+  z-index: 4 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.player-window.is-view-theater .seek-thumb-gif,
+html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
+  display: block !important;
+  width: 28px !important;
+  height: 28px !important;
+  object-fit: contain !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
 }
 
 .player-window.is-view-theater .modes {
