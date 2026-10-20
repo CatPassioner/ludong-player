@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03theater10" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03theater11" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -443,12 +443,12 @@
       <div class="cover-pick-layer" id="coverPickLayer" hidden>
         <div class="cover-pick-card" role="dialog" aria-modal="true" aria-labelledby="coverPickTitle">
           <h3 class="cover-pick-title" id="coverPickTitle">自定义封面</h3>
-          <p class="cover-pick-note">可选内置图、我上传的封面，或改回歌曲封面。剧场页会用作整幅背景与左侧封面；上传后点选再保存。</p>
+          <p class="cover-pick-note">可上传到「我上传的」并长期保存，也可删掉；剧场页会用作整幅背景与左侧封面。上传后会自动选用，也可再改选后点保存。</p>
           <div class="cover-pick-grid" id="coverPickGrid"></div>
           <div class="cover-pick-extra">
             <button type="button" class="cover-pick-extra-btn" id="coverPickUploadBtn">上传封面</button>
             <button type="button" class="cover-pick-extra-btn" id="coverPickSongBtn">使用歌曲封面</button>
-            <input id="coverPickFile" type="file" accept="image/*" hidden />
+            <input id="coverPickFile" type="file" accept="image/jpeg,image/png,image/webp,image/bmp,.jpg,.jpeg,.png,.webp,.bmp" hidden />
           </div>
           <div class="cover-pick-footer">
             <button type="button" class="cover-pick-cancel" id="coverPickCancel">取消</button>
@@ -1174,6 +1174,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03listendrag1"></script>
-  <script src="app.js?v=2.0.03theater9"></script>
+  <script src="app.js?v=2.0.03theater11"></script>
 </body>
 </html>

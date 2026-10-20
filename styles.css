@@ -5527,7 +5527,7 @@ html[data-bg-light="1"] .song:hover {
 .confirm-layer {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 90;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -6309,91 +6309,130 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 /*
- * 歌词形态（对标参考第三张）：
- * 整组左上→右下倾斜 + 轻微透视；落在右半屏，不压封面
+ * 剧场歌词：靠右的「焦点瀑布」
+ * 当前句居中放大，上下句阶梯右移淡出，暖色跟唱而不是荧光绿
  */
 .player-window.is-view-theater .lyrics-side {
   position: absolute;
-  left: 54%;
-  right: 1%;
+  left: 62%;
+  right: 1.5%;
   top: 50%;
   bottom: auto;
   width: auto;
-  height: min(70vh, 540px);
+  height: min(72vh, 560px);
   margin: 0;
-  padding: 8px 2px 8px 8px;
+  padding: 18px 10px 18px 20px;
   background: transparent;
   border: 0;
   backdrop-filter: none;
-  transform: translateY(-50%) perspective(920px) rotateZ(16deg) rotateX(9deg);
-  transform-origin: 40% 50%;
+  transform: translateY(-50%);
+  transform-origin: center right;
   z-index: 4;
   overflow: hidden;
 }
 
+.player-window.is-view-theater .lyrics-side::before {
+  content: "";
+  position: absolute;
+  inset: 8% 0 8% 18%;
+  border-radius: 28px;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(8, 10, 16, 0.18) 36%,
+    rgba(8, 10, 16, 0.28) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.player-window.is-view-theater .lyrics-board,
+.player-window.is-view-theater .lyrics-window,
+.player-window.is-view-theater .lyric-empty {
+  position: relative;
+  z-index: 1;
+}
+
 .player-window.is-view-theater .lyrics-board {
-  --line-h: clamp(2.9rem, 5.6vh, 3.7rem);
+  --line-h: clamp(3.1rem, 6vh, 3.9rem);
   height: 100%;
 }
 
 .player-window.is-view-theater .lyrics-window {
   height: 100%;
-  mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 86%, transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
 }
 
 .player-window.is-view-theater .lyric-line {
-  justify-content: flex-start;
-  text-align: left;
-  padding-left: 4%;
+  justify-content: flex-end;
+  text-align: right;
+  padding-right: 6%;
+  transition: transform 0.35s ease, opacity 0.35s ease, filter 0.35s ease;
 }
 
 .player-window.is-view-theater .lyric-line.is-far {
-  opacity: 0.22;
+  opacity: 0.16;
+  transform: translateX(42px) scale(0.92);
+  filter: blur(0.4px);
 }
 
 .player-window.is-view-theater .lyric-line.is-near {
-  opacity: 0.55;
+  opacity: 0.48;
+  transform: translateX(18px) scale(0.96);
 }
 
 .player-window.is-view-theater .lyric-line.is-active {
   opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+.player-window.is-view-theater .lyric-line.is-active .lyric-karaoke::before {
+  content: "♪ ";
+  font-weight: 500;
+  opacity: 0.75;
 }
 
 .player-window.is-view-theater .lyric-line .lyric-karaoke {
-  font-size: clamp(1.12rem, 2.6vh, 1.42rem);
+  font-size: clamp(1.05rem, 2.3vh, 1.32rem);
   font-weight: 500;
-  letter-spacing: 0.04em;
-}
-
-.player-window.is-view-theater .lyric-line.is-near .lyric-karaoke {
-  font-size: clamp(1.2rem, 2.8vh, 1.55rem);
-}
-
-.player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
-  font-size: clamp(1.55rem, 3.6vh, 2.15rem);
-  font-weight: 780;
   letter-spacing: 0.06em;
 }
 
+.player-window.is-view-theater .lyric-line.is-near .lyric-karaoke {
+  font-size: clamp(1.15rem, 2.6vh, 1.48rem);
+}
+
+.player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
+  font-size: clamp(1.55rem, 3.5vh, 2.05rem);
+  font-weight: 760;
+  letter-spacing: 0.08em;
+}
+
 .player-window.is-view-theater .lyric-line:not(.is-active) .lyric-karaoke {
-  color: rgba(255, 250, 240, 0.5);
+  color: rgba(255, 248, 240, 0.42);
+  background-image: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
 }
 
 .player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
   background-image: linear-gradient(
     90deg,
-    #7dff9a 0%,
-    #e8fff0 calc(var(--p) * 100%),
-    rgba(255, 250, 240, 0.42) calc(var(--p) * 100% + 0.01%)
+    #ffe3a8 0%,
+    #fff6e8 calc(var(--p) * 100%),
+    rgba(255, 248, 240, 0.38) calc(var(--p) * 100% + 0.01%)
   );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   filter:
-    drop-shadow(0 0 14px rgba(125, 255, 154, 0.35))
-    drop-shadow(0 2px 10px rgba(0, 0, 0, 0.55));
+    drop-shadow(0 0 16px rgba(255, 210, 140, 0.35))
+    drop-shadow(0 3px 12px rgba(0, 0, 0, 0.45));
 }
 
 .player-window.is-view-theater .lyric-karaoke {
-  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
 }
 
 .player-window.is-view-theater #mvToggleBtn {
@@ -6454,11 +6493,11 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   }
 
   .player-window.is-view-theater .lyrics-side {
-    left: 48%;
-    right: 0;
-    top: 46%;
+    left: 52%;
+    right: 1%;
+    top: 48%;
     height: min(56vh, 420px);
-    transform: translateY(-50%) perspective(820px) rotateZ(14deg) rotateX(8deg);
+    transform: translateY(-50%);
   }
 
   .player-window.is-view-theater .lyrics-art,
@@ -6696,19 +6735,54 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 .cover-pick-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cover-pick-mine {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
   gap: 10px;
 }
 
-.cover-pick-item {
+.cover-pick-cell {
+  position: relative;
   aspect-ratio: 1;
+}
+
+.cover-pick-item {
+  width: 100%;
+  height: 100%;
   padding: 0;
   border-radius: 12px;
   border: 2px solid transparent;
   overflow: hidden;
   background: #e7e2da;
   cursor: pointer;
+}
+
+.cover-pick-del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(20, 16, 12, 0.72);
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.cover-pick-del:hover {
+  background: #d9485f;
 }
 
 .cover-pick-item img,

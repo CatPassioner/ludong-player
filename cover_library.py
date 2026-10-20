@@ -93,8 +93,15 @@ def add_upload(filename: str, data: bytes) -> dict[str, Any]:
             # 封面库缩略存档，控制体积
             im.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
             im.save(out, format="JPEG", quality=88, optimize=True)
-    except Exception as exc:
-        return {"ok": False, "error": f"无法读取图片：{exc}"}
+    except Exception:
+        # 客户端已压缩时，直接落盘也可
+        try:
+            if ext in {".jpg", ".jpeg"}:
+                out.write_bytes(data)
+            else:
+                return {"ok": False, "error": "无法处理该图片，请改用 JPG"}
+        except Exception as exc:
+            return {"ok": False, "error": f"无法读取图片：{exc}"}
     finally:
         try:
             if raw.is_file():

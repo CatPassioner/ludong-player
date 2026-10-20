@@ -5564,8 +5564,12 @@ async function loadLyricsBackgrounds() {
 }
 
 const LYRICS_COVER_KEY = "ludong-lyrics-cover-v1";
+const LOCAL_COVER_DB = "ludong-cover-lib-idb";
+const LOCAL_COVER_STORE = "covers";
 let coverPickDraft = null;
 let coverLibraryItems = [];
+let localCoverItems = [];
+let localCoverUrls = new Map();
 
 function readLyricsCoverChoice() {
   try {
@@ -5573,6 +5577,7 @@ function readLyricsCoverChoice() {
     const data = raw ? JSON.parse(raw) : null;
     if (data?.mode === "preset" && data.file) return { mode: "preset", file: String(data.file) };
     if (data?.mode === "library" && data.id) return { mode: "library", id: String(data.id) };
+    if (data?.mode === "local" && data.id) return { mode: "local", id: String(data.id) };
     if (data?.mode === "custom" && data.dataUrl) return { mode: "custom", dataUrl: String(data.dataUrl) };
   } catch {
     /* ignore */
@@ -5586,13 +5591,106 @@ function writeLyricsCoverChoice(choice) {
       ? { mode: "preset", file: String(choice.file || "") }
       : choice?.mode === "library"
         ? { mode: "library", id: String(choice.id || "") }
-        : choice?.mode === "custom"
-          ? { mode: "custom", dataUrl: String(choice.dataUrl || "") }
-          : { mode: "song" };
+        : choice?.mode === "local"
+          ? { mode: "local", id: String(choice.id || "") }
+          : choice?.mode === "custom"
+            ? { mode: "custom", dataUrl: String(choice.dataUrl || "") }
+            : { mode: "song" };
   localStorage.setItem(scopedStorageKey(LYRICS_COVER_KEY), JSON.stringify(next));
 }
 
+function openLocalCoverDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(LOCAL_COVER_DB, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(LOCAL_COVER_STORE)) {
+        db.createObjectStore(LOCAL_COVER_STORE, { keyPath: "id" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error("无法打开本机封面库"));
+  });
+}
+
+async function loadLocalCoverLibrary() {
+  try {
+    const db = await openLocalCoverDb();
+    const rows = await new Promise((resolve, reject) => {
+      const tx = db.transaction(LOCAL_COVER_STORE, "readonly");
+      const req = tx.objectStore(LOCAL_COVER_STORE).getAll();
+      req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+      req.onerror = () => reject(req.error);
+    });
+    localCoverUrls.forEach((url) => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        /* ignore */
+      }
+    });
+    localCoverUrls = new Map();
+    localCoverItems = rows
+      .filter((row) => row && row.id && row.blob)
+      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+      .map((row) => {
+        const url = URL.createObjectURL(row.blob);
+        localCoverUrls.set(String(row.id), url);
+        return {
+          id: String(row.id),
+          name: String(row.name || "封面"),
+          previewUrl: url,
+          local: true,
+          createdAt: row.createdAt || 0
+        };
+      });
+  } catch {
+    localCoverItems = [];
+  }
+}
+
+async function saveLocalCoverBlob(name, blob) {
+  const id = `local_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const row = {
+    id,
+    name: String(name || "封面").slice(0, 40),
+    blob,
+    createdAt: Date.now()
+  };
+  const db = await openLocalCoverDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(LOCAL_COVER_STORE, "readwrite");
+    tx.objectStore(LOCAL_COVER_STORE).put(row);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error("保存失败"));
+  });
+  await loadLocalCoverLibrary();
+  return id;
+}
+
+async function deleteLocalCover(id) {
+  const db = await openLocalCoverDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(LOCAL_COVER_STORE, "readwrite");
+    tx.objectStore(LOCAL_COVER_STORE).delete(String(id || ""));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error("删除失败"));
+  });
+  const url = localCoverUrls.get(String(id));
+  if (url) {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      /* ignore */
+    }
+    localCoverUrls.delete(String(id));
+  }
+  await loadLocalCoverLibrary();
+}
+
 function coverLibraryUrl(id) {
+  const local = localCoverItems.find((x) => x.id === id);
+  if (local?.previewUrl) return local.previewUrl;
   const item = coverLibraryItems.find((x) => x.id === id);
   if (item?.previewUrl) return item.previewUrl;
   return id ? `/api/cover-library/preview?id=${encodeURIComponent(id)}` : "";
@@ -5601,14 +5699,72 @@ function coverLibraryUrl(id) {
 function lyricsCoverUrl(choice, song) {
   const c = choice || readLyricsCoverChoice();
   if (c.mode === "preset" && c.file && lyricsBgList.includes(c.file)) return bgFileUrl(c.file);
-  if (c.mode === "library" && c.id) return coverLibraryUrl(c.id);
+  if ((c.mode === "library" || c.mode === "local") && c.id) return coverLibraryUrl(c.id);
   if (c.mode === "custom" && c.dataUrl) return c.dataUrl;
   return song?.cover || "";
 }
 
+async function compressCoverFile(file, maxSide = 1280, quality = 0.84) {
+  let source = null;
+  let closeBitmap = false;
+  try {
+    if (typeof createImageBitmap === "function") {
+      source = await createImageBitmap(file);
+      closeBitmap = true;
+    }
+  } catch {
+    source = null;
+  }
+  if (!source) {
+    source = await new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("无法读取图片"));
+      };
+      img.src = url;
+    });
+  }
+  try {
+    const sw = source.width || source.naturalWidth || 1;
+    const sh = source.height || source.naturalHeight || 1;
+    const scale = Math.min(1, maxSide / Math.max(sw, sh));
+    const w = Math.max(1, Math.round(sw * scale));
+    const h = Math.max(1, Math.round(sh * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(source, 0, 0, w, h);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    if (!blob) throw new Error("图片压缩失败");
+    return blob;
+  } finally {
+    if (closeBitmap) {
+      try {
+        source.close();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
 function applyLyricsSideCover(song) {
   const current = song || playlist[currentIndex];
-  const url = lyricsCoverUrl(null, current);
+  const choice = readLyricsCoverChoice();
+  if (choice.mode === "local" && choice.id && !localCoverUrls.has(choice.id)) {
+    loadLocalCoverLibrary()
+      .then(() => applyLyricsSideCover(current))
+      .catch(() => {});
+    return;
+  }
+  const url = lyricsCoverUrl(choice, current);
   const paint = (img) => {
     if (!img) return;
     if (url) {
@@ -5634,6 +5790,7 @@ function closeCoverPicker() {
 }
 
 async function loadCoverLibrary() {
+  await loadLocalCoverLibrary();
   try {
     const res = await fetch("/api/cover-library", { cache: "no-store" });
     const data = await res.json().catch(() => ({}));
@@ -5647,41 +5804,65 @@ async function loadCoverLibrary() {
   }
 }
 
+function coverPickItemHtml(item, { selected = false, local = false } = {}) {
+  const id = escapeHtml(item.id || "");
+  const src = escapeHtml(item.previewUrl || coverLibraryUrl(item.id));
+  const kind = local ? "local" : "lib";
+  return `<div class="cover-pick-cell">
+    <button type="button" class="cover-pick-item${selected ? " is-selected" : ""}" data-cover-${kind}="${id}" title="${escapeHtml(item.name || "封面")}">
+      <img src="${src}" alt="" loading="lazy" />
+    </button>
+    <button type="button" class="cover-pick-del" data-cover-del="${id}" data-cover-del-kind="${kind}" aria-label="删除封面" title="删除">×</button>
+  </div>`;
+}
+
 function renderCoverPicker() {
   const draft = coverPickDraft || { mode: "song" };
   if (els.coverPickGrid) {
     const parts = [];
-    if (coverLibraryItems.length) {
-      parts.push(`<p class="cover-pick-section-label">我上传的</p>`);
-      for (const item of coverLibraryItems) {
-        const selected = draft.mode === "library" && draft.id === item.id;
-        parts.push(`<button type="button" class="cover-pick-item${selected ? " is-selected" : ""}" data-cover-lib="${escapeHtml(item.id)}">
-          <img src="${escapeHtml(item.previewUrl || coverLibraryUrl(item.id))}" alt="" />
-        </button>`);
+    const mine = [
+      ...localCoverItems.map((item) => ({ ...item, local: true })),
+      ...coverLibraryItems.map((item) => ({ ...item, local: false }))
+    ];
+    if (mine.length) {
+      parts.push(`<p class="cover-pick-section-label">我上传的 · ${mine.length}</p>`);
+      parts.push(`<div class="cover-pick-mine">`);
+      for (const item of mine) {
+        const selected =
+          (item.local && draft.mode === "local" && draft.id === item.id) ||
+          (!item.local && draft.mode === "library" && draft.id === item.id);
+        parts.push(coverPickItemHtml(item, { selected, local: !!item.local }));
       }
+      parts.push(`</div>`);
     }
     if (lyricsBgList.length) {
       parts.push(`<p class="cover-pick-section-label">内置</p>`);
+      parts.push(`<div class="cover-pick-mine">`);
       for (const file of lyricsBgList) {
         const selected = draft.mode === "preset" && draft.file === file;
-        parts.push(`<button type="button" class="cover-pick-item${selected ? " is-selected" : ""}" data-cover-file="${escapeHtml(file)}">
-          <img src="${escapeHtml(bgFileUrl(file))}" alt="" />
-        </button>`);
+        parts.push(`<div class="cover-pick-cell">
+          <button type="button" class="cover-pick-item${selected ? " is-selected" : ""}" data-cover-file="${escapeHtml(file)}">
+            <img src="${escapeHtml(bgFileUrl(file))}" alt="" loading="lazy" />
+          </button>
+        </div>`);
       }
+      parts.push(`</div>`);
     }
     if (draft.mode === "custom" && draft.dataUrl) {
-      parts.unshift(`<button type="button" class="cover-pick-item is-selected" data-cover-custom="1">
-        <img src="${escapeHtml(draft.dataUrl)}" alt="" />
-      </button>`);
+      parts.unshift(`<div class="cover-pick-cell">
+        <button type="button" class="cover-pick-item is-selected" data-cover-custom="1">
+          <img src="${escapeHtml(draft.dataUrl)}" alt="" />
+        </button>
+      </div>`);
     }
     els.coverPickGrid.innerHTML = parts.length
       ? parts.join("")
-      : `<p class="cover-pick-empty">还没有封面，点「上传封面」添加</p>`;
+      : `<p class="cover-pick-empty">还没有封面，点「上传封面」添加；上传后会保存在这里，可随时删除</p>`;
   }
   els.coverPickSongBtn?.classList.toggle("is-selected", draft.mode === "song");
   els.coverPickUploadBtn?.classList.toggle(
     "is-selected",
-    draft.mode === "library" || draft.mode === "custom"
+    draft.mode === "library" || draft.mode === "local" || draft.mode === "custom"
   );
 }
 
@@ -5690,6 +5871,17 @@ async function openCoverPicker() {
   await loadCoverLibrary();
   renderCoverPicker();
   if (els.coverPickLayer) els.coverPickLayer.hidden = false;
+}
+
+async function applyCoverDraftAndPersist() {
+  try {
+    writeLyricsCoverChoice(coverPickDraft || { mode: "song" });
+  } catch {
+    setHint("封面设置保存失败，请重试", true);
+    return false;
+  }
+  applyLyricsSideCover(playlist[currentIndex]);
+  return true;
 }
 
 function mvCandidateRels(song) {
@@ -8179,9 +8371,26 @@ els.coverPickLayer?.addEventListener("click", (e) => {
   if (e.target === els.coverPickLayer) closeCoverPicker();
 });
 els.coverPickGrid?.addEventListener("click", (e) => {
+  const delBtn = e.target.closest("[data-cover-del]");
+  if (delBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const id = delBtn.dataset.coverDel || "";
+    const kind = delBtn.dataset.coverDelKind || "lib";
+    deleteCoverFromLibrary(id, kind).catch((err) =>
+      setHint(err?.message || "删除失败", true)
+    );
+    return;
+  }
   const libBtn = e.target.closest("[data-cover-lib]");
   if (libBtn) {
     coverPickDraft = { mode: "library", id: libBtn.dataset.coverLib || "" };
+    renderCoverPicker();
+    return;
+  }
+  const localBtn = e.target.closest("[data-cover-local]");
+  if (localBtn) {
+    coverPickDraft = { mode: "local", id: localBtn.dataset.coverLocal || "" };
     renderCoverPicker();
     return;
   }
@@ -8195,13 +8404,32 @@ els.coverPickSongBtn?.addEventListener("click", () => {
   coverPickDraft = { mode: "song" };
   renderCoverPicker();
 });
-function readCoverFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("读取图片失败"));
-    reader.readAsDataURL(file);
-  });
+
+async function deleteCoverFromLibrary(id, kind) {
+  if (!id) return;
+  const ok = await openConfirm("确定删除这张封面吗？删除后无法恢复。", "删除封面");
+  if (!ok) return;
+  if (kind === "local") {
+    await deleteLocalCover(id);
+  } else {
+    const res = await fetch("/api/cover-library/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || "删除失败");
+    }
+    coverLibraryItems = Array.isArray(data.items) ? data.items : coverLibraryItems.filter((x) => x.id !== id);
+  }
+  const cur = coverPickDraft || {};
+  if ((cur.mode === "library" || cur.mode === "local") && cur.id === id) {
+    coverPickDraft = { mode: "song" };
+    await applyCoverDraftAndPersist();
+  }
+  renderCoverPicker();
+  setHint("已删除封面");
 }
 
 els.coverPickUploadBtn?.addEventListener("click", (e) => {
@@ -8217,43 +8445,47 @@ els.coverPickFile?.addEventListener("change", async () => {
     setHint("请选择图片文件", true);
     return;
   }
+  const uploadBtn = els.coverPickUploadBtn;
+  if (uploadBtn) uploadBtn.disabled = true;
   try {
-    setHint("正在上传封面…");
-    const fd = new FormData();
-    fd.append("files", file, file.name || "cover.jpg");
-    const res = await fetch("/api/cover-library/upload", { method: "POST", body: fd });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) {
-      throw new Error(data.error || (res.status === 404 ? "本地接口不可用" : "上传失败"));
-    }
-    coverLibraryItems = Array.isArray(data.items) ? data.items : coverLibraryItems;
-    const newId = String(data.id || coverLibraryItems[0]?.id || "");
-    if (!newId) throw new Error("上传成功但未返回封面编号");
-    coverPickDraft = { mode: "library", id: newId };
-    renderCoverPicker();
-    setHint("已加入封面库，点保存即可使用");
-  } catch (err) {
+    setHint("正在压缩并保存封面…");
+    const blob = await compressCoverFile(file);
+    let saved = false;
     try {
-      const dataUrl = await readCoverFileAsDataUrl(file);
-      if (!dataUrl.startsWith("data:image/")) throw new Error("无法识别该图片");
-      coverPickDraft = { mode: "custom", dataUrl };
-      renderCoverPicker();
-      setHint("已读取本机封面，点保存即可用于剧场/歌词页");
-    } catch (localErr) {
-      setHint(localErr?.message || err?.message || "封面上传失败", true);
+      const fd = new FormData();
+      fd.append("files", blob, (file.name || "cover").replace(/\.[^.]+$/, "") + ".jpg");
+      const res = await fetch("/api/cover-library/upload", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || (res.status === 404 ? "本地接口不可用" : "上传失败"));
+      }
+      coverLibraryItems = Array.isArray(data.items) ? data.items : coverLibraryItems;
+      const newId = String(data.id || coverLibraryItems[0]?.id || "");
+      if (!newId) throw new Error("上传成功但未返回封面编号");
+      coverPickDraft = { mode: "library", id: newId };
+      saved = true;
+      setHint("已保存到封面库");
+    } catch {
+      const newId = await saveLocalCoverBlob(file.name || "封面", blob);
+      coverPickDraft = { mode: "local", id: newId };
+      saved = true;
+      setHint("已保存到本机封面库（可删除）");
     }
+    if (saved) {
+      renderCoverPicker();
+      await applyCoverDraftAndPersist();
+    }
+  } catch (err) {
+    setHint(err?.message || "封面上传失败", true);
+  } finally {
+    if (uploadBtn) uploadBtn.disabled = false;
   }
 });
-els.coverPickSave?.addEventListener("click", () => {
-  try {
-    writeLyricsCoverChoice(coverPickDraft || { mode: "song" });
-  } catch {
-    setHint("封面设置保存失败，请重试", true);
-    return;
-  }
-  applyLyricsSideCover(playlist[currentIndex]);
+els.coverPickSave?.addEventListener("click", async () => {
+  const ok = await applyCoverDraftAndPersist();
+  if (!ok) return;
   closeCoverPicker();
-  setHint("歌词封面已保存");
+  setHint("封面已保存");
 });
 els.playerBackdrop?.addEventListener("click", closePlayerWindow);
 document.addEventListener("keydown", (e) => {
