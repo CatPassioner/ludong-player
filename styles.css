@@ -5993,10 +5993,10 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .player-window.is-view-theater .info {
-  position: absolute;
-  left: clamp(16px, 2.2vw, 36px);
-  top: clamp(8px, 1.6vh, 18px);
-  z-index: 5;
+  position: fixed;
+  left: 12px;
+  top: 52px;
+  z-index: 45;
   width: min(46vw, 480px);
   margin: 0;
   text-align: left;
@@ -6116,14 +6116,14 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   display: none;
 }
 
-/* 封面+唱片+控件：贴左下，吃掉大片空白 */
+/* 封面+唱片+控件：相对窗口贴左（再左移） */
 .player-window.is-view-theater .theater-stage-left {
-  position: absolute;
-  left: clamp(16px, 2.2vw, 36px) !important;
+  position: fixed !important;
+  left: 12px !important;
   right: auto !important;
   top: auto !important;
-  bottom: clamp(28px, 6vh, 56px) !important;
-  z-index: 6;
+  bottom: 36px !important;
+  z-index: 45;
   width: max-content;
   max-width: min(520px, 48vw);
   height: auto;
@@ -6445,11 +6445,16 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 @media (max-width: 900px) {
+  .player-window.is-view-theater .info {
+    left: 8px;
+    top: 48px;
+  }
+
   .player-window.is-view-theater .theater-stage-left {
-    left: 12px !important;
+    left: 8px !important;
     bottom: 20px !important;
     top: auto !important;
-    max-width: min(400px, calc(100vw - 20px));
+    max-width: min(400px, calc(100vw - 16px));
     transform: none !important;
   }
 
@@ -6661,7 +6666,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 .cover-pick-layer {
   position: absolute;
   inset: 0;
-  z-index: 6;
+  z-index: 80;
   display: flex;
   align-items: center;
   justify-content: center;

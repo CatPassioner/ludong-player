@@ -8195,11 +8195,28 @@ els.coverPickSongBtn?.addEventListener("click", () => {
   coverPickDraft = { mode: "song" };
   renderCoverPicker();
 });
-els.coverPickUploadBtn?.addEventListener("click", () => els.coverPickFile?.click());
+function readCoverFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("读取图片失败"));
+    reader.readAsDataURL(file);
+  });
+}
+
+els.coverPickUploadBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  els.coverPickFile?.click();
+});
 els.coverPickFile?.addEventListener("change", async () => {
   const file = els.coverPickFile?.files?.[0];
   if (els.coverPickFile) els.coverPickFile.value = "";
   if (!file) return;
+  if (!String(file.type || "").startsWith("image/")) {
+    setHint("请选择图片文件", true);
+    return;
+  }
   try {
     setHint("正在上传封面…");
     const fd = new FormData();
@@ -8207,7 +8224,7 @@ els.coverPickFile?.addEventListener("change", async () => {
     const res = await fetch("/api/cover-library/upload", { method: "POST", body: fd });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
-      throw new Error(data.error || (res.status === 404 ? "请完全退出后重新打开播放器" : "上传失败"));
+      throw new Error(data.error || (res.status === 404 ? "本地接口不可用" : "上传失败"));
     }
     coverLibraryItems = Array.isArray(data.items) ? data.items : coverLibraryItems;
     const newId = String(data.id || coverLibraryItems[0]?.id || "");
@@ -8216,7 +8233,15 @@ els.coverPickFile?.addEventListener("change", async () => {
     renderCoverPicker();
     setHint("已加入封面库，点保存即可使用");
   } catch (err) {
-    setHint(err?.message || "封面上传失败", true);
+    try {
+      const dataUrl = await readCoverFileAsDataUrl(file);
+      if (!dataUrl.startsWith("data:image/")) throw new Error("无法识别该图片");
+      coverPickDraft = { mode: "custom", dataUrl };
+      renderCoverPicker();
+      setHint("已读取本机封面，点保存即可用于剧场/歌词页");
+    } catch (localErr) {
+      setHint(localErr?.message || err?.message || "封面上传失败", true);
+    }
   }
 });
 els.coverPickSave?.addEventListener("click", () => {
