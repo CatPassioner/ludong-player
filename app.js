@@ -12513,79 +12513,129 @@ async function uploadCloudLibraryFiles(fileList) {
   const lrcs = files.filter((f) => /\.(lrc|srt)$/i.test(f.name));
   const covers = files.filter((f) => /\.(jpe?g|png|webp)$/i.test(f.name));
   const videos = files.filter((f) => /\.(mp4|webm|mov|mkv|m4v)$/i.test(f.name));
-  if (!mp3s.length) {
-    setCloudUploadStatus(
-      videos.length
-        ? "云端上传需要带上 MP3；请把 MP3 和 MP4 一起选中"
-        : "请至少选择一个 MP3",
-      "error"
-    );
+  if (!mp3s.length && !lrcs.length && !covers.length && !videos.length) {
+    setCloudUploadStatus("请选择 MP3 / 歌词 / 封面 / 视频中的至少一种", "error");
+    return;
+  }
+
+  const usedLrcs = new Set();
+  const usedCovers = new Set();
+  const usedVideos = new Set();
+  const jobs = [];
+
+  for (const audio of mp3s) {
+    const stem = String(audio.name || "").replace(/\.mp3$/i, "");
+    let lrcFile =
+      matchSideFile(lrcs, stem, [".lrc", ".srt"]) ||
+      matchSideFile(lrcs, "lyrics", [".lrc", ".srt"]);
+    let coverFile = matchSideFile(covers, stem, [".jpg", ".jpeg", ".png", ".webp"]);
+    let videoFile =
+      matchSideFile(videos, stem, [".mp4", ".webm", ".mov", ".mkv", ".m4v"]) ||
+      matchSideFile(videos, "mv", [".mp4", ".webm", ".mov", ".mkv", ".m4v"]) ||
+      matchSideFile(videos, "video", [".mp4", ".webm", ".mov", ".mkv", ".m4v"]);
+    if (!videoFile) {
+      const soft = stem.replace(
+        /[\s_\-]*(mv|official|official.?video|歌词版|高清|现场)$/i,
+        ""
+      );
+      if (soft && soft !== stem) {
+        videoFile = matchSideFile(videos, soft, [
+          ".mp4",
+          ".webm",
+          ".mov",
+          ".mkv",
+          ".m4v"
+        ]);
+      }
+    }
+    if (mp3s.length === 1) {
+      if (!lrcFile && lrcs[0]) lrcFile = lrcs[0];
+      if (!coverFile && covers[0]) coverFile = covers[0];
+      if (!videoFile && videos[0]) videoFile = videos[0];
+    }
+    if (lrcFile) usedLrcs.add(lrcFile);
+    if (coverFile) usedCovers.add(coverFile);
+    if (videoFile) usedVideos.add(videoFile);
+    jobs.push({
+      label: stem,
+      audioFile: audio,
+      lrcFile: lrcFile || undefined,
+      coverFile: coverFile || undefined,
+      videoFile: videoFile || undefined
+    });
+  }
+
+  /** 未挂到 MP3 的侧车文件：按「歌名-歌手」分组后单独补传/替换 */
+  const orphanGroups = new Map();
+  const absorbOrphan = (file, kind) => {
+    const parsed = api.parseSongFileName
+      ? api.parseSongFileName(file.name)
+      : { title: String(file.name || "").replace(/\.[^.]+$/, ""), artist: "未知歌手" };
+    const title = String(parsed.title || "未命名").trim() || "未命名";
+    const artist = String(parsed.artist || "未知歌手").trim() || "未知歌手";
+    const key = `${String(title).toLowerCase()}|${String(artist).toLowerCase()}`;
+    let group = orphanGroups.get(key);
+    if (!group) {
+      group = { label: `${title}-${artist}`, title, artist };
+      orphanGroups.set(key, group);
+    }
+    if (kind === "lrc" && !group.lrcFile) group.lrcFile = file;
+    if (kind === "cover" && !group.coverFile) group.coverFile = file;
+    if (kind === "video" && !group.videoFile) group.videoFile = file;
+  };
+  for (const f of lrcs) if (!usedLrcs.has(f)) absorbOrphan(f, "lrc");
+  for (const f of covers) if (!usedCovers.has(f)) absorbOrphan(f, "cover");
+  for (const f of videos) if (!usedVideos.has(f)) absorbOrphan(f, "video");
+  for (const group of orphanGroups.values()) {
+    jobs.push({
+      label: group.label,
+      title: group.title,
+      artist: group.artist,
+      lrcFile: group.lrcFile,
+      coverFile: group.coverFile,
+      videoFile: group.videoFile
+    });
+  }
+
+  if (!jobs.length) {
+    setCloudUploadStatus("没有可上传的文件", "error");
     return;
   }
 
   if (els.cloudUploadBtn) els.cloudUploadBtn.disabled = true;
-  setCloudUploadStatus(`正在上传 ${mp3s.length} 首到共同曲库…`);
+  const modeHint = mp3s.length
+    ? `正在处理 ${jobs.length} 组到共同曲库…`
+    : `正在按歌名匹配并补传 ${jobs.length} 组资产…`;
+  setCloudUploadStatus(modeHint);
   let okCount = 0;
+  let replaceCount = 0;
   const errors = [];
-  const usedVideos = new Set();
   try {
-    for (const audio of mp3s) {
-      const stem = String(audio.name || "").replace(/\.mp3$/i, "");
-      let lrcFile =
-        matchSideFile(lrcs, stem, [".lrc", ".srt"]) ||
-        matchSideFile(lrcs, "lyrics", [".lrc", ".srt"]);
-      let coverFile = matchSideFile(covers, stem, [".jpg", ".jpeg", ".png", ".webp"]);
-      let videoFile =
-        matchSideFile(videos, stem, [".mp4", ".webm", ".mov", ".mkv", ".m4v"]) ||
-        matchSideFile(videos, "mv", [".mp4", ".webm", ".mov", ".mkv", ".m4v"]) ||
-        matchSideFile(videos, "video", [".mp4", ".webm", ".mov", ".mkv", ".m4v"]);
-      if (!videoFile) {
-        const soft = stem.replace(
-          /[\s_\-]*(mv|official|official.?video|歌词版|高清|现场)$/i,
-          ""
-        );
-        if (soft && soft !== stem) {
-          videoFile = matchSideFile(videos, soft, [
-            ".mp4",
-            ".webm",
-            ".mov",
-            ".mkv",
-            ".m4v"
-          ]);
-        }
-      }
-      if (mp3s.length === 1) {
-        if (!lrcFile && lrcs[0]) lrcFile = lrcs[0];
-        if (!coverFile && covers[0]) coverFile = covers[0];
-        if (!videoFile && videos[0]) videoFile = videos[0];
-      }
-      if (videoFile) usedVideos.add(videoFile);
+    for (const job of jobs) {
       try {
-        await api.uploadCloudSong({
-          audioFile: audio,
-          lrcFile: lrcFile || undefined,
-          coverFile: coverFile || undefined,
-          videoFile: videoFile || undefined
+        const row = await api.uploadCloudSong({
+          title: job.title,
+          artist: job.artist,
+          audioFile: job.audioFile,
+          lrcFile: job.lrcFile,
+          coverFile: job.coverFile,
+          videoFile: job.videoFile
         });
         okCount += 1;
+        if (row?.replaced) replaceCount += 1;
       } catch (err) {
-        errors.push(`${stem}: ${err?.message || "失败"}`);
+        errors.push(`${job.label}: ${err?.message || "失败"}`);
       }
-    }
-    const orphanVideos = videos.filter((v) => !usedVideos.has(v));
-    if (orphanVideos.length) {
-      errors.push(
-        `有 ${orphanVideos.length} 个视频未匹配到同名 MP3（未上传）：${orphanVideos[0].name}`
-      );
     }
     await refreshAfterImport();
     if (okCount && !errors.length) {
-      setCloudUploadStatus(`已上传 ${okCount} 首到共同曲库 · 当前可见 ${DEFAULT_PLAYLIST.length} 首`, "ok");
-    } else if (okCount) {
+      const verb = replaceCount === okCount ? "已替换/补传" : replaceCount ? "已上传/补传" : "已上传";
       setCloudUploadStatus(
-        `成功 ${okCount} 首；${errors[0]}`,
-        "error"
+        `${verb} ${okCount} 组 · 当前可见 ${DEFAULT_PLAYLIST.length} 首`,
+        "ok"
       );
+    } else if (okCount) {
+      setCloudUploadStatus(`成功 ${okCount} 组；${errors[0]}`, "error");
     } else {
       setCloudUploadStatus(errors[0] || "上传失败", "error");
     }

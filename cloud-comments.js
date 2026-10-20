@@ -1999,6 +1999,225 @@
     return titleOk && artistsClose(wishArtist, songArtist);
   }
 
+  function isUnknownArtist(value) {
+    const a = normWishArtist(value);
+    return !a || a === normWishArtist("未知歌手") || a === "unknown";
+  }
+
+  /** 云端补传匹配：歌名必须一致；歌手可相似；文件无歌手时仅按歌名（多首同名则报错） */
+  function cloudMetaMatches(fileTitle, fileArtist, songTitle, songArtist) {
+    if (
+      !normWishTitle(fileTitle) ||
+      normWishTitle(fileTitle) !== normWishTitle(songTitle)
+    ) {
+      return false;
+    }
+    if (isUnknownArtist(fileArtist) || isUnknownArtist(songArtist)) return true;
+    return artistsClose(fileArtist, songArtist);
+  }
+
+  async function findCloudSongByTitleArtist(title, artist) {
+    const t = String(title || "").trim();
+    const a = String(artist || "").trim() || "未知歌手";
+    if (!normWishTitle(t)) return null;
+
+    const songKey = makeSongKey(t, a);
+    try {
+      const exact = await rest(
+        `cloud_songs?song_key=eq.${encodeURIComponent(songKey)}&select=id,uploader_id,title,artist,song_key,audio_path,cover_path,lrc_path,video_path,duration,file_size&limit=1`
+      );
+      if (Array.isArray(exact) && exact[0]) return exact[0];
+    } catch {
+      /* 再走模糊匹配 */
+    }
+
+    const songs = await listCloudSongs();
+    const hits = songs.filter((s) => cloudMetaMatches(t, a, s.title, s.artist));
+    if (!hits.length) return null;
+    if (hits.length === 1) return hits[0];
+
+    const na = normWishArtist(a);
+    if (!isUnknownArtist(a)) {
+      const ranked = hits.slice().sort((x, y) => {
+        const xe = normWishArtist(x.artist) === na ? 0 : artistsClose(a, x.artist) ? 1 : 2;
+        const ye = normWishArtist(y.artist) === na ? 0 : artistsClose(a, y.artist) ? 1 : 2;
+        return xe - ye;
+      });
+      const best = ranked[0];
+      const bestScore =
+        normWishArtist(best.artist) === na ? 0 : artistsClose(a, best.artist) ? 1 : 2;
+      const tied = ranked.filter((s) => {
+        const sc =
+          normWishArtist(s.artist) === na ? 0 : artistsClose(a, s.artist) ? 1 : 2;
+        return sc === bestScore;
+      });
+      if (tied.length > 1) {
+        const err = new Error(
+          `曲库有多首「${t}」与歌手相近，请把文件命名为「${t}-${tied[0].artist}」后再传`
+        );
+        err.code = "AMBIGUOUS_CLOUD_MATCH";
+        throw err;
+      }
+      return best;
+    }
+
+    const err = new Error(
+      `曲库有多首「${t}」，请用「歌名-歌手」命名文件后再传`
+    );
+    err.code = "AMBIGUOUS_CLOUD_MATCH";
+    throw err;
+  }
+
+  function assertCloudAssetSizes({ audioFile, coverFile, lrcFile, videoFile } = {}) {
+    if (audioFile) {
+      const name = String(audioFile.name || "").toLowerCase();
+      if (
+        !name.endsWith(".mp3") &&
+        audioFile.type &&
+        !/audio\/(mpeg|mp3)/i.test(audioFile.type)
+      ) {
+        throw new Error("仅支持 MP3 音频");
+      }
+      if (audioFile.size > MAX_AUDIO_BYTES) {
+        throw new Error("音频不能超过 40MB");
+      }
+    }
+    if (coverFile && coverFile.size > MAX_COVER_BYTES) {
+      throw new Error("封面不能超过 5MB");
+    }
+    if (lrcFile && lrcFile.size > MAX_LRC_BYTES) {
+      throw new Error("歌词不能超过 1MB");
+    }
+    if (videoFile) {
+      const vName = String(videoFile.name || "").toLowerCase();
+      if (!/\.(mp4|webm|mov|mkv|m4v)$/i.test(vName)) {
+        throw new Error("视频仅支持 MP4 / WebM / MOV / MKV");
+      }
+      if (videoFile.size > MAX_VIDEO_BYTES) {
+        throw new Error("视频不能超过 180MB");
+      }
+    }
+  }
+
+  async function patchCloudSongAssets(
+    existing,
+    { audioFile, coverFile, lrcFile, videoFile, duration } = {}
+  ) {
+    if (!existing?.id) throw new Error("缺少曲库记录");
+    if (!audioFile && !coverFile && !lrcFile && !videoFile) {
+      throw new Error("请选择要上传或替换的文件");
+    }
+    assertCloudAssetSizes({ audioFile, coverFile, lrcFile, videoFile });
+
+    const me = await currentUserId();
+    const songId = String(existing.id);
+    // Storage 只能写自己的目录；路径写入后全员可读
+    const base = `${me}/${songId}`;
+    const patch = {};
+    const uploaded = [];
+
+    try {
+      if (audioFile) {
+        const audioPath = `${base}/audio.mp3`;
+        await storageUpload(audioPath, audioFile, audioFile.type || "audio/mpeg");
+        uploaded.push(audioPath);
+        patch.audio_path = audioPath;
+        patch.file_size = Number(audioFile.size) || 0;
+        if (duration != null && Number(duration) > 0) {
+          patch.duration = Math.max(0, Math.round(Number(duration) || 0));
+        }
+      }
+
+      if (coverFile) {
+        const ext = (String(coverFile.name || "").match(/\.(\w+)$/) || [])[1] || "jpg";
+        const safeExt = /^(jpe?g|png|webp)$/i.test(ext) ? ext.toLowerCase() : "jpg";
+        const outExt = safeExt === "jpeg" ? "jpg" : safeExt;
+        const coverPath = `${base}/cover.${outExt}`;
+        await storageUpload(
+          coverPath,
+          coverFile,
+          coverFile.type || `image/${outExt === "jpg" ? "jpeg" : outExt}`
+        );
+        uploaded.push(coverPath);
+        patch.cover_path = coverPath;
+      }
+
+      if (lrcFile) {
+        const lyricExt = /\.srt$/i.test(String(lrcFile.name || "")) ? "srt" : "lrc";
+        const lrcPath = `${base}/lyrics.${lyricExt}`;
+        await storageUpload(lrcPath, lrcFile, "text/plain");
+        uploaded.push(lrcPath);
+        patch.lrc_path = lrcPath;
+      }
+
+      if (videoFile) {
+        const vExt = (String(videoFile.name || "").match(/\.(\w+)$/) || [])[1] || "mp4";
+        const safeV = /^(mp4|webm|mov|mkv|m4v)$/i.test(vExt)
+          ? vExt.toLowerCase()
+          : "mp4";
+        const videoPath = `${base}/video.${safeV}`;
+        const mime =
+          videoFile.type ||
+          (safeV === "webm"
+            ? "video/webm"
+            : safeV === "mov"
+              ? "video/quicktime"
+              : safeV === "mkv"
+                ? "video/x-matroska"
+                : "video/mp4");
+        await storageUpload(videoPath, videoFile, mime);
+        uploaded.push(videoPath);
+        patch.video_path = videoPath;
+      }
+
+      let rows;
+      try {
+        rows = await rest(`cloud_songs?id=eq.${encodeURIComponent(songId)}`, {
+          method: "PATCH",
+          prefer: "return=representation",
+          body: patch
+        });
+      } catch (err) {
+        const msg = String(err?.message || "");
+        if (patch.video_path && /video_path|schema cache|Could not find/i.test(msg)) {
+          throw new Error(
+            "云端尚未开通 MV 字段：请在 Supabase 执行 supabase_cloud_songs_video.sql"
+          );
+        }
+        if (/row-level security|policy|42501/i.test(msg)) {
+          const mine = String(existing.uploader_id) === String(me);
+          throw new Error(
+            mine
+              ? "无权限更新曲库记录"
+              : `「${existing.title}」由他人上传。补传/替换需在 Supabase 执行 supabase_cloud_songs_asset_patch.sql，或请原上传者操作`
+          );
+        }
+        throw err;
+      }
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      if (!row?.id) throw new Error("更新曲库失败");
+      try {
+        await completeWishesForSong(existing.title, existing.artist);
+      } catch {
+        /* ignore */
+      }
+      return { ...row, replaced: true };
+    } catch (err) {
+      try {
+        await storageRemove(uploaded);
+      } catch {
+        /* ignore cleanup */
+      }
+      const msg = String(err?.message || "");
+      if (/mime|not allowed|file size|maximum/i.test(msg) && patch.video_path) {
+        throw new Error(
+          "视频上传被桶限制拦截：请执行 supabase_cloud_songs_video.sql 后重试"
+        );
+      }
+      throw err;
+    }
+  }
+
   async function markWishesDone(rows) {
     if (!rows?.length) return;
     const doneAt = new Date().toISOString();
@@ -2499,35 +2718,13 @@
     duration
   } = {}) {
     if (!cloudEnabled()) throw new Error("云端未配置");
-    if (!audioFile) throw new Error("请选择 MP3 文件");
-    const name = String(audioFile.name || "").toLowerCase();
-    if (
-      !name.endsWith(".mp3") &&
-      audioFile.type &&
-      !/audio\/(mpeg|mp3)/i.test(audioFile.type)
-    ) {
-      throw new Error("仅支持 MP3 音频");
+    if (!audioFile && !coverFile && !lrcFile && !videoFile) {
+      throw new Error("请选择 MP3 / 歌词 / 封面 / 视频中的至少一种");
     }
-    if (audioFile.size > MAX_AUDIO_BYTES) {
-      throw new Error("音频不能超过 40MB");
-    }
-    if (coverFile && coverFile.size > MAX_COVER_BYTES) {
-      throw new Error("封面不能超过 5MB");
-    }
-    if (lrcFile && lrcFile.size > MAX_LRC_BYTES) {
-      throw new Error("歌词不能超过 1MB");
-    }
-    if (videoFile) {
-      const vName = String(videoFile.name || "").toLowerCase();
-      if (!/\.(mp4|webm|mov|mkv|m4v)$/i.test(vName)) {
-        throw new Error("视频仅支持 MP4 / WebM / MOV / MKV");
-      }
-      if (videoFile.size > MAX_VIDEO_BYTES) {
-        throw new Error("视频不能超过 180MB");
-      }
-    }
+    assertCloudAssetSizes({ audioFile, coverFile, lrcFile, videoFile });
 
-    const parsed = parseSongFileName(audioFile.name);
+    const nameSource = audioFile || lrcFile || coverFile || videoFile;
+    const parsed = parseSongFileName(nameSource?.name || "");
     const t =
       String(title || parsed.title || "未命名").trim().slice(0, 120) || "未命名";
     const a =
@@ -2536,23 +2733,36 @@
     const songKey = makeSongKey(t, a);
     if (!songKey || songKey === "|") throw new Error("歌名无效");
 
-    const me = await currentUserId();
-    let existing;
+    let existing = null;
     try {
-      existing = await rest(
-        `cloud_songs?song_key=eq.${encodeURIComponent(songKey)}&select=id,title,artist&limit=1`
-      );
+      existing = await findCloudSongByTitleArtist(t, a);
     } catch (err) {
+      if (err?.code === "AMBIGUOUS_CLOUD_MATCH") throw err;
       const msg = String(err?.message || "");
       if (/cloud_songs|schema cache|relation|does not exist/i.test(msg)) {
         throw new Error("云端曲库未配置：请在 Supabase 执行 supabase_cloud_songs.sql");
       }
       throw err;
     }
-    if (Array.isArray(existing) && existing.length) {
-      throw new Error(`共同曲库已有「${existing[0].title} - ${existing[0].artist}」`);
+
+    if (existing) {
+      return patchCloudSongAssets(existing, {
+        audioFile,
+        coverFile,
+        lrcFile,
+        videoFile,
+        duration
+      });
     }
 
+    if (!audioFile) {
+      const label = isUnknownArtist(a) ? t : `${t} - ${a}`;
+      throw new Error(
+        `共同曲库没有匹配「${label}」的歌；补传歌词/封面/视频前请先上传该曲 MP3，并确保文件名为「歌名-歌手」`
+      );
+    }
+
+    const me = await currentUserId();
     const songId =
       (global.crypto && crypto.randomUUID && crypto.randomUUID()) ||
       `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -2650,7 +2860,21 @@
       }
       const msg = String(err?.message || "");
       if (/duplicate|unique|cloud_songs_song_key/i.test(msg)) {
-        throw new Error(`共同曲库已有「${t} - ${a}」`);
+        try {
+          const again = await findCloudSongByTitleArtist(t, a);
+          if (again) {
+            return patchCloudSongAssets(again, {
+              audioFile,
+              coverFile,
+              lrcFile,
+              videoFile,
+              duration
+            });
+          }
+        } catch {
+          /* fall through */
+        }
+        throw new Error(`共同曲库已有「${t} - ${a}」，请直接选中要替换的文件重传`);
       }
       if (/cloud_songs|schema cache|relation|does not exist/i.test(msg)) {
         throw new Error("云端曲库未配置：请在 Supabase 执行 supabase_cloud_songs.sql");
