@@ -413,6 +413,16 @@ function resetAccountScopedUi() {
   if (els.likesCountLabel) els.likesCountLabel.textContent = "0 首";
   if (els.likesPanelCount) els.likesPanelCount.textContent = "0 首";
   try {
+    refreshDiaryEntrySub?.();
+  } catch {
+    /* ignore */
+  }
+  try {
+    refreshMoodRadioCard?.();
+  } catch {
+    /* ignore */
+  }
+  try {
     hydrateShellBackground();
   } catch {
     /* 背景图函数尚未就绪时忽略 */
@@ -3846,6 +3856,7 @@ async function recordPlayCount(song) {
   };
   writeLocalPlayStats(local);
   renderRankRow(rankingFromSongs(local.songs));
+  appendListenDiary(song);
 
   try {
     await fetch(withUserQuery("/api/play-stats"), {
@@ -3864,6 +3875,227 @@ async function recordPlayCount(song) {
   } catch {
     /* 本地已保存 */
   }
+}
+
+const LISTEN_DIARY_KEY = "ludong-listen-diary-v1";
+const LISTEN_DIARY_MAX = 800;
+
+function readListenDiary() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(scopedStorageKey(LISTEN_DIARY_KEY)) || "null");
+    const entries = Array.isArray(raw?.entries) ? raw.entries : Array.isArray(raw) ? raw : [];
+    return entries
+      .map((item) => ({
+        at: String(item?.at || ""),
+        key: String(item?.key || ""),
+        id: String(item?.id || ""),
+        title: String(item?.title || "未知歌曲"),
+        artist: String(item?.artist || "未知歌手"),
+        cover: String(item?.cover || "")
+      }))
+      .filter((item) => item.at);
+  } catch {
+    return [];
+  }
+}
+
+function writeListenDiary(entries) {
+  try {
+    localStorage.setItem(
+      scopedStorageKey(LISTEN_DIARY_KEY),
+      JSON.stringify({ entries: entries.slice(0, LISTEN_DIARY_MAX) })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function appendListenDiary(song) {
+  if (!song) return;
+  const entries = readListenDiary();
+  entries.unshift({
+    at: new Date().toISOString(),
+    key: playStatKey(song),
+    id: String(song.id || ""),
+    title: song.title || "未知歌曲",
+    artist: song.artist || "未知歌手",
+    cover: normalizeCoverRel(song.cover || "") || song.cover || ""
+  });
+  writeListenDiary(entries);
+  refreshDiaryEntrySub();
+  if (currentMainView === "diary") renderListenDiary();
+}
+
+function diaryDayLabel(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "某一天";
+  const now = new Date();
+  const start = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((start(now) - start(d)) / 86400000);
+  const base = `${d.getMonth() + 1}月${d.getDate()}日`;
+  if (diff === 0) return `今天 · ${base}`;
+  if (diff === 1) return `昨天 · ${base}`;
+  const week = ["日", "一", "二", "三", "四", "五", "六"][d.getDay()];
+  return `周${week} · ${base}`;
+}
+
+function diaryTimeLabel(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "--:--";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function refreshDiaryEntrySub() {
+  const el = document.getElementById("diaryEntrySub");
+  if (!el) return;
+  const today = new Date();
+  const key = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+  const n = readListenDiary().filter((item) => {
+    const d = new Date(item.at);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` === key;
+  }).length;
+  el.textContent = n ? `今天 ${n} 次` : "今天听了什么";
+}
+
+function renderListenDiary() {
+  const body = document.getElementById("diaryBody");
+  const countEl = document.getElementById("diaryPanelCount");
+  const empty = document.getElementById("diaryEmpty");
+  if (!body) return;
+  const entries = readListenDiary();
+  if (countEl) countEl.textContent = `${entries.length} 次`;
+  refreshDiaryEntrySub();
+  if (!entries.length) {
+    body.innerHTML = `<p class="diary-empty" id="diaryEmpty">完整听完一首歌后，会出现在这里</p>`;
+    return;
+  }
+  const groups = new Map();
+  entries.forEach((item) => {
+    const d = new Date(item.at);
+    const dayKey = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    if (!groups.has(dayKey)) groups.set(dayKey, []);
+    groups.get(dayKey).push(item);
+  });
+  body.innerHTML = [...groups.entries()]
+    .map(([dayKey, rows]) => {
+      const label = diaryDayLabel(rows[0].at);
+      const list = rows
+        .map((item) => {
+          const cover = item.cover || "./logo.jpg";
+          return `<button type="button" class="diary-entry" data-diary-id="${escapeHtml(item.id)}" data-diary-key="${escapeHtml(item.key)}">
+            <img src="${escapeHtml(cover)}" alt="" loading="lazy" />
+            <span class="diary-entry-meta">
+              <span class="diary-entry-title">${escapeHtml(item.title)}</span>
+              <span class="diary-entry-sub">${escapeHtml(item.artist)}</span>
+            </span>
+            <span class="diary-entry-time">${diaryTimeLabel(item.at)}</span>
+          </button>`;
+        })
+        .join("");
+      return `<section class="diary-day" data-day="${escapeHtml(dayKey)}">
+        <div class="diary-day-head">
+          <span class="diary-day-title">${escapeHtml(label)}</span>
+          <span class="diary-day-count">${rows.length} 次</span>
+        </div>
+        ${list}
+      </section>`;
+    })
+    .join("");
+}
+
+function openDiaryLayer() {
+  const layer = document.getElementById("diaryLayer");
+  if (!layer) return;
+  if (els.viewHome) els.viewHome.hidden = true;
+  openEmbeddedView(layer);
+  renderListenDiary();
+}
+
+function currentMoodRadio() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 10) {
+    return {
+      id: "dawn",
+      title: "晨光电台",
+      sub: "刚醒来的一段路，轻一点也暖一点",
+      pick: (songs) => songs
+    };
+  }
+  if (hour >= 10 && hour < 14) {
+    return {
+      id: "noon",
+      title: "清亮电台",
+      sub: "白天听得清楚的歌，提提精神",
+      pick: (songs) => songs
+    };
+  }
+  if (hour >= 14 && hour < 18) {
+    return {
+      id: "afternoon",
+      title: "午后电台",
+      sub: "不赶路的时候，适合慢慢听",
+      pick: (songs) => songs
+    };
+  }
+  if (hour >= 18 && hour < 22) {
+    return {
+      id: "dusk",
+      title: "晚风电台",
+      sub: "天擦黑时，把音量放低一点",
+      pick: (songs) => songs
+    };
+  }
+  return {
+    id: "night",
+    title: "夜色电台",
+    sub: "夜里适合陪着待一会的歌",
+    pick: (songs) => songs
+  };
+}
+
+function shuffleSongs(list) {
+  const arr = list.slice();
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function refreshMoodRadioCard() {
+  const mood = currentMoodRadio();
+  const title = document.getElementById("moodRadioTitle");
+  const sub = document.getElementById("moodRadioSub");
+  if (title) title.textContent = mood.title;
+  if (sub) sub.textContent = mood.sub;
+}
+
+async function startMoodRadio() {
+  const mood = currentMoodRadio();
+  const lib = librarySongs().filter((s) => s && (s.cloud || s.local || s.url));
+  if (lib.length < 1) {
+    setHint("曲库还是空的，先导入或听云端歌", true);
+    return;
+  }
+  const pool = shuffleSongs(mood.pick(lib));
+  const picked = pool.slice(0, Math.min(16, pool.length));
+  const first = picked[0];
+  let index = playlist.findIndex((s) => String(s.id) === String(first.id));
+  if (index < 0) {
+    playlist = librarySongs().slice();
+    renderList();
+    index = playlist.findIndex((s) => String(s.id) === String(first.id));
+  }
+  if (index < 0) {
+    playlist = [first, ...playlist.filter((s) => String(s.id) !== String(first.id))];
+    index = 0;
+    renderList();
+  }
+  playQueueKind = "mood";
+  playQueueIds = picked.map((s) => String(s.id));
+  openPlayerWindow();
+  await playAt(index);
+  setHint(`${mood.title} · ${picked.length} 首`);
 }
 
 async function playFromRankItem(btn) {
@@ -6124,6 +6356,10 @@ function songByQueueId(id) {
 }
 
 function currentPlayQueue() {
+  if (playQueueKind === "mood" && playQueueIds.length) {
+    const mood = playQueueIds.map((id) => songByQueueId(id)).filter(Boolean);
+    if (mood.length) return mood;
+  }
   const fromIds = playQueueIds.map((id) => songByQueueId(id)).filter(Boolean);
   if (fromIds.length) return fromIds;
   const song = playlist[currentIndex];
@@ -7099,6 +7335,22 @@ async function deleteLocalSong(song) {
 
 els.likesBack?.addEventListener("click", () => setMainView("home"));
 els.likesBackdrop?.addEventListener("click", () => setMainView("home"));
+document.getElementById("diaryBack")?.addEventListener("click", () => setMainView("home"));
+document.getElementById("diaryBody")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.(".diary-entry");
+  if (!btn) return;
+  playFromRankItem({
+    dataset: {
+      rankId: btn.dataset.diaryId || "",
+      rankKey: btn.dataset.diaryKey || ""
+    }
+  }).catch((err) => setHint(err?.message || "播放失败", true));
+});
+document.getElementById("moodRadioStartBtn")?.addEventListener("click", () => {
+  startMoodRadio().catch((err) => setHint(err?.message || "氛围电台开播失败", true));
+});
+refreshMoodRadioCard();
+refreshDiaryEntrySub();
 els.likesList?.addEventListener("click", (e) => {
   const item = e.target.closest(".likes-item");
   if (!item) return;
@@ -8318,6 +8570,8 @@ function enterAppAfterAuth() {
   initPlayer();
   startChatInboxPoll();
   startListenTogetherPoll();
+  refreshMoodRadioCard();
+  refreshDiaryEntrySub();
 }
 
 /** 断网或不想登录：直接进播放器听本机私人库 / 本地文件 */
@@ -8890,6 +9144,7 @@ function mountMainViews() {
   if (!pane || mainViewsMounted) return;
   const ids = [
     "likesLayer",
+    "diaryLayer",
     "playlistDetailLayer",
     "chatLayer",
     "wishLayer",
@@ -8932,6 +9187,7 @@ function setMainView(view = "home") {
   currentMainView = next;
 
   closeEmbeddedView(els.likesLayer || document.getElementById("likesLayer"));
+  closeEmbeddedView(document.getElementById("diaryLayer"));
   closeEmbeddedView(els.chatLayer || document.getElementById("chatLayer"));
   closeEmbeddedView(document.getElementById("wishLayer"));
   closeEmbeddedView(els.profileLayer || document.getElementById("profileLayer"));
@@ -8940,10 +9196,13 @@ function setMainView(view = "home") {
 
   if (next === "likes") {
     openLikesLayer();
+  } else if (next === "diary") {
+    openDiaryLayer();
   } else {
     closeEmbeddedView(document.getElementById("playlistDetailLayer"));
     playlistDetailState = null;
     if (els.viewHome) els.viewHome.hidden = next !== "home";
+    if (next === "home") refreshMoodRadioCard();
   }
 
   if (next === "chat") {

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03listendrag1" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03diarymood1" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -98,6 +98,10 @@
             <span class="nav-item-title">我喜欢</span>
             <span class="nav-item-sub" id="likesCountLabel">0 首</span>
           </button>
+          <button type="button" class="nav-item" data-nav="diary" id="diaryEntry">
+            <span class="nav-item-title">听歌日记</span>
+            <span class="nav-item-sub" id="diaryEntrySub">今天听了什么</span>
+          </button>
           <button type="button" class="nav-item" data-nav="wish" id="wishOpenBtn">
             <span class="nav-item-title">心愿单</span>
             <span class="nav-item-sub">想听与已完成</span>
@@ -135,6 +139,15 @@
             <div class="search-suggest" id="searchSuggest" hidden></div>
           </form>
           <p class="search-hint" id="searchHint"></p>
+
+          <section class="mood-radio" id="moodRadioCard" aria-label="今日氛围电台">
+            <div class="mood-radio-copy">
+              <span class="mood-radio-kicker">今日氛围</span>
+              <h3 class="mood-radio-title" id="moodRadioTitle">晚风电台</h3>
+              <p class="mood-radio-sub" id="moodRadioSub">按现在的时段，从你能听的歌里拼一队</p>
+            </div>
+            <button type="button" class="mood-radio-btn" id="moodRadioStartBtn">开始听</button>
+          </section>
 
           <section class="rank-row" id="rankRow" aria-label="听歌次数排行">
             <button type="button" class="rank-head rank-open" id="rankOpenBtn">
@@ -874,6 +887,21 @@
     </section>
   </div>
 
+  <!-- 听歌日记 -->
+  <div class="pane-view diary-layer" id="diaryLayer" hidden aria-hidden="true">
+    <header class="pane-view-bar">
+      <button type="button" class="likes-back" id="diaryBack" aria-label="返回">
+        <span class="likes-back-ico"></span>
+        返回
+      </button>
+      <h2 class="likes-panel-title">听歌日记</h2>
+      <span class="likes-panel-count" id="diaryPanelCount">0 次</span>
+    </header>
+    <div class="diary-body pane-view-body" id="diaryBody">
+      <p class="diary-empty" id="diaryEmpty">完整听完一首歌后，会出现在这里</p>
+    </div>
+  </div>
+
   <!-- 我喜欢列表页 -->
   <div class="likes-layer" id="likesLayer" aria-hidden="true">
     <div class="likes-backdrop" id="likesBackdrop"></div>
@@ -1129,6 +1157,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03listendrag1"></script>
-  <script src="app.js?v=2.0.03listensync2"></script>
+  <script src="app.js?v=2.0.03diarymood1"></script>
 </body>
 </html>
