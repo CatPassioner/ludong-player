@@ -5400,6 +5400,11 @@ function paintTheaterMotion(playing) {
   document.getElementById("theaterViz")?.classList.toggle("is-on", on);
 }
 
+// 必须在 clearCoverPlane / bindPlayerViews 之前声明：
+// bindPlayerViews 会在脚本加载时恢复「剧场」，若此处仍 TDZ 会整页 JS 崩掉、登录全失效
+let coverPlaneTimer = 0;
+let switchAnim = "flip";
+
 function clearCoverPlane() {
   const layer = document.getElementById("coverPlaneLayer");
   const outEl = document.getElementById("coverPlaneOut");
@@ -5531,7 +5536,16 @@ function bindPlayerViews() {
   } catch {
     saved = "listen";
   }
-  setPlayerView(saved);
+  try {
+    setPlayerView(saved);
+  } catch (err) {
+    console.warn("restore player view failed", saved, err);
+    try {
+      setPlayerView("listen");
+    } catch (err2) {
+      console.warn("fallback listen view failed", err2);
+    }
+  }
   window.addEventListener("resize", () => {
     if (currentPlayerView() === "theater") syncTheaterDockWidth();
   });
@@ -7052,9 +7066,6 @@ function indexInPlaylist(song) {
   }
   return index;
 }
-
-let coverPlaneTimer = 0;
-let switchAnim = "flip";
 
 function playCoverPlane(dir, fromSrc, toSrc) {
   const layer = document.getElementById("coverPlaneLayer");
@@ -9344,7 +9355,6 @@ async function bootstrapApp() {
   }
   try {
     await window.LudongCloud.ensureAuthSession();
-    enterAppAfterAuth();
   } catch {
     // 完全没会话：显示登录页
     showAuthGate();
@@ -9357,10 +9367,19 @@ async function bootstrapApp() {
       );
     } else {
       setAuthHint(
-        "若刚还能用、刷新后卡住：多半是连不上 supabase.co。可先点下方「先听本地歌」，或开代理后再登录。",
+        "登录云端失败时可先点下方「先听本地歌」；有网后再登录同步。",
         true
       );
     }
+    return;
+  }
+  // 进播放器与鉴权分开：界面恢复报错不应把人踢回登录页
+  try {
+    enterAppAfterAuth();
+  } catch (err) {
+    console.warn("enterAppAfterAuth failed", err);
+    enterAppShell();
+    initPlayer().catch((e) => console.warn("initPlayer failed", e));
   }
 }
 
@@ -9500,7 +9519,13 @@ els.authForm?.addEventListener("submit", async (e) => {
       await window.LudongCloud.signIn({ email, password });
     }
     setAuthHint("成功，正在进入…");
-    enterAppAfterAuth();
+    try {
+      enterAppAfterAuth();
+    } catch (enterErr) {
+      console.warn("enterAppAfterAuth failed after login", enterErr);
+      enterAppShell();
+      initPlayer().catch((e) => console.warn("initPlayer failed", e));
+    }
   } catch (err) {
     const msg = String(err?.message || "登录失败");
     setAuthHint(msg, true);
