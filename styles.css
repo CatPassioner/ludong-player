@@ -6117,10 +6117,10 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   display: none;
 }
 
-/* 封面+唱片+控件：左侧中部，再靠左 */
+/* 封面+唱片+控件：再左移（约为上次 14px 的两倍） */
 .player-window.is-view-theater .theater-stage-left {
   position: absolute !important;
-  left: 4px !important;
+  left: -24px !important;
   right: auto !important;
   top: 46% !important;
   bottom: auto !important;
@@ -6492,10 +6492,10 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   }
 
   .player-window.is-view-theater .theater-stage-left {
-    left: 2px !important;
+    left: -20px !important;
     top: 48% !important;
     bottom: auto !important;
-    max-width: min(400px, calc(100vw - 8px));
+    max-width: min(400px, calc(100vw + 12px));
     transform: translateY(-50%) !important;
   }
 
