@@ -5952,6 +5952,7 @@ html[data-bg-light="1"] .confirm-backdrop {
 
 .player-window.is-view-theater {
   --theater-ink: #f6f3ec;
+  --theater-dock-left: clamp(56px, 7.5vw, 110px);
 }
 
 .player-window.is-view-theater .player-fit {
@@ -6007,10 +6008,19 @@ html[data-bg-light="1"] .confirm-backdrop {
   background: transparent;
 }
 
-/* 歌名/歌手：贴窗口左侧，上下保持顶栏下 */
+/* 听歌页大唱片：进剧场必须立刻藏掉，避免和左侧封面叠在一起 */
+.player-window.is-view-theater .disc-view,
+.player-window.is-view-theater .disc {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* 歌名/歌手：与封面坞同列，略离左缘 */
 .player-window.is-view-theater .info {
   position: fixed;
-  left: 20px;
+  left: var(--theater-dock-left);
   top: 56px;
   z-index: 46;
   width: min(42vw, 420px);
@@ -6137,12 +6147,12 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   display: none;
 }
 
-/* 封面+唱片+控件：贴窗口左侧；上下仍 46%，不改 */
+/* 封面+唱片+控件：右移离边，整列垂直居中 */
 .player-window.is-view-theater .theater-stage-left {
   position: fixed !important;
-  left: 20px !important;
+  left: var(--theater-dock-left) !important;
   right: auto !important;
-  top: 46% !important;
+  top: 50% !important;
   bottom: auto !important;
   z-index: 46;
   width: max-content;
@@ -6331,19 +6341,21 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 /*
- * 剧场歌词：靠右的「焦点瀑布」
- * 当前句居中放大，上下句阶梯右移淡出，暖色跟唱而不是荧光绿
+ * 剧场歌词「舞台聚光」：落在封面坞与右缘之间的正中
+ * 参考 Apple Music / karaoke 焦点：当前句钉在视口中线，远近景深虚化，无阶梯右移
  */
 .player-window.is-view-theater .lyrics-side {
   position: absolute;
-  left: 62%;
-  right: 1.5%;
+  left: calc(
+    var(--theater-dock-left) + var(--theater-dock-w, 320px) + clamp(28px, 3.5vw, 56px)
+  );
+  right: clamp(28px, 5vw, 72px);
   top: 50%;
   bottom: auto;
   width: auto;
-  height: min(72vh, 560px);
+  height: min(78vh, 620px);
   margin: 0;
-  padding: 18px 10px 18px 20px;
+  padding: 0 8px;
   background: transparent !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -6351,22 +6363,28 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   transform: translateY(-50%);
-  transform-origin: center right;
+  transform-origin: center center;
   z-index: 4;
-  overflow: visible;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
 }
 
-/* 只在歌词侧留极淡渐隐，不再画一整块圆角玻璃卡片 */
 .player-window.is-view-theater .lyrics-side::before {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(8, 10, 16, 0.1) 55%,
-    rgba(8, 10, 16, 0.2) 100%
+  left: 50%;
+  top: 50%;
+  width: min(92%, 520px);
+  height: clamp(52px, 9vh, 72px);
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 214, 150, 0.16) 0%,
+    rgba(255, 214, 150, 0.05) 42%,
+    transparent 72%
   );
   pointer-events: none;
   z-index: 0;
@@ -6377,84 +6395,128 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 .player-window.is-view-theater .lyric-empty {
   position: relative;
   z-index: 1;
+  width: 100%;
+  max-width: min(100%, 560px);
+  margin-inline: auto;
 }
 
 .player-window.is-view-theater .lyrics-board {
-  --line-h: clamp(3.1rem, 6vh, 3.9rem);
+  --line-h: clamp(2.8rem, 5.4vh, 3.6rem);
+  --line-gap: clamp(0.55rem, 1.4vh, 1rem);
   height: 100%;
 }
 
 .player-window.is-view-theater .lyrics-window {
   height: 100%;
-  mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
+  scrollbar-width: none;
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 18%,
+    #000 82%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 18%,
+    #000 82%,
+    transparent 100%
+  );
+}
+
+.player-window.is-view-theater .lyrics-window::-webkit-scrollbar {
+  display: none;
+}
+
+.player-window.is-view-theater .lyrics-track {
+  align-items: center;
+  padding-inline: 12px;
 }
 
 .player-window.is-view-theater .lyric-line {
-  justify-content: flex-end;
-  text-align: right;
-  padding-right: 6%;
-  transition: transform 0.35s ease, opacity 0.35s ease, filter 0.35s ease;
+  justify-content: center;
+  text-align: center;
+  padding: 0;
+  transition:
+    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.4s ease,
+    filter 0.4s ease;
+  will-change: transform, opacity, filter;
 }
 
+/* 远景几乎消失，避免「整页歌词一起糊在右边」 */
 .player-window.is-view-theater .lyric-line.is-far {
-  opacity: 0.16;
-  transform: translateX(42px) scale(0.92);
-  filter: blur(0.4px);
+  opacity: 0.1;
+  transform: translateY(0) scale(0.86);
+  filter: blur(2.2px);
 }
 
-.player-window.is-view-theater .lyric-line.is-near {
-  opacity: 0.48;
-  transform: translateX(18px) scale(0.96);
+.player-window.is-view-theater .lyric-line.is-ghost {
+  opacity: 0;
+  transform: scale(0.8);
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+.player-window.is-view-theater .lyric-line.is-near.is-past {
+  opacity: 0.38;
+  transform: translateY(-6px) scale(0.94);
+  filter: blur(0.6px);
+}
+
+.player-window.is-view-theater .lyric-line.is-near.is-soon {
+  opacity: 0.42;
+  transform: translateY(8px) scale(0.95);
+  filter: blur(0.4px);
 }
 
 .player-window.is-view-theater .lyric-line.is-active {
   opacity: 1;
-  transform: translateX(0) scale(1);
-}
-
-.player-window.is-view-theater .lyric-line.is-active .lyric-karaoke::before {
-  content: "♪ ";
-  font-weight: 500;
-  opacity: 0.75;
+  transform: translateY(0) scale(1.04);
+  filter: none;
+  z-index: 2;
 }
 
 .player-window.is-view-theater .lyric-line .lyric-karaoke {
-  font-size: clamp(1.05rem, 2.3vh, 1.32rem);
+  font-size: clamp(1.02rem, 2.2vh, 1.28rem);
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
 }
 
 .player-window.is-view-theater .lyric-line.is-near .lyric-karaoke {
-  font-size: clamp(1.15rem, 2.6vh, 1.48rem);
+  font-size: clamp(1.12rem, 2.5vh, 1.42rem);
 }
 
 .player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
-  font-size: clamp(1.55rem, 3.5vh, 2.05rem);
+  font-size: clamp(1.48rem, 3.6vh, 2.15rem);
   font-weight: 760;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
 }
 
 .player-window.is-view-theater .lyric-line:not(.is-active) .lyric-karaoke {
-  color: rgba(255, 248, 240, 0.42);
+  color: rgba(255, 248, 240, 0.5);
   background-image: none;
   -webkit-background-clip: unset;
   background-clip: unset;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.35));
 }
 
+/* 当前句：从左到右的暖色跟唱扫光 */
 .player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
   background-image: linear-gradient(
     90deg,
-    #ffe3a8 0%,
-    #fff6e8 calc(var(--p) * 100%),
-    rgba(255, 248, 240, 0.38) calc(var(--p) * 100% + 0.01%)
+    #ffe6b0 0%,
+    #fff8ec calc(var(--p) * 100%),
+    rgba(255, 248, 240, 0.34) calc(var(--p) * 100% + 0.01%)
   );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   filter:
-    drop-shadow(0 0 16px rgba(255, 210, 140, 0.35))
-    drop-shadow(0 3px 12px rgba(0, 0, 0, 0.45));
+    drop-shadow(0 0 18px rgba(255, 210, 140, 0.4))
+    drop-shadow(0 4px 14px rgba(0, 0, 0, 0.45));
 }
 
 .player-window.is-view-theater .lyric-karaoke {
@@ -6510,24 +6572,24 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 @media (max-width: 900px) {
+  .player-window.is-view-theater {
+    --theater-dock-left: clamp(20px, 4vw, 40px);
+  }
+
   .player-window.is-view-theater .info {
-    left: 12px;
     top: 52px;
   }
 
   .player-window.is-view-theater .theater-stage-left {
-    left: 12px !important;
-    top: 46% !important;
+    top: 50% !important;
     bottom: auto !important;
     max-width: min(400px, calc(100vw - 24px));
     transform: translateY(-50%) !important;
   }
 
   .player-window.is-view-theater .lyrics-side {
-    left: 52%;
-    right: 1%;
-    top: 48%;
-    height: min(56vh, 420px);
+    top: 50%;
+    height: min(60vh, 460px);
     transform: translateY(-50%);
   }
 

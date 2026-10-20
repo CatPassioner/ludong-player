@@ -5400,6 +5400,21 @@ function paintTheaterMotion(playing) {
   document.getElementById("theaterViz")?.classList.toggle("is-on", on);
 }
 
+function clearCoverPlane() {
+  const layer = document.getElementById("coverPlaneLayer");
+  const outEl = document.getElementById("coverPlaneOut");
+  const inEl = document.getElementById("coverPlaneIn");
+  clearTimeout(coverPlaneTimer);
+  coverPlaneTimer = 0;
+  document.querySelector(".is-cover-held")?.classList.remove("is-cover-held");
+  if (layer) {
+    layer.classList.remove("is-next", "is-prev", "is-flip", "is-fade");
+    layer.hidden = true;
+  }
+  if (outEl) outEl.removeAttribute("src");
+  if (inEl) inEl.removeAttribute("src");
+}
+
 function dockTheaterChrome(on) {
   const dock = document.getElementById("theaterStageLeft");
   const progress = document.getElementById("playerProgress");
@@ -5436,7 +5451,10 @@ function syncTheaterDockWidth() {
   const art = dock?.querySelector(".theater-art-row");
   if (!win?.classList.contains("is-view-theater") || !dock || !art) return;
   const w = Math.ceil(art.getBoundingClientRect().width);
-  if (w > 0) dock.style.setProperty("--theater-dock-w", `${w}px`);
+  if (w > 0) {
+    win.style.setProperty("--theater-dock-w", `${w}px`);
+    dock.style.setProperty("--theater-dock-w", `${w}px`);
+  }
 }
 
 function setPlayerView(view) {
@@ -5457,9 +5475,25 @@ function setPlayerView(view) {
   if (next === "theater") {
     if (prev !== "theater") theaterRestoreLyrics = showLyrics;
     if (showMv) setMvMode(false);
+    clearCoverPlane();
+    // 先挂 is-lyrics，立刻藏听歌页大唱片，避免和剧场封面叠在一起闪一帧
+    els.stage?.classList.add("is-lyrics");
     setLyricsMode(true);
     dockTheaterChrome(true);
     paintTheaterMotion(!audio.paused);
+    requestAnimationFrame(() => {
+      syncTheaterDockWidth();
+      if (lyricLines.length) {
+        const t = mediaClock().currentTime || 0;
+        let idx = 0;
+        for (let i = 0; i < lyricLines.length; i++) {
+          if (lyricLines[i].time <= t + 0.28) idx = i;
+          else break;
+        }
+        scrollToLyric(idx, { instant: true });
+        syncLyrics();
+      }
+    });
   } else {
     if (prev === "theater") dockTheaterChrome(false);
     if (prev === "theater" && next === "listen" && !theaterRestoreLyrics) {
@@ -6571,13 +6605,19 @@ function syncLyrics() {
   }
   activeLyricIndex = idx;
 
+  const theater = document.getElementById("playerWindow")?.classList.contains("is-view-theater");
   for (let i = 0; i < nodes.length; i++) {
     const el = nodes[i];
     const dist = i - idx;
+    const ad = Math.abs(dist);
     el.classList.toggle("is-active", i === idx);
-    el.classList.toggle("is-near", Math.abs(dist) === 1);
-    el.classList.toggle("is-far", Math.abs(dist) > 1);
+    el.classList.toggle("is-near", ad === 1);
+    el.classList.toggle("is-far", theater ? ad === 2 : ad > 1);
+    el.classList.toggle("is-ghost", theater && ad > 2);
+    el.classList.toggle("is-past", dist < 0);
+    el.classList.toggle("is-soon", dist > 0);
     el.classList.toggle("is-waiting", waiting && i === idx);
+    el.dataset.dist = String(dist);
     const ink = el.querySelector(".lyric-karaoke");
     if (!ink) continue;
     if (i === idx) {
