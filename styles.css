@@ -6049,15 +6049,15 @@ html[data-bg-light="1"] .confirm-backdrop {
   display: none;
 }
 
-/* 封面+唱片+频谱+进度+控件：一整组上移 */
+/* 封面+唱片+频谱+进度+控件：靠近歌名，略上移 */
 .player-window.is-view-theater .theater-stage-left {
   position: absolute;
   left: clamp(28px, 4.5vw, 72px);
-  bottom: clamp(20%, 22vh, 28%);
-  top: auto;
+  top: clamp(86px, 14vh, 118px);
+  bottom: auto;
   z-index: 6;
   width: max-content;
-  max-width: min(420px, 48vw);
+  max-width: min(420px, 46vw);
   height: auto;
   min-height: 0;
   margin: 0;
@@ -6239,44 +6239,88 @@ html[data-bg-light="1"] .confirm-backdrop {
   font-size: 0.78rem;
 }
 
-/* 歌词：顺时针倾斜，左上→右下；字号加大 */
+/*
+ * 歌词形态（对标参考第三张）：
+ * 整组左上→右下倾斜 + 轻微透视；落在右半屏，不压封面
+ */
 .player-window.is-view-theater .lyrics-side {
   position: absolute;
-  right: clamp(2%, 3vw, 6%);
-  top: 50%;
-  left: auto;
-  width: min(48vw, 560px);
-  height: min(62vh, 500px);
+  left: 50%;
+  right: clamp(1%, 2vw, 4%);
+  top: 10%;
+  bottom: 12%;
+  width: auto;
+  height: auto;
   margin: 0;
-  padding: 12px 8px;
+  padding: 8px 4px 8px 12px;
   background: transparent;
   border: 0;
   backdrop-filter: none;
-  transform: translateY(-52%) rotate(16deg);
-  transform-origin: center center;
+  transform: perspective(920px) rotateZ(17deg) rotateX(10deg);
+  transform-origin: 40% 50%;
   z-index: 4;
+  overflow: hidden;
+}
+
+.player-window.is-view-theater .lyrics-board {
+  --line-h: clamp(2.9rem, 5.6vh, 3.7rem);
+  height: 100%;
 }
 
 .player-window.is-view-theater .lyrics-window {
-  mask-image: linear-gradient(180deg, transparent 0%, #000 10%, #000 90%, transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 10%, #000 90%, transparent 100%);
+  height: 100%;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 86%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 86%, transparent 100%);
 }
 
 .player-window.is-view-theater .lyric-line {
   justify-content: flex-start;
   text-align: left;
+  padding-left: 4%;
+}
+
+.player-window.is-view-theater .lyric-line.is-far {
+  opacity: 0.22;
+}
+
+.player-window.is-view-theater .lyric-line.is-near {
+  opacity: 0.55;
+}
+
+.player-window.is-view-theater .lyric-line.is-active {
+  opacity: 1;
 }
 
 .player-window.is-view-theater .lyric-line .lyric-karaoke {
-  font-size: clamp(1.05rem, 2.4vh, 1.35rem);
+  font-size: clamp(1.12rem, 2.6vh, 1.42rem);
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 .player-window.is-view-theater .lyric-line.is-near .lyric-karaoke {
-  font-size: clamp(1.12rem, 2.55vh, 1.45rem);
+  font-size: clamp(1.2rem, 2.8vh, 1.55rem);
 }
 
 .player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
-  font-size: clamp(1.4rem, 3.2vh, 1.95rem);
+  font-size: clamp(1.55rem, 3.6vh, 2.15rem);
+  font-weight: 780;
+  letter-spacing: 0.06em;
+}
+
+.player-window.is-view-theater .lyric-line:not(.is-active) .lyric-karaoke {
+  color: rgba(255, 250, 240, 0.5);
+}
+
+.player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
+  background-image: linear-gradient(
+    90deg,
+    #7dff9a 0%,
+    #e8fff0 calc(var(--p) * 100%),
+    rgba(255, 250, 240, 0.42) calc(var(--p) * 100% + 0.01%)
+  );
+  filter:
+    drop-shadow(0 0 14px rgba(125, 255, 154, 0.35))
+    drop-shadow(0 2px 10px rgba(0, 0, 0, 0.55));
 }
 
 .player-window.is-view-theater .lyric-karaoke {
@@ -6334,15 +6378,16 @@ html[data-bg-light="1"] .confirm-backdrop {
 @media (max-width: 900px) {
   .player-window.is-view-theater .theater-stage-left {
     left: 16px;
-    bottom: 14%;
+    top: 78px;
     max-width: min(360px, calc(100vw - 32px));
   }
 
   .player-window.is-view-theater .lyrics-side {
-    right: 4%;
-    width: min(88vw, 420px);
-    height: min(42vh, 320px);
-    transform: translateY(-40%) rotate(12deg);
+    left: 42%;
+    right: 2%;
+    top: 8%;
+    bottom: 10%;
+    transform: perspective(820px) rotateZ(14deg) rotateX(8deg);
   }
 
   .player-window.is-view-theater .lyrics-art,
