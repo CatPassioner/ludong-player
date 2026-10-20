@@ -5954,9 +5954,15 @@ html[data-bg-light="1"] .confirm-backdrop {
   --theater-ink: #f6f3ec;
 }
 
+.player-window.is-view-theater .player-fit {
+  justify-content: stretch;
+  overflow: visible;
+}
+
 .player-window.is-view-theater .player-board {
   width: 100%;
   max-width: none;
+  overflow: visible;
 }
 
 /* 整幅封面作背景（自定义封面同步） */
@@ -5983,7 +5989,7 @@ html[data-bg-light="1"] .confirm-backdrop {
   height: 100%;
   min-height: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .player-window.is-view-theater .stage {
@@ -5992,12 +5998,12 @@ html[data-bg-light="1"] .confirm-backdrop {
   z-index: 1;
 }
 
-/* 歌名/歌手：顶栏下左上（上红框） */
+/* 歌名/歌手：贴窗口左侧，上下保持顶栏下 */
 .player-window.is-view-theater .info {
-  position: absolute;
-  left: 18px;
-  top: 6px;
-  z-index: 8;
+  position: fixed;
+  left: 20px;
+  top: 56px;
+  z-index: 46;
   width: min(42vw, 420px);
   margin: 0;
   text-align: left;
@@ -6117,10 +6123,10 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   display: none;
 }
 
-/* 封面+唱片+控件：再左移（约为上次 14px 的两倍） */
+/* 封面+唱片+控件：只水平左移，上下保持 46% */
 .player-window.is-view-theater .theater-stage-left {
   position: absolute !important;
-  left: -24px !important;
+  left: 12px !important;
   right: auto !important;
   top: 46% !important;
   bottom: auto !important;
