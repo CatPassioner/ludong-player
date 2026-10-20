@@ -3878,7 +3878,27 @@ async function recordPlayCount(song) {
 }
 
 const LISTEN_DIARY_KEY = "ludong-listen-diary-v1";
+const LISTEN_DIARY_META_KEY = "ludong-listen-diary-meta-v1";
+const LISTEN_DIARY_GEO_KEY = "ludong-listen-diary-geo-v1";
 const LISTEN_DIARY_MAX = 800;
+const DIARY_FALLBACK_QUOTES = [
+  "把今天也听完。",
+  "好听的歌，值得再来一遍。",
+  "声音落下来的时候，世界会慢一点。",
+  "先听完这一首，再想别的事。",
+  "有些心情，只适合用歌回答。",
+  "今天的光，配得上一首对的歌。",
+  "不必赶路，把音量放低一点也好。",
+  "反复听的那首，多半说中了什么。",
+  "日子平常，歌可以不平常。",
+  "听完再睡，也算认真过完这一天。"
+];
+
+function diaryLocalDayKey(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
 
 function readListenDiary() {
   try {
@@ -3910,6 +3930,33 @@ function writeListenDiary(entries) {
   }
 }
 
+function readListenDiaryMeta() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(scopedStorageKey(LISTEN_DIARY_META_KEY)) || "null");
+    return raw && typeof raw === "object" && raw.days && typeof raw.days === "object" ? raw.days : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeListenDiaryMeta(days) {
+  try {
+    localStorage.setItem(scopedStorageKey(LISTEN_DIARY_META_KEY), JSON.stringify({ days }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function patchListenDiaryDayMeta(dayKey, patch) {
+  if (!dayKey) return null;
+  const days = readListenDiaryMeta();
+  const prev = days[dayKey] && typeof days[dayKey] === "object" ? days[dayKey] : {};
+  const next = { ...prev, ...patch };
+  days[dayKey] = next;
+  writeListenDiaryMeta(days);
+  return next;
+}
+
 function appendListenDiary(song) {
   if (!song) return;
   const entries = readListenDiary();
@@ -3923,6 +3970,7 @@ function appendListenDiary(song) {
   });
   writeListenDiary(entries);
   refreshDiaryEntrySub();
+  ensureDiaryWeatherForToday().catch(() => {});
   if (currentMainView === "diary") renderListenDiary();
 }
 
@@ -3939,68 +3987,370 @@ function diaryDayLabel(iso) {
   return `周${week} · ${base}`;
 }
 
-function diaryTimeLabel(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "--:--";
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+function diarySeed(str) {
+  let h = 2166136261;
+  const s = String(str || "");
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function diaryWeatherFromCode(code) {
+  const c = Number(code);
+  if (!Number.isFinite(c)) return { icon: "🌤", label: "天气" };
+  if (c === 0) return { icon: "☀️", label: "晴" };
+  if (c <= 3) return { icon: "⛅", label: "多云" };
+  if (c <= 48) return { icon: "🌫", label: "薄雾" };
+  if (c <= 57) return { icon: "🌦", label: "毛毛雨" };
+  if (c <= 67) return { icon: "🌧", label: "雨" };
+  if (c <= 77) return { icon: "❄️", label: "雪" };
+  if (c <= 82) return { icon: "🌧", label: "阵雨" };
+  if (c <= 86) return { icon: "🌨", label: "阵雪" };
+  if (c >= 95) return { icon: "⛈", label: "雷雨" };
+  return { icon: "🌤", label: "天气" };
+}
+
+function readDiaryGeo() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LISTEN_DIARY_GEO_KEY) || "null");
+    const lat = Number(raw?.lat);
+    const lon = Number(raw?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return { lat, lon };
+  } catch {
+    return null;
+  }
+}
+
+function writeDiaryGeo(lat, lon) {
+  try {
+    localStorage.setItem(
+      LISTEN_DIARY_GEO_KEY,
+      JSON.stringify({ lat, lon, at: Date.now() })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function requestDiaryGeo() {
+  const cached = readDiaryGeo();
+  if (cached) return Promise.resolve(cached);
+  if (!navigator.geolocation) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (value) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    const timer = setTimeout(() => done(null), 5000);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        clearTimeout(timer);
+        const lat = pos?.coords?.latitude;
+        const lon = pos?.coords?.longitude;
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+          done(null);
+          return;
+        }
+        writeDiaryGeo(lat, lon);
+        done({ lat, lon });
+      },
+      () => {
+        clearTimeout(timer);
+        done(null);
+      },
+      { enableHighAccuracy: false, maximumAge: 86400000, timeout: 4500 }
+    );
+  });
+}
+
+async function fetchDiaryWeather(lat, lon) {
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}` +
+    `&longitude=${encodeURIComponent(lon)}` +
+    `&current=weather_code,temperature_2m&timezone=auto`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("weather failed");
+  const data = await res.json();
+  const code = data?.current?.weather_code;
+  const temp = data?.current?.temperature_2m;
+  const mapped = diaryWeatherFromCode(code);
+  return {
+    wcode: Number(code),
+    temp: Number.isFinite(Number(temp)) ? Math.round(Number(temp)) : null,
+    icon: mapped.icon,
+    label: mapped.label
+  };
+}
+
+async function ensureDiaryWeatherForToday() {
+  const dayKey = diaryLocalDayKey();
+  if (!dayKey) return null;
+  const meta = readListenDiaryMeta()[dayKey];
+  if (meta && meta.icon && meta.label) return meta;
+  const geo = await requestDiaryGeo();
+  if (!geo) return meta || null;
+  try {
+    const weather = await fetchDiaryWeather(geo.lat, geo.lon);
+    return patchListenDiaryDayMeta(dayKey, {
+      icon: weather.icon,
+      label: weather.label,
+      temp: weather.temp,
+      wcode: weather.wcode,
+      weatherAt: new Date().toISOString()
+    });
+  } catch {
+    return meta || null;
+  }
+}
+
+function songFromDiaryItem(item) {
+  if (!item) return null;
+  const lib = librarySongs();
+  return (
+    lib.find((s) => item.key && playStatKey(s) === item.key) ||
+    lib.find((s) => item.id && String(s.id) === String(item.id)) ||
+    null
+  );
+}
+
+function pickDiaryLyricCandidate(lines) {
+  const list = (Array.isArray(lines) ? lines : [])
+    .map((line) => String(line?.text || "").trim())
+    .filter((text) => {
+      if (!text || isCreditLyric(text)) return false;
+      if (/^[♪🎵🎧\s\-–—_.]+$/.test(text)) return false;
+      const len = [...text].length;
+      return len >= 6 && len <= 28;
+    });
+  return list;
+}
+
+async function loadDiaryLyricLines(song) {
+  if (!song) return [];
+  const cacheId = song.id || playStatKey(song);
+  if (cacheId && lyricsCache.has(cacheId)) {
+    const cached = lyricsCache.get(cacheId);
+    if (Array.isArray(cached) && cached.length) return cached;
+  }
+  let text = await fetchLocalLrc(song);
+  if (!text) text = await fetchOnlineLrc(song);
+  const lines = parseLyricText(text, song.lrcUrl || "");
+  if (cacheId && lines.length) lyricsCache.set(cacheId, lines);
+  return lines;
+}
+
+function fallbackDiaryQuote(dayKey, hero) {
+  const idx = diarySeed(`${dayKey}:${hero?.key || hero?.title || ""}`) % DIARY_FALLBACK_QUOTES.length;
+  return {
+    quote: DIARY_FALLBACK_QUOTES[idx],
+    quoteFrom: "",
+    quoteKey: `fallback:${idx}`
+  };
+}
+
+async function ensureDiaryQuoteForDay(dayKey, hero) {
+  if (!dayKey || !hero) return fallbackDiaryQuote(dayKey, hero);
+  const meta = readListenDiaryMeta()[dayKey];
+  if (meta?.quote && meta?.quoteKey) {
+    return {
+      quote: String(meta.quote),
+      quoteFrom: String(meta.quoteFrom || ""),
+      quoteKey: String(meta.quoteKey)
+    };
+  }
+  const song = songFromDiaryItem(hero);
+  if (song) {
+    try {
+      const lines = await loadDiaryLyricLines(song);
+      const candidates = pickDiaryLyricCandidate(lines);
+      if (candidates.length) {
+        const pick =
+          candidates[diarySeed(`${dayKey}:${hero.key || hero.id}`) % candidates.length];
+        const saved = patchListenDiaryDayMeta(dayKey, {
+          quote: pick,
+          quoteFrom: hero.title || song.title || "",
+          quoteKey: `lyric:${hero.key || hero.id}`
+        });
+        return {
+          quote: saved.quote,
+          quoteFrom: saved.quoteFrom,
+          quoteKey: saved.quoteKey
+        };
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  const fb = fallbackDiaryQuote(dayKey, hero);
+  patchListenDiaryDayMeta(dayKey, fb);
+  return fb;
+}
+
+function aggregateDiaryDays(entries) {
+  const groups = new Map();
+  entries.forEach((item) => {
+    const d = new Date(item.at);
+    if (Number.isNaN(d.getTime())) return;
+    const dayKey = diaryLocalDayKey(d);
+    if (!groups.has(dayKey)) groups.set(dayKey, []);
+    groups.get(dayKey).push(item);
+  });
+  return [...groups.entries()].map(([dayKey, rows]) => {
+    const songMap = new Map();
+    rows.forEach((item) => {
+      const sk = item.key || item.id || `${item.title}|${item.artist}`;
+      if (!songMap.has(sk)) {
+        songMap.set(sk, {
+          key: item.key,
+          id: item.id,
+          title: item.title,
+          artist: item.artist,
+          cover: item.cover,
+          count: 0,
+          firstAt: item.at,
+          lastAt: item.at
+        });
+      }
+      const row = songMap.get(sk);
+      row.count += 1;
+      if (item.at < row.firstAt) row.firstAt = item.at;
+      if (item.at > row.lastAt) row.lastAt = item.at;
+      if (!row.cover && item.cover) row.cover = item.cover;
+    });
+    const songs = [...songMap.values()].sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return String(b.lastAt).localeCompare(String(a.lastAt));
+    });
+    return {
+      dayKey,
+      label: diaryDayLabel(rows[0].at),
+      totalPlays: rows.length,
+      songs,
+      hero: songs[0] || null
+    };
+  });
+}
+
+function diaryWeatherHtml(meta) {
+  if (!meta?.icon || !meta?.label) {
+    return `<span class="diary-weather is-empty" aria-hidden="true"></span>`;
+  }
+  const temp =
+    meta.temp != null && Number.isFinite(Number(meta.temp))
+      ? `<span class="diary-weather-temp">${escapeHtml(String(meta.temp))}°</span>`
+      : "";
+  return `<span class="diary-weather" title="${escapeHtml(meta.label)}">
+    <span class="diary-weather-icon">${escapeHtml(meta.icon)}</span>
+    <span class="diary-weather-label">${escapeHtml(meta.label)}</span>
+    ${temp}
+  </span>`;
+}
+
+function diarySongButtonHtml(item, { hero = false } = {}) {
+  const cover = item.cover || "./logo.jpg";
+  const countLabel = item.count > 1 ? `听了 ${item.count} 次` : "听过";
+  return `<button type="button" class="diary-entry${hero ? " is-hero" : ""}" data-diary-id="${escapeHtml(
+    item.id || ""
+  )}" data-diary-key="${escapeHtml(item.key || "")}">
+    <img src="${escapeHtml(cover)}" alt="" loading="lazy" />
+    <span class="diary-entry-meta">
+      ${hero ? `<span class="diary-hero-kicker">今日主角</span>` : ""}
+      <span class="diary-entry-title">${escapeHtml(item.title)}</span>
+      <span class="diary-entry-sub">${escapeHtml(item.artist)}</span>
+    </span>
+    <span class="diary-entry-count">${escapeHtml(countLabel)}</span>
+  </button>`;
+}
+
+function renderDiaryDaySection(day, meta, quote) {
+  const weather = diaryWeatherHtml(meta);
+  const quoteText = quote?.quote || fallbackDiaryQuote(day.dayKey, day.hero).quote;
+  const quoteFrom = quote?.quoteFrom || "";
+  const rest = day.songs.slice(1);
+  const restHtml = rest.map((item) => diarySongButtonHtml(item)).join("");
+  const heroHtml = day.hero ? diarySongButtonHtml(day.hero, { hero: true }) : "";
+  return `<section class="diary-day" data-day="${escapeHtml(day.dayKey)}">
+    <header class="diary-day-card">
+      <div class="diary-day-top">
+        <span class="diary-day-title">${escapeHtml(day.label)}</span>
+        ${weather}
+      </div>
+      <p class="diary-day-quote">「${escapeHtml(quoteText)}」</p>
+      ${
+        quoteFrom
+          ? `<p class="diary-day-quote-from">—— ${escapeHtml(quoteFrom)}</p>`
+          : ""
+      }
+      <p class="diary-day-stat">${day.songs.length} 首 · 共 ${day.totalPlays} 次</p>
+    </header>
+    ${heroHtml}
+    ${restHtml ? `<div class="diary-song-list">${restHtml}</div>` : ""}
+  </section>`;
 }
 
 function refreshDiaryEntrySub() {
   const el = document.getElementById("diaryEntrySub");
   if (!el) return;
-  const today = new Date();
-  const key = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
-  const n = readListenDiary().filter((item) => {
-    const d = new Date(item.at);
-    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` === key;
-  }).length;
-  el.textContent = n ? `今天 ${n} 次` : "今天听了什么";
+  const todayKey = diaryLocalDayKey();
+  const keys = new Set();
+  readListenDiary().forEach((item) => {
+    if (diaryLocalDayKey(item.at) !== todayKey) return;
+    keys.add(item.key || item.id || `${item.title}|${item.artist}`);
+  });
+  el.textContent = keys.size ? `今天 ${keys.size} 首` : "今天听了什么";
+}
+
+async function enrichDiaryDaySections(days) {
+  const body = document.getElementById("diaryBody");
+  if (!body || !days.length) return;
+  await ensureDiaryWeatherForToday().catch(() => null);
+  const metas = readListenDiaryMeta();
+  await Promise.all(
+    days.slice(0, 5).map(async (day) => {
+      const quote = await ensureDiaryQuoteForDay(day.dayKey, day.hero);
+      const meta = readListenDiaryMeta()[day.dayKey] || metas[day.dayKey] || {};
+      const section = [...body.querySelectorAll(".diary-day")].find(
+        (el) => el.getAttribute("data-day") === day.dayKey
+      );
+      if (!section) return;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = renderDiaryDaySection(day, meta, quote);
+      const next = tmp.firstElementChild;
+      if (next) section.replaceWith(next);
+    })
+  );
 }
 
 function renderListenDiary() {
   const body = document.getElementById("diaryBody");
   const countEl = document.getElementById("diaryPanelCount");
-  const empty = document.getElementById("diaryEmpty");
   if (!body) return;
   const entries = readListenDiary();
-  if (countEl) countEl.textContent = `${entries.length} 次`;
+  const days = aggregateDiaryDays(entries);
+  if (countEl) countEl.textContent = days.length ? `${days.length} 天` : "0 天";
   refreshDiaryEntrySub();
-  if (!entries.length) {
-    body.innerHTML = `<p class="diary-empty" id="diaryEmpty">完整听完一首歌后，会出现在这里</p>`;
+  if (!days.length) {
+    body.innerHTML =
+      `<p class="diary-empty" id="diaryEmpty">完整听完一首歌后，会按天写进日记：天气、一句歌词，还有今天的主角歌</p>`;
     return;
   }
-  const groups = new Map();
-  entries.forEach((item) => {
-    const d = new Date(item.at);
-    const dayKey = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-    if (!groups.has(dayKey)) groups.set(dayKey, []);
-    groups.get(dayKey).push(item);
-  });
-  body.innerHTML = [...groups.entries()]
-    .map(([dayKey, rows]) => {
-      const label = diaryDayLabel(rows[0].at);
-      const list = rows
-        .map((item) => {
-          const cover = item.cover || "./logo.jpg";
-          return `<button type="button" class="diary-entry" data-diary-id="${escapeHtml(item.id)}" data-diary-key="${escapeHtml(item.key)}">
-            <img src="${escapeHtml(cover)}" alt="" loading="lazy" />
-            <span class="diary-entry-meta">
-              <span class="diary-entry-title">${escapeHtml(item.title)}</span>
-              <span class="diary-entry-sub">${escapeHtml(item.artist)}</span>
-            </span>
-            <span class="diary-entry-time">${diaryTimeLabel(item.at)}</span>
-          </button>`;
-        })
-        .join("");
-      return `<section class="diary-day" data-day="${escapeHtml(dayKey)}">
-        <div class="diary-day-head">
-          <span class="diary-day-title">${escapeHtml(label)}</span>
-          <span class="diary-day-count">${rows.length} 次</span>
-        </div>
-        ${list}
-      </section>`;
+  const metas = readListenDiaryMeta();
+  body.innerHTML = days
+    .map((day) => {
+      const meta = metas[day.dayKey] || {};
+      const quote =
+        meta.quote
+          ? { quote: meta.quote, quoteFrom: meta.quoteFrom || "", quoteKey: meta.quoteKey || "" }
+          : fallbackDiaryQuote(day.dayKey, day.hero);
+      return renderDiaryDaySection(day, meta, quote);
     })
     .join("");
+  enrichDiaryDaySections(days).catch(() => {});
 }
 
 function openDiaryLayer() {

@@ -2633,37 +2633,97 @@ html[data-bg-light="0"] .novel-card {
 .diary-body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
 .diary-empty {
   margin: 24px 4px;
   font-size: 0.82rem;
   color: var(--dim);
+  line-height: 1.55;
+  max-width: 28em;
 }
 
 .diary-day {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.diary-day-head {
+.diary-day-card {
+  padding: 14px 14px 12px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 52%),
+    color-mix(in srgb, var(--bg) 38%, transparent);
+}
+
+.diary-day-top {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 0 2px;
+  gap: 10px;
 }
 
 .diary-day-title {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.92rem;
+  font-weight: 740;
+  letter-spacing: 0.01em;
 }
 
-.diary-day-count {
+.diary-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  min-height: 1.4em;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.diary-weather.is-empty {
+  min-width: 1.4em;
+}
+
+.diary-weather-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.diary-weather-label {
+  letter-spacing: 0.02em;
+}
+
+.diary-weather-temp {
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+}
+
+.diary-day-quote {
+  margin: 12px 0 0;
+  font-size: 0.98rem;
+  font-weight: 650;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+}
+
+.diary-day-quote-from {
+  margin: 6px 0 0;
   font-size: 0.72rem;
   color: var(--dim);
+}
+
+.diary-day-stat {
+  margin: 10px 0 0;
+  font-size: 0.72rem;
+  color: var(--dim);
+}
+
+.diary-song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .diary-entry {
@@ -2672,16 +2732,24 @@ html[data-bg-light="0"] .novel-card {
   gap: 10px;
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--text) 10%, var(--line));
   border-radius: 12px;
-  background: color-mix(in srgb, var(--bg-soft) 70%, transparent);
+  background: color-mix(in srgb, var(--bg) 34%, transparent);
   color: inherit;
   text-align: left;
   cursor: pointer;
 }
 
+.diary-entry.is-hero {
+  padding: 12px;
+  border-radius: 14px;
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%),
+    color-mix(in srgb, var(--bg) 40%, transparent);
+}
+
 .diary-entry:hover {
-  border-color: rgba(232, 165, 75, 0.4);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
 }
 
 .diary-entry img {
@@ -2693,12 +2761,24 @@ html[data-bg-light="0"] .novel-card {
   background: var(--bg);
 }
 
+.diary-entry.is-hero img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+}
+
 .diary-entry-meta {
   min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.diary-hero-kicker {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--accent);
 }
 
 .diary-entry-title {
@@ -2709,6 +2789,11 @@ html[data-bg-light="0"] .novel-card {
   white-space: nowrap;
 }
 
+.diary-entry.is-hero .diary-entry-title {
+  font-size: 0.98rem;
+  font-weight: 720;
+}
+
 .diary-entry-sub {
   font-size: 0.72rem;
   color: var(--muted);
@@ -2717,7 +2802,7 @@ html[data-bg-light="0"] .novel-card {
   white-space: nowrap;
 }
 
-.diary-entry-time {
+.diary-entry-count {
   flex: 0 0 auto;
   font-size: 0.72rem;
   color: var(--dim);
@@ -2738,10 +2823,19 @@ html.theme-manga .mood-radio-btn {
   background: color-mix(in srgb, #e6dfd0 70%, transparent) !important;
 }
 
+html.theme-manga .diary-day-card,
 html.theme-manga .diary-entry {
   border: 2px solid #1a1612 !important;
   border-radius: 8px !important;
   box-shadow: 2px 2px 0 #1a1612;
+}
+
+html.theme-manga .diary-day-card {
+  background: color-mix(in srgb, #ebe4d6 52%, transparent) !important;
+}
+
+html.theme-manga .diary-entry {
+  background: color-mix(in srgb, #ebe4d6 42%, transparent) !important;
 }
 
 .rank-row {
