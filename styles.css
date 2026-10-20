@@ -5914,7 +5914,7 @@ html[data-bg-light="1"] .confirm-backdrop {
   margin-inline: auto;
 }
 
-/* —— 剧场：横版舞台（左封面唱片 + 右歌词 + 倒影） —— */
+/* —— 剧场：左封面+唱片+控件 / 右斜歌词 / 整幅封面底 —— */
 .theater-stage-left {
   grid-column: 1;
   z-index: 1;
@@ -5927,6 +5927,14 @@ html[data-bg-light="1"] .confirm-backdrop {
   pointer-events: none;
 }
 
+.theater-art-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
 .theater-vinyl,
 .theater-viz,
 .theater-reflect {
@@ -5934,7 +5942,10 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .player-window.is-view-theater .theater-vinyl,
-.player-window.is-view-theater .theater-viz,
+.player-window.is-view-theater .theater-viz {
+  display: block;
+}
+
 .player-window.is-view-theater .theater-reflect {
   display: block;
 }
@@ -5944,88 +5955,110 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .player-window.is-view-theater .player-board {
-  width: min(1280px, 100%);
+  width: min(1360px, 100%);
+}
+
+/* 整幅封面作背景（自定义封面同步） */
+.player-window.is-view-theater .player-ambient-img {
+  filter: saturate(1.08) brightness(0.78);
+  transform: scale(1.04);
+  opacity: 1;
+  object-fit: cover;
 }
 
 .player-window.is-view-theater .player-ambient-dim {
-  opacity: 0.34;
-  background:
-    linear-gradient(180deg, rgba(6, 10, 18, 0.28) 0%, rgba(6, 10, 18, 0.55) 58%, rgba(4, 8, 14, 0.78) 100%),
-    var(--lyric-wash, rgba(8, 12, 20, 0.55));
+  opacity: 0.42;
+  background: linear-gradient(
+    120deg,
+    rgba(4, 8, 16, 0.55) 0%,
+    rgba(4, 8, 16, 0.28) 46%,
+    rgba(4, 8, 16, 0.5) 100%
+  );
 }
 
 .player-window.is-view-theater .player {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.92fr) minmax(280px, 1.08fr);
-  grid-template-rows: minmax(0, 1fr) auto auto auto;
-  column-gap: clamp(18px, 3vw, 40px);
-  row-gap: 6px;
-  align-content: stretch;
-  padding-bottom: clamp(28px, 6vh, 56px);
+  position: relative;
+  display: block;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 .player-window.is-view-theater .stage {
-  grid-column: 1 / -1;
-  grid-row: 1;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 
 .player-window.is-view-theater .info {
-  grid-column: 1;
-  grid-row: 1;
-  align-self: start;
-  justify-self: start;
-  width: min(100%, 420px);
-  margin: clamp(8px, 1.6vh, 18px) 0 0 clamp(8px, 1.2vw, 18px);
-  z-index: 3;
+  position: absolute;
+  left: clamp(28px, 4.5vw, 64px);
+  top: clamp(12px, 2.4vh, 28px);
+  z-index: 5;
+  width: min(38vw, 420px);
+  margin: 0;
   text-align: left;
   pointer-events: none;
 }
 
 .player-window.is-view-theater .title {
-  font-size: clamp(1.35rem, 3.2vh, 2.05rem);
+  font-size: clamp(1.4rem, 3.4vh, 2.2rem);
   font-weight: 800;
   letter-spacing: 0.03em;
   color: var(--theater-ink);
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
 }
 
 .player-window.is-view-theater .artist {
-  margin-top: 4px;
-  font-size: clamp(0.86rem, 1.6vh, 1.05rem);
-  color: rgba(246, 243, 236, 0.78);
+  margin-top: 6px;
+  font-size: clamp(0.88rem, 1.7vh, 1.08rem);
+  color: rgba(246, 243, 236, 0.82);
 }
 
 .player-window.is-view-theater .progress {
-  grid-column: 1;
-  grid-row: 2;
-  width: min(100%, 420px);
-  margin: 0 0 0 clamp(8px, 1.2vw, 18px);
-  z-index: 3;
+  position: absolute;
+  left: clamp(28px, 4.5vw, 64px);
+  bottom: clamp(78px, 11vh, 110px);
+  z-index: 5;
+  width: min(360px, 34vw);
+  margin: 0;
+}
+
+.player-window.is-view-theater .seek-panels {
+  display: none !important;
 }
 
 .player-window.is-view-theater .modes {
-  display: none;
+  display: none !important;
 }
 
 .player-window.is-view-theater .controls {
-  grid-column: 1;
-  grid-row: 3;
-  width: min(100%, 420px);
-  margin: 0 0 0 clamp(8px, 1.2vw, 18px);
+  position: absolute;
+  left: clamp(28px, 4.5vw, 64px);
+  bottom: clamp(22px, 3.5vh, 40px);
+  z-index: 5;
+  width: min(360px, 34vw);
+  margin: 0;
+  padding: 0;
   justify-content: flex-start;
-  gap: 10px;
-  z-index: 3;
-  padding-bottom: 0;
-}
-
-.player-window.is-view-theater .controls-core {
   gap: 8px;
 }
 
+.player-window.is-view-theater .controls-core {
+  gap: 6px;
+}
+
+.player-window.is-view-theater .controls-side-right {
+  margin-left: auto;
+}
+
 .player-window.is-view-theater .player-queue {
-  grid-column: 1 / -1;
-  grid-row: 4;
+  position: absolute;
+  left: clamp(28px, 4.5vw, 64px);
+  right: clamp(28px, 4.5vw, 64px);
+  bottom: clamp(120px, 18vh, 160px);
+  z-index: 6;
 }
 
 .player-window.is-view-theater .stage.is-lyrics .lyrics-view {
@@ -6033,58 +6066,63 @@ html[data-bg-light="1"] .confirm-backdrop {
   max-width: none;
   height: 100%;
   max-height: none;
-  grid-template-columns: minmax(280px, 0.92fr) minmax(300px, 1.08fr);
-  column-gap: clamp(18px, 3vw, 40px);
-  padding: clamp(52px, 9vh, 96px) clamp(12px, 2vw, 28px) clamp(8px, 1.5vh, 18px);
+  display: grid;
+  grid-template-columns: minmax(300px, 42%) minmax(280px, 1fr);
+  column-gap: clamp(12px, 2vw, 28px);
   align-items: center;
+  padding: clamp(64px, 10vh, 100px) clamp(24px, 3.5vw, 56px) clamp(120px, 18vh, 160px);
   background: transparent;
+  border-radius: 0;
 }
 
+/* 剧场不用二次模糊层，避免洗白 */
 .player-window.is-view-theater .lyrics-ambient {
-  inset: -12%;
-}
-
-.player-window.is-view-theater .lyrics-ambient-img {
-  filter: blur(48px) saturate(1.35) brightness(0.72);
-  transform: scale(1.4);
-}
-
-.player-window.is-view-theater .lyrics-ambient-dim {
-  opacity: 0.28;
+  display: none;
 }
 
 .player-window.is-view-theater .theater-stage-left {
-  width: min(100%, 420px);
-  height: clamp(200px, 38vh, 360px);
-  justify-self: start;
-  margin-left: clamp(8px, 1.2vw, 18px);
-  margin-top: clamp(36px, 6vh, 72px);
+  width: 100%;
+  height: auto;
+  min-height: clamp(180px, 34vh, 300px);
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px;
+  margin: 0;
+  padding-top: clamp(28px, 5vh, 48px);
+}
+
+.player-window.is-view-theater .theater-art-row {
+  width: auto;
+  height: auto;
 }
 
 .player-window.is-view-theater .lyrics-art {
-  width: clamp(150px, 28vh, 250px);
-  height: clamp(150px, 28vh, 250px);
-  border-radius: 16px;
+  position: relative;
   z-index: 2;
-  margin-right: clamp(36px, 6vh, 64px);
+  width: clamp(148px, 26vh, 230px);
+  height: clamp(148px, 26vh, 230px);
+  flex: 0 0 auto;
+  border-radius: 14px;
+  margin: 0;
   box-shadow:
     0 16px 36px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
+    0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
-.theater-vinyl {
-  position: absolute;
-  right: 2%;
-  top: 50%;
-  width: clamp(150px, 28vh, 250px);
-  height: clamp(150px, 28vh, 250px);
-  transform: translateY(-50%);
+.player-window.is-view-theater .theater-vinyl {
+  position: relative;
   z-index: 1;
+  flex: 0 0 auto;
+  width: clamp(148px, 26vh, 230px);
+  height: clamp(148px, 26vh, 230px);
+  margin-left: calc(clamp(148px, 26vh, 230px) * -0.42);
   border-radius: 50%;
-  pointer-events: none;
+  transform: none;
 }
 
 .theater-vinyl-spin {
+  position: relative;
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -6107,8 +6145,8 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .theater-vinyl-cover {
-  width: 42%;
-  height: 42%;
+  width: 44%;
+  height: 44%;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid rgba(0, 0, 0, 0.35);
@@ -6125,23 +6163,18 @@ html[data-bg-light="1"] .confirm-backdrop {
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.35);
 }
 
-.theater-viz {
-  position: absolute;
-  left: 0;
-  right: clamp(48px, 10vh, 80px);
-  bottom: 4px;
-  height: 28px;
-  display: none;
+.player-window.is-view-theater .theater-viz {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  width: min(280px, 100%);
+  height: 26px;
+  display: flex;
   align-items: flex-end;
   justify-content: flex-start;
   gap: 3px;
-  z-index: 3;
-  opacity: 0.55;
-  pointer-events: none;
-}
-
-.player-window.is-view-theater .theater-viz {
-  display: flex;
+  opacity: 0.7;
 }
 
 .theater-viz span {
@@ -6150,7 +6183,6 @@ html[data-bg-light="1"] .confirm-backdrop {
   border-radius: 999px;
   background: linear-gradient(180deg, #7ef0ff, #ff8ec8);
   transform-origin: bottom center;
-  transition: height 0.15s ease;
 }
 
 .theater-viz.is-on span {
@@ -6172,13 +6204,21 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .player-window.is-view-theater .lyrics-side {
-  height: min(72vh, 520px);
+  height: min(68vh, 520px);
   max-height: none;
-  justify-self: stretch;
+  justify-self: center;
+  align-self: center;
   background: transparent;
   border: 0;
   backdrop-filter: none;
-  padding: clamp(12px, 2vh, 22px) clamp(8px, 1.5vw, 18px);
+  padding: clamp(8px, 1.5vh, 18px) clamp(8px, 1.5vw, 20px);
+  transform: perspective(1100px) rotateY(-14deg) rotateZ(-5deg);
+  transform-origin: center center;
+}
+
+.player-window.is-view-theater .lyrics-window {
+  mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
 }
 
 .player-window.is-view-theater .lyric-line {
@@ -6187,11 +6227,11 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
-  font-size: clamp(1.2rem, 2.6vh, 1.7rem);
+  font-size: clamp(1.22rem, 2.7vh, 1.75rem);
 }
 
 .player-window.is-view-theater .lyric-karaoke {
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5));
 }
 
 .player-window.is-view-theater #mvToggleBtn {
@@ -6203,19 +6243,17 @@ html[data-bg-light="1"] .confirm-backdrop {
   left: 0;
   right: 0;
   bottom: 0;
-  height: clamp(72px, 14vh, 130px);
+  height: clamp(88px, 16vh, 140px);
   pointer-events: none;
-  z-index: 2;
-  background:
-    linear-gradient(
-      180deg,
-      transparent 0%,
-      rgba(8, 14, 24, 0.18) 28%,
-      rgba(6, 12, 20, 0.55) 100%
-    );
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 45%, #000 100%);
-  mask-image: linear-gradient(180deg, transparent 0%, #000 45%, #000 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  z-index: 3;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(4, 10, 18, 0.22) 30%,
+    rgba(4, 10, 18, 0.62) 100%
+  );
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 42%, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 42%, #000 100%);
   overflow: hidden;
 }
 
@@ -6223,75 +6261,60 @@ html[data-bg-light="1"] .confirm-backdrop {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    repeating-linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.045) 0 1px,
-      transparent 1px 7px
-    );
-  opacity: 0.55;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05) 0 1px,
+    transparent 1px 8px
+  );
+  opacity: 0.5;
   mix-blend-mode: soft-light;
 }
 
 .theater-reflect::after {
   content: "";
   position: absolute;
-  left: 8%;
-  right: 8%;
-  top: 18%;
-  height: 55%;
+  left: 10%;
+  right: 10%;
+  top: 20%;
+  height: 50%;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.14), transparent 68%);
-  filter: blur(10px);
-  opacity: 0.65;
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.12), transparent 70%);
+  filter: blur(12px);
 }
 
-@media (max-width: 860px) {
-  .player-window.is-view-theater .player {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto auto auto auto;
-  }
-
-  .player-window.is-view-theater .stage {
-    grid-row: 1;
-  }
-
-  .player-window.is-view-theater .info {
-    grid-row: 2;
-    margin: 0;
-    width: 100%;
-  }
-
-  .player-window.is-view-theater .progress {
-    grid-row: 3;
-    margin: 0;
-    width: 100%;
-  }
-
-  .player-window.is-view-theater .controls {
-    grid-row: 4;
-    margin: 0;
-    width: 100%;
-    justify-content: space-between;
-  }
-
+@media (max-width: 900px) {
   .player-window.is-view-theater .stage.is-lyrics .lyrics-view {
     grid-template-columns: 1fr;
-    padding-top: 8px;
+    padding: 72px 18px 150px;
+    align-content: start;
+    row-gap: 10px;
   }
 
   .player-window.is-view-theater .theater-stage-left {
-    width: 100%;
-    margin: 0 auto;
-    height: clamp(160px, 28vh, 240px);
+    min-height: 0;
+    padding-top: 0;
   }
 
   .player-window.is-view-theater .lyrics-side {
-    height: clamp(160px, 30vh, 280px);
+    height: clamp(180px, 34vh, 300px);
+    transform: perspective(900px) rotateY(-6deg) rotateZ(-3deg);
+  }
+
+  .player-window.is-view-theater .info,
+  .player-window.is-view-theater .progress,
+  .player-window.is-view-theater .controls {
+    width: min(420px, calc(100% - 36px));
   }
 
   .player-window.is-view-theater .theater-vinyl {
-    right: 12%;
+    margin-left: calc(clamp(120px, 22vh, 180px) * -0.4);
+    width: clamp(120px, 22vh, 180px);
+    height: clamp(120px, 22vh, 180px);
+  }
+
+  .player-window.is-view-theater .lyrics-art {
+    width: clamp(120px, 22vh, 180px);
+    height: clamp(120px, 22vh, 180px);
   }
 }
 
@@ -6828,6 +6851,11 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .player-window:not(.is-view-theater) .theater-stage-left .lyrics-art {
+  width: 100%;
+  height: 100%;
+}
+
+.player-window:not(.is-view-theater) .theater-art-row {
   width: 100%;
   height: 100%;
 }
@@ -8512,22 +8540,37 @@ html.theme-manga .player-window:has(.stage.is-lyrics) .time-row {
 
 html.theme-manga .player-window.is-view-theater .title,
 html.theme-manga .player-window.is-view-theater .artist {
-  color: #1a1612;
-  text-shadow: none;
+  color: #fffaf2;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+}
+
+html.theme-manga .player-window.is-view-theater .player-ambient-img {
+  filter: saturate(0.9) brightness(0.72) !important;
+  opacity: 1 !important;
 }
 
 html.theme-manga .player-window.is-view-theater .player-ambient-dim {
-  opacity: 0.5;
-  background: rgba(247, 243, 234, 0.55) !important;
+  opacity: 0.4 !important;
+  background: linear-gradient(
+    120deg,
+    rgba(20, 14, 10, 0.55) 0%,
+    rgba(20, 14, 10, 0.28) 50%,
+    rgba(20, 14, 10, 0.5) 100%
+  ) !important;
 }
 
 html.theme-manga .player-window.is-view-theater .theater-reflect {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(247, 243, 234, 0.25) 35%,
-    rgba(235, 228, 214, 0.72) 100%
+    rgba(20, 14, 10, 0.28) 35%,
+    rgba(20, 14, 10, 0.7) 100%
   );
+}
+
+html.theme-manga .player-window.is-view-theater .lyric-line:not(.is-active) .lyric-karaoke,
+html.theme-manga .player-window.is-view-theater .lyric-line.is-near:not(.is-active) .lyric-karaoke {
+  color: rgba(255, 250, 242, 0.42);
 }
 
 html.theme-manga .lyric-line:not(.is-active) .lyric-karaoke,

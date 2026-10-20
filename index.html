@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03theater1" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03theater2" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -271,12 +271,14 @@
                   <div class="lyrics-ambient-dim"></div>
                 </div>
                 <div class="theater-stage-left" id="theaterStageLeft">
-                  <div class="lyrics-art" id="lyricsArt">
-                    <img class="lyrics-bg-img" id="lyricsBgImg" alt="" />
-                  </div>
-                  <div class="theater-vinyl" id="theaterVinyl" aria-hidden="true">
-                    <div class="theater-vinyl-spin">
-                      <img class="theater-vinyl-cover" id="theaterVinylCover" alt="" />
+                  <div class="theater-art-row">
+                    <div class="lyrics-art" id="lyricsArt">
+                      <img class="lyrics-bg-img" id="lyricsBgImg" alt="" />
+                    </div>
+                    <div class="theater-vinyl" id="theaterVinyl" aria-hidden="true">
+                      <div class="theater-vinyl-spin">
+                        <img class="theater-vinyl-cover" id="theaterVinylCover" alt="" />
+                      </div>
                     </div>
                   </div>
                   <div class="theater-viz" id="theaterViz" aria-hidden="true">
@@ -441,7 +443,7 @@
       <div class="cover-pick-layer" id="coverPickLayer" hidden>
         <div class="cover-pick-card" role="dialog" aria-modal="true" aria-labelledby="coverPickTitle">
           <h3 class="cover-pick-title" id="coverPickTitle">自定义封面</h3>
-          <p class="cover-pick-note">可选内置图、我上传的封面，或改回歌曲封面。上传后会出现在下方列表里，点选再保存。</p>
+          <p class="cover-pick-note">可选内置图、我上传的封面，或改回歌曲封面。剧场页会用作整幅背景与左侧封面；上传后点选再保存。</p>
           <div class="cover-pick-grid" id="coverPickGrid"></div>
           <div class="cover-pick-extra">
             <button type="button" class="cover-pick-extra-btn" id="coverPickUploadBtn">上传封面</button>
@@ -1172,6 +1174,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03listendrag1"></script>
-  <script src="app.js?v=2.0.03theater1"></script>
+  <script src="app.js?v=2.0.03theater2"></script>
 </body>
 </html>
