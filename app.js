@@ -5400,6 +5400,34 @@ function paintTheaterMotion(playing) {
   document.getElementById("theaterViz")?.classList.toggle("is-on", on);
 }
 
+function dockTheaterChrome(on) {
+  const dock = document.getElementById("theaterStageLeft");
+  const progress = document.getElementById("playerProgress");
+  const controls = document.getElementById("playerControls");
+  const player = document.querySelector("#playerBoard .player");
+  const modes = document.getElementById("modes");
+  if (!dock || !progress || !controls || !player || !modes) return;
+  if (on) {
+    dock.appendChild(progress);
+    dock.appendChild(controls);
+    dock.classList.add("has-chrome");
+  } else if (progress.parentElement === dock || controls.parentElement === dock) {
+    player.insertBefore(progress, modes);
+    player.insertBefore(controls, modes.nextSibling);
+    dock.classList.remove("has-chrome");
+  }
+  requestAnimationFrame(() => syncTheaterDockWidth());
+}
+
+function syncTheaterDockWidth() {
+  const win = document.getElementById("playerWindow");
+  const dock = document.getElementById("theaterStageLeft");
+  const art = dock?.querySelector(".theater-art-row");
+  if (!win?.classList.contains("is-view-theater") || !dock || !art) return;
+  const w = Math.ceil(art.getBoundingClientRect().width);
+  if (w > 0) dock.style.setProperty("--theater-dock-w", `${w}px`);
+}
+
 function setPlayerView(view) {
   const win = document.getElementById("playerWindow");
   if (!win) return;
@@ -5419,9 +5447,13 @@ function setPlayerView(view) {
     if (prev !== "theater") theaterRestoreLyrics = showLyrics;
     if (showMv) setMvMode(false);
     setLyricsMode(true);
+    dockTheaterChrome(true);
     paintTheaterMotion(!audio.paused);
-  } else if (prev === "theater" && next === "listen" && !theaterRestoreLyrics) {
-    setLyricsMode(false);
+  } else {
+    if (prev === "theater") dockTheaterChrome(false);
+    if (prev === "theater" && next === "listen" && !theaterRestoreLyrics) {
+      setLyricsMode(false);
+    }
   }
   if (next === "song") showPlayerComments();
   else if (commentsDocked) undockCommentsPanel();
@@ -5433,6 +5465,7 @@ function setPlayerView(view) {
   requestAnimationFrame(() => {
     if (typeof fitPlayerBoard === "function") fitPlayerBoard();
     if (showLyrics) syncLyrics();
+    syncTheaterDockWidth();
   });
 }
 
@@ -5454,6 +5487,9 @@ function bindPlayerViews() {
     saved = "listen";
   }
   setPlayerView(saved);
+  window.addEventListener("resize", () => {
+    if (currentPlayerView() === "theater") syncTheaterDockWidth();
+  });
 }
 
 bindPlayerViews();
@@ -5587,6 +5623,9 @@ function applyLyricsSideCover(song) {
   paint(els.lyricsAmbientImg);
   paint(document.getElementById("theaterVinylCover"));
   if (url) applyPlayerAtmosphere(url);
+  if (currentPlayerView() === "theater") {
+    requestAnimationFrame(() => syncTheaterDockWidth());
+  }
 }
 
 function closeCoverPicker() {

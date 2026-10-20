@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03theater2" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03theater3" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -363,7 +363,7 @@
               <p class="artist" id="artist">—</p>
             </div>
 
-            <div class="progress">
+            <div class="progress" id="playerProgress">
               <div class="seek-wrap" id="seekWrap">
                 <div class="seek-panels" id="seekPanels" aria-hidden="true"></div>
                 <div class="seek-track">
@@ -400,7 +400,7 @@
               <button type="button" class="mode-btn" data-mode="shuffle">随机</button>
             </div>
 
-            <div class="controls">
+            <div class="controls" id="playerControls">
               <button type="button" class="ctrl-side player-like" id="playerLike" aria-label="喜欢" title="喜欢"></button>
               <div class="controls-core">
                 <button class="ctrl" id="prevBtn" type="button" aria-label="上一首">
@@ -1174,6 +1174,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03listendrag1"></script>
-  <script src="app.js?v=2.0.03theater2"></script>
+  <script src="app.js?v=2.0.03theater3"></script>
 </body>
 </html>
