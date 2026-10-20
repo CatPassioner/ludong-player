@@ -5986,8 +5986,11 @@ html[data-bg-light="1"] .confirm-backdrop {
 .player-window.is-view-theater .player {
   position: relative;
   display: block;
+  width: 100%;
+  max-width: none;
   height: 100%;
   min-height: 0;
+  margin: 0;
   padding: 0;
   overflow: visible;
 }
@@ -5996,6 +5999,12 @@ html[data-bg-light="1"] .confirm-backdrop {
   position: absolute;
   inset: 0;
   z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: visible;
+  place-items: stretch;
+  background: transparent;
 }
 
 /* 歌名/歌手：贴窗口左侧，上下保持顶栏下 */
@@ -6104,33 +6113,38 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   z-index: 8;
 }
 
-/* 舞台铺满；左侧坞与右侧歌词绝对定位 */
+/* 舞台铺满：去掉听歌页那张居中卡片壳，避免封面半截露在「小边界」外 */
 .player-window.is-view-theater .stage.is-lyrics .lyrics-view {
+  position: absolute !important;
+  inset: 0 !important;
   width: 100% !important;
   max-width: none !important;
-  height: 100%;
-  max-height: none;
-  display: block;
+  height: 100% !important;
+  max-height: none !important;
+  display: block !important;
   margin: 0 !important;
   padding: 0 !important;
-  background: transparent;
-  border-radius: 0;
-  left: 0;
-  right: 0;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  isolation: auto;
+  cursor: default;
 }
 
 .player-window.is-view-theater .lyrics-ambient {
   display: none;
 }
 
-/* 封面+唱片+控件：只水平左移，上下保持 46% */
+/* 封面+唱片+控件：贴窗口左侧；上下仍 46%，不改 */
 .player-window.is-view-theater .theater-stage-left {
-  position: absolute !important;
-  left: 12px !important;
+  position: fixed !important;
+  left: 20px !important;
   right: auto !important;
   top: 46% !important;
   bottom: auto !important;
-  z-index: 8;
+  z-index: 46;
   width: max-content;
   max-width: min(480px, 46vw);
   height: auto;
@@ -6330,25 +6344,29 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   height: min(72vh, 560px);
   margin: 0;
   padding: 18px 10px 18px 20px;
-  background: transparent;
-  border: 0;
-  backdrop-filter: none;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   transform: translateY(-50%);
   transform-origin: center right;
   z-index: 4;
-  overflow: hidden;
+  overflow: visible;
 }
 
+/* 只在歌词侧留极淡渐隐，不再画一整块圆角玻璃卡片 */
 .player-window.is-view-theater .lyrics-side::before {
   content: "";
   position: absolute;
-  inset: 8% 0 8% 18%;
-  border-radius: 28px;
+  inset: 0;
+  border-radius: 0;
   background: linear-gradient(
-    100deg,
+    90deg,
     transparent 0%,
-    rgba(8, 10, 16, 0.18) 36%,
-    rgba(8, 10, 16, 0.28) 100%
+    rgba(8, 10, 16, 0.1) 55%,
+    rgba(8, 10, 16, 0.2) 100%
   );
   pointer-events: none;
   z-index: 0;
@@ -6494,14 +6512,14 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 @media (max-width: 900px) {
   .player-window.is-view-theater .info {
     left: 12px;
-    top: 4px;
+    top: 52px;
   }
 
   .player-window.is-view-theater .theater-stage-left {
-    left: -20px !important;
-    top: 48% !important;
+    left: 12px !important;
+    top: 46% !important;
     bottom: auto !important;
-    max-width: min(400px, calc(100vw + 12px));
+    max-width: min(400px, calc(100vw - 24px));
     transform: translateY(-50%) !important;
   }
 
@@ -8780,9 +8798,18 @@ html.theme-manga .player-window:has(.stage.is-lyrics) .time-row {
 }
 
 html.theme-manga .player-window.is-view-theater .title,
-html.theme-manga .player-window.is-view-theater .artist {
+html.theme-manga .player-window.is-view-theater .artist,
+html.theme-manga .player-window.is-view-theater:has(.stage.is-lyrics) .title,
+html.theme-manga .player-window.is-view-theater:has(.stage.is-lyrics) .artist {
   color: #fffaf2;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+}
+
+html.theme-manga .player-window.is-view-theater .lyrics-side {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 html.theme-manga .player-window.is-view-theater .player-ambient-img {
