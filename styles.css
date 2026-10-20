@@ -1243,6 +1243,14 @@ html[data-shell-bg="1"][data-shell-ink="dark"] .app > .now-card {
   background: color-mix(in srgb, var(--bg-soft) 88%, transparent);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12);
   pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.listen-together-chip.is-dragging {
+  cursor: grabbing;
+  opacity: 0.96;
 }
 
 .listen-together-chip[hidden] {
@@ -1311,6 +1319,7 @@ html[data-shell-bg="1"][data-shell-ink="dark"] .app > .now-card {
   color: var(--muted);
   font-size: 0.72rem;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .listen-together-end:hover {

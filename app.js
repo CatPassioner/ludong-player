@@ -6228,6 +6228,9 @@ async function playAt(index) {
 
     await audio.play();
     setHint("");
+    if (changing && listenTogetherActive && !listenTogetherApplying) {
+      pushListenTogetherSongChange(song).catch(() => {});
+    }
   } catch (err) {
     setPlaying(false);
     setHint(playFailHint(song, err), true);
@@ -9555,6 +9558,8 @@ function updateListenTogetherBar() {
   if (avatarA) avatarA.src = listenTogetherAvatarOf(active.hostId);
   if (avatarB) avatarB.src = listenTogetherAvatarOf(active.guestId);
   startListenTogetherClock(active);
+  restoreListenTogetherChipPos();
+  bindListenTogetherChipDrag();
 }
 
 async function ensureListenTogetherSong(session) {
@@ -9656,6 +9661,136 @@ async function pushListenTogetherPlayback({ bumpSeek = false } = {}) {
   }
 }
 
+async function pushListenTogetherSongChange(song) {
+  const session = listenTogetherActive;
+  if (!session || session.status !== "active" || listenTogetherApplying) return;
+  if (!window.LudongCloud?.pushListenTogetherState) return;
+  if (!song?.cloud || !song.cloudId) {
+    setHint("一起听切歌请用云端歌曲，对方才能跟着听", true);
+    return;
+  }
+  const audioUrl = (await resolvePlayUrl(song)) || song.url || "";
+  if (!audioUrl || String(audioUrl).startsWith("blob:")) {
+    setHint("这首歌没有可同步的地址", true);
+    return;
+  }
+  listenTogetherLastPushAt = Date.now();
+  try {
+    const next = await window.LudongCloud.pushListenTogetherState(session.id, {
+      songKey: song.id,
+      cloudSongId: song.cloudId,
+      songTitle: song.title,
+      songArtist: song.artist,
+      songCover: song.cover,
+      audioUrl,
+      playing: true,
+      positionMs: 0,
+      bumpSeek: true,
+      seekSeq: session.seekSeq
+    });
+    if (next) {
+      listenTogetherActive = next;
+      listenTogetherLastSeekSeq = next.seekSeq;
+      updateListenTogetherBar();
+    }
+  } catch (err) {
+    setHint(err?.message || "切歌同步失败", true);
+  }
+}
+
+const LISTEN_TOGETHER_POS_KEY = "ludong-listen-together-pos-v1";
+
+function clampListenTogetherChip(chip, left, top) {
+  const board = chip.offsetParent || chip.parentElement;
+  const boardW = board?.clientWidth || window.innerWidth;
+  const boardH = board?.clientHeight || window.innerHeight;
+  const w = chip.offsetWidth || 220;
+  const h = chip.offsetHeight || 48;
+  return {
+    left: Math.max(8, Math.min(left, boardW - w - 8)),
+    top: Math.max(8, Math.min(top, boardH - h - 8))
+  };
+}
+
+function restoreListenTogetherChipPos() {
+  const chip = document.getElementById("listenTogetherBar");
+  if (!chip) return;
+  try {
+    const raw = JSON.parse(localStorage.getItem(LISTEN_TOGETHER_POS_KEY) || "null");
+    if (!raw || !Number.isFinite(raw.left) || !Number.isFinite(raw.top)) return;
+    const pos = clampListenTogetherChip(chip, raw.left, raw.top);
+    chip.style.left = `${pos.left}px`;
+    chip.style.top = `${pos.top}px`;
+    chip.style.right = "auto";
+  } catch {
+    /* ignore */
+  }
+}
+
+function bindListenTogetherChipDrag() {
+  const chip = document.getElementById("listenTogetherBar");
+  if (!chip || chip.dataset.dragBound === "1") return;
+  chip.dataset.dragBound = "1";
+  let dragging = false;
+  let moved = false;
+  let grabX = 0;
+  let grabY = 0;
+  chip.addEventListener("pointerdown", (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (e.target.closest?.("button")) return;
+    const board = chip.offsetParent || chip.parentElement;
+    if (!board) return;
+    const chipRect = chip.getBoundingClientRect();
+    const boardRect = board.getBoundingClientRect();
+    dragging = true;
+    moved = false;
+    grabX = e.clientX - chipRect.left;
+    grabY = e.clientY - chipRect.top;
+    chip.classList.add("is-dragging");
+    chip.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+  });
+  chip.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const board = chip.offsetParent || chip.parentElement;
+    if (!board) return;
+    const boardRect = board.getBoundingClientRect();
+    const left = e.clientX - boardRect.left - grabX;
+    const top = e.clientY - boardRect.top - grabY;
+    const pos = clampListenTogetherChip(chip, left, top);
+    if (Math.abs(pos.left - (parseFloat(chip.style.left) || 0)) > 1 || Math.abs(pos.top - (parseFloat(chip.style.top) || 0)) > 1) {
+      moved = true;
+    }
+    chip.style.left = `${pos.left}px`;
+    chip.style.top = `${pos.top}px`;
+    chip.style.right = "auto";
+  });
+  const endDrag = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    chip.classList.remove("is-dragging");
+    try {
+      chip.releasePointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    if (!moved) return;
+    try {
+      localStorage.setItem(
+        LISTEN_TOGETHER_POS_KEY,
+        JSON.stringify({
+          left: parseFloat(chip.style.left) || 0,
+          top: parseFloat(chip.style.top) || 0
+        })
+      );
+    } catch {
+      /* ignore */
+    }
+  };
+  chip.addEventListener("pointerup", endDrag);
+  chip.addEventListener("pointercancel", endDrag);
+}
+
 function showListenTogetherInvite(session) {
   const layer = document.getElementById("listenTogetherInviteLayer");
   const msg = document.getElementById("listenTogetherInviteMsg");
@@ -9696,16 +9831,16 @@ async function refreshListenTogetherInbox() {
   listenTogetherPending = [...pendingFromMe, ...pendingToMe];
   if (active) {
     const prev = listenTogetherActive;
+    const songChanged = !prev || active.songKey !== prev.songKey || active.cloudSongId !== prev.cloudSongId;
     const changed =
-      !prev ||
-      active.id !== prev.id ||
-      active.seekSeq !== prev.seekSeq ||
-      active.playing !== prev.playing ||
-      active.songKey !== prev.songKey ||
-      Math.abs((active.positionMs || 0) - (prev.positionMs || 0)) > 1200;
+      songChanged ||
+      active.id !== prev?.id ||
+      active.seekSeq !== prev?.seekSeq ||
+      active.playing !== prev?.playing ||
+      Math.abs((active.positionMs || 0) - (prev?.positionMs || 0)) > 1200;
     if (changed && active.updatedBy !== me) {
       await applyListenTogetherSession(active, {
-        forceSeek: !prev || active.seekSeq !== listenTogetherLastSeekSeq
+        forceSeek: songChanged || !prev || active.seekSeq !== listenTogetherLastSeekSeq
       });
     } else {
       listenTogetherActive = active;
