@@ -16,11 +16,15 @@ create table if not exists public.listen_together_sessions (
   playing boolean not null default false,
   position_ms integer not null default 0,
   seek_seq integer not null default 0,
+  started_at timestamptz,
   updated_by uuid references public.profiles (id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (host_id <> guest_id)
 );
+
+alter table public.listen_together_sessions
+  add column if not exists started_at timestamptz;
 
 create index if not exists listen_together_host_status_idx
   on public.listen_together_sessions (host_id, status, updated_at desc);

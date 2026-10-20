@@ -46,7 +46,7 @@ python desktop_app.py
 
 云端听歌白名单（创世神管理员）：执行 `supabase_cloud_listen_acl.sql`。限制开启后，未勾选好友只能听自己上传的云端歌。
 
-一起听（好友邀请同步播放）：执行 `supabase_listen_together.sql`。目前建议用云端歌曲发起，对方才能跟着听。
+一起听（好友邀请同步播放）：执行 `supabase_listen_together.sql`（若已执行过旧版，再跑一遍即可补上 `started_at`）。目前建议用云端歌曲发起，对方才能跟着听。
 
 ## 如何导入音乐
 

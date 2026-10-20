@@ -2691,6 +2691,7 @@
       playing: !!row.playing,
       positionMs: Math.max(0, Math.round(Number(row.position_ms) || 0)),
       seekSeq: Math.max(0, Math.round(Number(row.seek_seq) || 0)),
+      startedAt: row.started_at || "",
       updatedBy: String(row.updated_by || ""),
       createdAt: row.created_at || "",
       updatedAt: row.updated_at || ""
@@ -2822,15 +2823,31 @@
           });
         }
       }
-      const patched = await rest(`listen_together_sessions?id=eq.${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        body: {
-          status: accept ? "active" : "rejected",
-          updated_by: me,
-          updated_at: new Date().toISOString()
-        },
-        prefer: "return=representation"
-      });
+      const body = {
+        status: accept ? "active" : "rejected",
+        updated_by: me,
+        updated_at: new Date().toISOString()
+      };
+      if (accept) body.started_at = new Date().toISOString();
+      let patched;
+      try {
+        patched = await rest(`listen_together_sessions?id=eq.${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          body,
+          prefer: "return=representation"
+        });
+      } catch (err) {
+        if (accept && /started_at/i.test(String(err?.message || ""))) {
+          delete body.started_at;
+          patched = await rest(`listen_together_sessions?id=eq.${encodeURIComponent(id)}`, {
+            method: "PATCH",
+            body,
+            prefer: "return=representation"
+          });
+        } else {
+          throw err;
+        }
+      }
       const next = Array.isArray(patched) ? patched[0] : patched;
       return mapListenTogetherSession(next);
     } catch (err) {

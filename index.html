@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03listen1" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03listenchip1" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -227,6 +227,18 @@
             </div>
           </header>
 
+          <div class="listen-together-chip" id="listenTogetherBar" hidden>
+            <div class="listen-together-avatars" aria-hidden="true">
+              <img id="listenTogetherAvatarA" alt="" />
+              <img id="listenTogetherAvatarB" alt="" />
+            </div>
+            <div class="listen-together-chip-meta">
+              <span class="listen-together-bar-text" id="listenTogetherBarText">正在一起听</span>
+              <span class="listen-together-time" id="listenTogetherTime">已一起听 00:00</span>
+            </div>
+            <button type="button" class="listen-together-end" id="listenTogetherEndBtn">结束</button>
+          </div>
+
           <main class="player">
             <div class="stage" id="stage">
               <div class="disc-view" id="discView">
@@ -377,10 +389,6 @@
                 <button type="button" class="ctrl-side player-queue-btn" id="listenTogetherBtn" aria-label="一起听" title="一起听">一起听</button>
                 <button type="button" class="ctrl-side player-queue-btn" id="playerQueueBtn" aria-label="播放歌单" title="播放歌单">歌单</button>
               </div>
-            </div>
-            <div class="listen-together-bar" id="listenTogetherBar" hidden>
-              <span class="listen-together-bar-text" id="listenTogetherBarText">正在一起听</span>
-              <button type="button" class="listen-together-end" id="listenTogetherEndBtn">结束</button>
             </div>
 
             <div class="player-queue" id="playerQueue" hidden>
@@ -1120,7 +1128,7 @@
     };
   </script>
   <script src="cloud-config.js"></script>
-  <script src="cloud-comments.js?v=2.0.03listen1"></script>
-  <script src="app.js?v=2.0.03listen1"></script>
+  <script src="cloud-comments.js?v=2.0.03listenchip1"></script>
+  <script src="app.js?v=2.0.03listenchip1"></script>
 </body>
 </html>

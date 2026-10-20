@@ -9423,6 +9423,7 @@ document.getElementById("playerQueueList")?.addEventListener("click", (e) => {
 });
 
 let listenTogetherTimer = 0;
+let listenTogetherClockTimer = 0;
 let listenTogetherActive = null;
 let listenTogetherPending = [];
 let listenTogetherShownInviteId = "";
@@ -9430,6 +9431,8 @@ let listenTogetherApplying = false;
 let listenTogetherLastPushAt = 0;
 let listenTogetherFriendCache = [];
 let listenTogetherLastSeekSeq = -1;
+let listenTogetherStartedAtMs = 0;
+let listenTogetherClockSessionId = "";
 
 function clearListenTogetherLocal() {
   listenTogetherActive = null;
@@ -9437,6 +9440,9 @@ function clearListenTogetherLocal() {
   listenTogetherShownInviteId = "";
   listenTogetherLastSeekSeq = -1;
   listenTogetherFriendCache = [];
+  listenTogetherStartedAtMs = 0;
+  listenTogetherClockSessionId = "";
+  stopListenTogetherClock();
   const bar = document.getElementById("listenTogetherBar");
   if (bar) bar.hidden = true;
   document.getElementById("listenTogetherBtn")?.classList.remove("is-on");
@@ -9447,6 +9453,57 @@ function clearListenTogetherLocal() {
   }
   const pick = document.getElementById("listenTogetherPickLayer");
   if (pick) pick.hidden = true;
+}
+
+function stopListenTogetherClock() {
+  if (listenTogetherClockTimer) {
+    clearInterval(listenTogetherClockTimer);
+    listenTogetherClockTimer = 0;
+  }
+}
+
+function formatListenTogetherElapsed(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function listenTogetherAvatarOf(userId) {
+  const me = window.LudongCloud?.getActiveUserId?.() || "";
+  if (userId && userId === me) {
+    return els.navAvatar?.src || window.LudongCloud?.getAvatar?.() || "./logo.jpg";
+  }
+  const hit = listenTogetherFriendCache.find((f) => f.id === userId);
+  return hit?.avatarUrl || "./logo.jpg";
+}
+
+function syncListenTogetherClock() {
+  const el = document.getElementById("listenTogetherTime");
+  if (!el) return;
+  if (!listenTogetherActive || !listenTogetherStartedAtMs) {
+    el.textContent = "已一起听 00:00";
+    return;
+  }
+  el.textContent = `已一起听 ${formatListenTogetherElapsed(Date.now() - listenTogetherStartedAtMs)}`;
+}
+
+function startListenTogetherClock(session) {
+  const id = String(session?.id || "");
+  const fromServer = Date.parse(session?.startedAt || "");
+  if (fromServer) {
+    listenTogetherStartedAtMs = fromServer;
+  } else if (!listenTogetherStartedAtMs || listenTogetherClockSessionId !== id) {
+    listenTogetherStartedAtMs = Date.parse(session?.updatedAt || "") || Date.now();
+  }
+  listenTogetherClockSessionId = id;
+  stopListenTogetherClock();
+  syncListenTogetherClock();
+  listenTogetherClockTimer = setInterval(syncListenTogetherClock, 1000);
 }
 
 function stopListenTogetherPoll() {
@@ -9476,15 +9533,28 @@ function updateListenTogetherBar() {
   const bar = document.getElementById("listenTogetherBar");
   const text = document.getElementById("listenTogetherBarText");
   const btn = document.getElementById("listenTogetherBtn");
+  const avatarA = document.getElementById("listenTogetherAvatarA");
+  const avatarB = document.getElementById("listenTogetherAvatarB");
   const active = listenTogetherActive;
-  if (btn) btn.classList.toggle("is-on", !!(active || listenTogetherPending.some((s) => s.hostId === (window.LudongCloud?.getActiveUserId?.() || ""))));
+  const me = window.LudongCloud?.getActiveUserId?.() || "";
+  if (btn) {
+    btn.classList.toggle(
+      "is-on",
+      !!(active || listenTogetherPending.some((s) => s.hostId === me))
+    );
+  }
   if (!bar || !text) return;
   if (!active) {
     bar.hidden = true;
+    stopListenTogetherClock();
+    listenTogetherStartedAtMs = 0;
     return;
   }
   bar.hidden = false;
-  text.textContent = `正在和 ${listenTogetherPeerName(active)} 一起听 · ${active.songTitle || "歌曲"}`;
+  text.textContent = `和 ${listenTogetherPeerName(active)} · ${active.songTitle || "歌曲"}`;
+  if (avatarA) avatarA.src = listenTogetherAvatarOf(active.hostId);
+  if (avatarB) avatarB.src = listenTogetherAvatarOf(active.guestId);
+  startListenTogetherClock(active);
 }
 
 async function ensureListenTogetherSong(session) {
