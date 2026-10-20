@@ -5462,6 +5462,43 @@ function syncTheaterDockWidth() {
   }
 }
 
+/** 剧场独立常驻面：封面+歌词始终在，不走「点封面切换歌词」 */
+function ensureTheaterSurface() {
+  if (currentPlayerView() !== "theater") return;
+  clearCoverPlane();
+  els.stage?.classList.add("is-lyrics");
+  els.stage?.classList.remove("is-mv");
+  if (showMv) setMvMode(false);
+  showLyrics = true;
+  if (els.lyricsView) {
+    els.lyricsView.hidden = false;
+    els.lyricsView.removeAttribute("hidden");
+  }
+  if (els.lyricsSide) els.lyricsSide.hidden = false;
+  if (els.lyricsArt) els.lyricsArt.hidden = false;
+  dockTheaterChrome(true);
+  const song = playlist[currentIndex];
+  if (song) {
+    applyLyricsSideCover(song);
+    loadLyricsForSong(song);
+  }
+  startLyricsLoop();
+  paintTheaterMotion(!audio.paused);
+  requestAnimationFrame(() => {
+    syncTheaterDockWidth();
+    if (lyricLines.length) {
+      const t = mediaClock().currentTime || 0;
+      let idx = 0;
+      for (let i = 0; i < lyricLines.length; i++) {
+        if (lyricLines[i].time <= t + 0.28) idx = i;
+        else break;
+      }
+      scrollToLyric(idx, { instant: true });
+    }
+    syncLyrics();
+  });
+}
+
 function setPlayerView(view) {
   const win = document.getElementById("playerWindow");
   if (!win) return;
@@ -5479,26 +5516,7 @@ function setPlayerView(view) {
   if (focus) focus.hidden = true;
   if (next === "theater") {
     if (prev !== "theater") theaterRestoreLyrics = showLyrics;
-    if (showMv) setMvMode(false);
-    clearCoverPlane();
-    // 先挂 is-lyrics，立刻藏听歌页大唱片，避免和剧场封面叠在一起闪一帧
-    els.stage?.classList.add("is-lyrics");
-    setLyricsMode(true);
-    dockTheaterChrome(true);
-    paintTheaterMotion(!audio.paused);
-    requestAnimationFrame(() => {
-      syncTheaterDockWidth();
-      if (lyricLines.length) {
-        const t = mediaClock().currentTime || 0;
-        let idx = 0;
-        for (let i = 0; i < lyricLines.length; i++) {
-          if (lyricLines[i].time <= t + 0.28) idx = i;
-          else break;
-        }
-        scrollToLyric(idx, { instant: true });
-        syncLyrics();
-      }
-    });
+    ensureTheaterSurface();
   } else {
     if (prev === "theater") dockTheaterChrome(false);
     if (prev === "theater" && next === "listen" && !theaterRestoreLyrics) {
@@ -5562,11 +5580,18 @@ function openPlayerWindow() {
   document.body.style.overflow = "hidden";
   const win = document.getElementById("playerWindow");
   if (win?.classList.contains("is-view-song")) showPlayerComments();
+  // 剧场是独立界面：重开播放器时直接恢复，不必再点封面
+  if (currentPlayerView() === "theater") {
+    ensureTheaterSurface();
+  }
   requestAnimationFrame(() => {
     fitPlayerBoard();
     requestAnimationFrame(fitPlayerBoard);
+    if (currentPlayerView() === "theater") syncTheaterDockWidth();
   });
-  if (showMv && els.mvVideo?.getAttribute("data-src")) {
+  if (currentPlayerView() === "theater") {
+    /* lyrics loop started in ensureTheaterSurface */
+  } else if (showMv && els.mvVideo?.getAttribute("data-src")) {
     paintMvChrome();
     if (resumeMvOnOpen && els.mvVideo.paused) {
       els.mvVideo.play().catch(() => {});
@@ -5586,7 +5611,10 @@ function closePlayerWindow() {
     resumeMvOnOpen = !video.paused;
   } else {
     resumeMvOnOpen = false;
-    setLyricsMode(false);
+    // 剧场模式不要清歌词态，否则下次打开只剩封面、歌词没了
+    if (currentPlayerView() !== "theater") {
+      setLyricsMode(false);
+    }
   }
   els.playerLayer.classList.remove("is-open");
   els.playerLayer.setAttribute("aria-hidden", "true");
@@ -6253,6 +6281,8 @@ function setMvMode(on) {
 }
 
 function setLyricsMode(on) {
+  // 剧场不走「听歌页点封面切换歌词」；禁止在剧场里被关掉
+  if (!on && currentPlayerView() === "theater") return;
   showLyrics = !!on;
   els.stage.classList.toggle("is-lyrics", showLyrics);
   if (showLyrics) {
@@ -6260,7 +6290,7 @@ function setLyricsMode(on) {
     applyLyricsSideCover(playlist[currentIndex]);
     syncLyrics(true);
     startLyricsLoop();
-    if (els.mvToggleBtn) els.mvToggleBtn.hidden = false;
+    if (els.mvToggleBtn) els.mvToggleBtn.hidden = currentPlayerView() === "theater" ? true : false;
     if (showMv) applyMvForSong(playlist[currentIndex]);
     else paintMvChrome();
   } else {
@@ -8605,9 +8635,12 @@ document.addEventListener("keydown", (e) => {
 els.prevBtn.addEventListener("click", () => playAt(prevIndex()));
 els.nextBtn.addEventListener("click", () => playAt(nextIndex()));
 
-els.disc.addEventListener("click", () => setLyricsMode(true));
+els.disc.addEventListener("click", () => {
+  if (currentPlayerView() === "theater") return;
+  setLyricsMode(true);
+});
 
-// 点封面/空白返回唱片；歌词区内可滑动浏览，点某一句才跳进度
+// 听歌页：点封面/空白返回唱片；剧场：封面不切换，只允许点歌词句跳转
 els.lyricsView?.addEventListener("click", (e) => {
   const line = e.target.closest(".lyric-line");
   if (line) {
@@ -8622,9 +8655,20 @@ els.lyricsView?.addEventListener("click", (e) => {
     syncLyrics();
     return;
   }
+  if (currentPlayerView() === "theater") {
+    e.stopPropagation();
+    return;
+  }
   if (e.target.closest(".lyrics-side")) return;
-  if (currentPlayerView() === "theater") return;
   setLyricsMode(false);
+});
+
+document.getElementById("theaterStageLeft")?.addEventListener("click", (e) => {
+  if (currentPlayerView() !== "theater") return;
+  // 剧场封面/控件区：不触发任何「切换歌词/唱片」
+  if (!e.target.closest("button, a, input, .seek-wrap, .progress, .controls")) {
+    e.stopPropagation();
+  }
 });
 
 els.mvView?.addEventListener("click", (e) => {

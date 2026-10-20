@@ -5952,7 +5952,7 @@ html[data-bg-light="1"] .confirm-backdrop {
 
 .player-window.is-view-theater {
   --theater-ink: #f6f3ec;
-  --theater-dock-left: clamp(56px, 7.5vw, 110px);
+  --theater-dock-left: clamp(72px, 9vw, 140px);
 }
 
 .player-window.is-view-theater .player-fit {
@@ -6147,12 +6147,13 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   display: none;
 }
 
-/* 封面+唱片+控件：右移离边，整列垂直居中 */
+/* 封面+唱片+控件：右移离边，相对视口垂直居中（剧场常驻，不靠点封面切换） */
 .player-window.is-view-theater .theater-stage-left {
   position: fixed !important;
+  display: flex !important;
   left: var(--theater-dock-left) !important;
   right: auto !important;
-  top: 50% !important;
+  top: 50vh !important;
   bottom: auto !important;
   z-index: 46;
   width: max-content;
@@ -6168,6 +6169,13 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   pointer-events: auto;
   transform: translateY(-50%) !important;
   grid-column: auto;
+  cursor: default;
+}
+
+.player-window.is-view-theater .lyrics-art,
+.player-window.is-view-theater .theater-vinyl {
+  cursor: default;
+  pointer-events: none;
 }
 
 .player-window.is-view-theater .theater-art-row {
@@ -6581,7 +6589,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   }
 
   .player-window.is-view-theater .theater-stage-left {
-    top: 50% !important;
+    top: 50vh !important;
     bottom: auto !important;
     max-width: min(400px, calc(100vw - 24px));
     transform: translateY(-50%) !important;
