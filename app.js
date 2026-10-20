@@ -4156,7 +4156,9 @@ function fallbackDiaryQuote(dayKey, hero) {
 async function ensureDiaryQuoteForDay(dayKey, hero) {
   if (!dayKey || !hero) return fallbackDiaryQuote(dayKey, hero);
   const meta = readListenDiaryMeta()[dayKey];
-  if (meta?.quote && meta?.quoteKey) {
+  const lockedLyric =
+    meta?.quote && meta?.quoteKey && String(meta.quoteKey).startsWith("lyric:");
+  if (lockedLyric) {
     return {
       quote: String(meta.quote),
       quoteFrom: String(meta.quoteFrom || ""),
