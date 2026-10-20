@@ -522,7 +522,7 @@ html[data-shell-bg="1"][data-shell-ink="dark"] .app > .now-card {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-right: 2px;
+  padding: 2px 4px 2px 6px;
 }
 
 .nav-item {
@@ -7750,9 +7750,14 @@ html.theme-manga .nav-settings-btn {
   box-shadow: 2px 2px 0 #1a1612;
 }
 
+html.theme-manga .nav-list {
+  padding: 3px 6px 3px 8px;
+}
+
 html.theme-manga .nav-item.is-active {
   background: rgba(26, 22, 18, 0.08);
   outline: 2px solid #1a1612;
+  outline-offset: -2px;
 }
 
 html.theme-manga .nav-avatar {
