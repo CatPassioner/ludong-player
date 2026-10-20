@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03queuegap1" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03listen1" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -374,8 +374,13 @@
                 </button>
               </div>
               <div class="controls-side-right">
+                <button type="button" class="ctrl-side player-queue-btn" id="listenTogetherBtn" aria-label="一起听" title="一起听">一起听</button>
                 <button type="button" class="ctrl-side player-queue-btn" id="playerQueueBtn" aria-label="播放歌单" title="播放歌单">歌单</button>
               </div>
+            </div>
+            <div class="listen-together-bar" id="listenTogetherBar" hidden>
+              <span class="listen-together-bar-text" id="listenTogetherBarText">正在一起听</span>
+              <button type="button" class="listen-together-end" id="listenTogetherEndBtn">结束</button>
             </div>
 
             <div class="player-queue" id="playerQueue" hidden>
@@ -435,6 +440,27 @@
       <div class="playlist-pick-title" id="playlistPickTitle">保存到歌单</div>
       <div class="playlist-pick-list" id="playlistPickList"></div>
       <button type="button" class="playlist-pick-cancel" id="playlistPickCancel">取消</button>
+    </div>
+  </div>
+
+  <div class="playlist-pick-layer" id="listenTogetherPickLayer" hidden>
+    <div class="playlist-pick-card" role="dialog" aria-modal="true" aria-labelledby="listenTogetherPickTitle">
+      <div class="playlist-pick-title" id="listenTogetherPickTitle">邀请好友一起听</div>
+      <p class="listen-together-pick-note" id="listenTogetherPickNote">选择一位好友发送邀请</p>
+      <div class="playlist-pick-list" id="listenTogetherPickList"></div>
+      <button type="button" class="playlist-pick-cancel" id="listenTogetherPickCancel">关闭</button>
+    </div>
+  </div>
+
+  <div class="confirm-layer" id="listenTogetherInviteLayer" hidden aria-hidden="true">
+    <div class="confirm-backdrop" id="listenTogetherInviteBackdrop"></div>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="listenTogetherInviteTitle">
+      <h3 class="confirm-title" id="listenTogetherInviteTitle">一起听邀请</h3>
+      <p class="confirm-msg" id="listenTogetherInviteMsg">好友想和你一起听歌</p>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-btn confirm-cancel" id="listenTogetherRejectBtn">拒绝</button>
+        <button type="button" class="confirm-btn confirm-ok" id="listenTogetherAcceptBtn">同意</button>
+      </div>
     </div>
   </div>
 
@@ -1094,7 +1120,7 @@
     };
   </script>
   <script src="cloud-config.js"></script>
-  <script src="cloud-comments.js?v=2.0.03cloudacl1"></script>
-  <script src="app.js?v=2.0.03shellbright4"></script>
+  <script src="cloud-comments.js?v=2.0.03listen1"></script>
+  <script src="app.js?v=2.0.03listen1"></script>
 </body>
 </html>

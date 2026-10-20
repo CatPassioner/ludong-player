@@ -1217,6 +1217,141 @@ html[data-shell-bg="1"][data-shell-ink="dark"] .app > .now-card {
   white-space: nowrap;
 }
 
+#listenTogetherBtn {
+  min-width: 72px;
+  letter-spacing: 0.06em;
+}
+
+#listenTogetherBtn.is-on {
+  color: var(--accent);
+  border-color: rgba(232, 165, 75, 0.55);
+  background: rgba(232, 165, 75, 0.16);
+}
+
+.listen-together-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px auto 0;
+  max-width: 420px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(232, 165, 75, 0.35);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.listen-together-bar[hidden] {
+  display: none !important;
+}
+
+.listen-together-bar-text {
+  min-width: 0;
+  font-size: 0.78rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listen-together-end {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.listen-together-end:hover {
+  color: var(--text);
+  border-color: rgba(232, 165, 75, 0.45);
+}
+
+.listen-together-pick-note {
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  color: var(--dim);
+}
+
+.listen-together-friend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.listen-together-friend img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+  background: var(--bg);
+}
+
+.listen-together-friend-meta {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.listen-together-friend-name {
+  font-size: 0.88rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listen-together-friend-sub {
+  font-size: 0.72rem;
+  color: var(--dim);
+}
+
+.listen-together-friend-action {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 165, 75, 0.4);
+  background: rgba(232, 165, 75, 0.14);
+  color: var(--text);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.listen-together-friend-action.is-cancel {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--muted);
+}
+
+.listen-together-friend-action.is-busy {
+  opacity: 0.7;
+  cursor: default;
+}
+
+html.theme-manga .listen-together-bar,
+html.theme-manga .listen-together-friend-action,
+html.theme-manga .listen-together-end,
+html.theme-manga #listenTogetherBtn {
+  border: 2px solid #1a1612 !important;
+  border-radius: 6px !important;
+  box-shadow: 2px 2px 0 #1a1612;
+}
+
 .player-queue {
   position: absolute;
   z-index: 6;

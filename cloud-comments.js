@@ -2675,6 +2675,208 @@
     return { ok: true };
   }
 
+  function mapListenTogetherSession(row) {
+    if (!row) return null;
+    return {
+      id: String(row.id || ""),
+      hostId: String(row.host_id || ""),
+      guestId: String(row.guest_id || ""),
+      status: String(row.status || ""),
+      songKey: String(row.song_key || ""),
+      cloudSongId: row.cloud_song_id ? String(row.cloud_song_id) : "",
+      songTitle: String(row.song_title || ""),
+      songArtist: String(row.song_artist || ""),
+      songCover: String(row.song_cover || ""),
+      audioUrl: String(row.audio_url || ""),
+      playing: !!row.playing,
+      positionMs: Math.max(0, Math.round(Number(row.position_ms) || 0)),
+      seekSeq: Math.max(0, Math.round(Number(row.seek_seq) || 0)),
+      updatedBy: String(row.updated_by || ""),
+      createdAt: row.created_at || "",
+      updatedAt: row.updated_at || ""
+    };
+  }
+
+  function listenTogetherMissingHint(err) {
+    const msg = String(err?.message || "");
+    if (/listen_together|schema cache|relation|does not exist/i.test(msg)) {
+      return "一起听还没开通：请在 Supabase 执行 supabase_listen_together.sql";
+    }
+    return msg || "一起听请求失败";
+  }
+
+  async function listListenTogetherSessions() {
+    const me = await currentUserId();
+    try {
+      const rows = await rest(
+        `listen_together_sessions?or=(host_id.eq.${encodeURIComponent(me)},guest_id.eq.${encodeURIComponent(me)})&status=in.(pending,active)&select=*&order=updated_at.desc&limit=40`
+      );
+      return (Array.isArray(rows) ? rows : []).map(mapListenTogetherSession).filter(Boolean);
+    } catch (err) {
+      throw new Error(listenTogetherMissingHint(err));
+    }
+  }
+
+  async function inviteListenTogether(guestId, song) {
+    const me = await currentUserId();
+    const guest = String(guestId || "");
+    if (!guest || guest === me) throw new Error("请选择好友");
+    const audioUrl = String(song?.audioUrl || song?.url || "");
+    if (!audioUrl) throw new Error("这首歌没有可同步的播放地址");
+    const payload = {
+      host_id: me,
+      guest_id: guest,
+      status: "pending",
+      song_key: String(song?.songKey || song?.id || ""),
+      cloud_song_id: song?.cloudSongId || song?.cloudId || null,
+      song_title: String(song?.title || "未命名").slice(0, 120),
+      song_artist: String(song?.artist || "未知歌手").slice(0, 120),
+      song_cover: String(song?.cover || "").slice(0, 2000),
+      audio_url: audioUrl.slice(0, 2000),
+      playing: !!song?.playing,
+      position_ms: Math.max(0, Math.round(Number(song?.positionMs) || 0)),
+      seek_seq: 0,
+      updated_by: me,
+      updated_at: new Date().toISOString()
+    };
+    try {
+      const open = await rest(
+        `listen_together_sessions?host_id=eq.${encodeURIComponent(me)}&guest_id=eq.${encodeURIComponent(guest)}&status=in.(pending,active)&select=id,status&limit=5`
+      );
+      for (const row of Array.isArray(open) ? open : []) {
+        await rest(`listen_together_sessions?id=eq.${encodeURIComponent(row.id)}`, {
+          method: "PATCH",
+          body: {
+            status: row.status === "active" ? "ended" : "cancelled",
+            updated_by: me,
+            updated_at: new Date().toISOString()
+          },
+          prefer: "return=minimal"
+        });
+      }
+      const rows = await rest("listen_together_sessions", {
+        method: "POST",
+        body: payload,
+        prefer: "return=representation"
+      });
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      return mapListenTogetherSession(row);
+    } catch (err) {
+      throw new Error(listenTogetherMissingHint(err));
+    }
+  }
+
+  async function cancelListenTogether(sessionId) {
+    const me = await currentUserId();
+    const id = String(sessionId || "");
+    if (!id) throw new Error("缺少会话");
+    try {
+      const rows = await rest(
+        `listen_together_sessions?id=eq.${encodeURIComponent(id)}&or=(host_id.eq.${encodeURIComponent(me)},guest_id.eq.${encodeURIComponent(me)})&select=id,host_id,guest_id,status&limit=1`
+      );
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      if (!row) throw new Error("会话不存在");
+      const next =
+        row.status === "active" ? "ended" : row.status === "pending" ? "cancelled" : row.status;
+      await rest(`listen_together_sessions?id=eq.${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: {
+          status: next,
+          playing: false,
+          updated_by: me,
+          updated_at: new Date().toISOString()
+        },
+        prefer: "return=minimal"
+      });
+      return { ok: true, status: next };
+    } catch (err) {
+      throw new Error(listenTogetherMissingHint(err));
+    }
+  }
+
+  async function respondListenTogether(sessionId, accept) {
+    const me = await currentUserId();
+    const id = String(sessionId || "");
+    if (!id) throw new Error("缺少邀请");
+    try {
+      const rows = await rest(
+        `listen_together_sessions?id=eq.${encodeURIComponent(id)}&guest_id=eq.${encodeURIComponent(me)}&status=eq.pending&select=*&limit=1`
+      );
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      if (!row) throw new Error("邀请已失效");
+      if (accept) {
+        const mine = await rest(
+          `listen_together_sessions?or=(host_id.eq.${encodeURIComponent(me)},guest_id.eq.${encodeURIComponent(me)})&status=eq.active&select=id&limit=20`
+        );
+        for (const old of Array.isArray(mine) ? mine : []) {
+          if (String(old.id) === id) continue;
+          await rest(`listen_together_sessions?id=eq.${encodeURIComponent(old.id)}`, {
+            method: "PATCH",
+            body: {
+              status: "ended",
+              playing: false,
+              updated_by: me,
+              updated_at: new Date().toISOString()
+            },
+            prefer: "return=minimal"
+          });
+        }
+      }
+      const patched = await rest(`listen_together_sessions?id=eq.${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: {
+          status: accept ? "active" : "rejected",
+          updated_by: me,
+          updated_at: new Date().toISOString()
+        },
+        prefer: "return=representation"
+      });
+      const next = Array.isArray(patched) ? patched[0] : patched;
+      return mapListenTogetherSession(next);
+    } catch (err) {
+      throw new Error(listenTogetherMissingHint(err));
+    }
+  }
+
+  async function pushListenTogetherState(sessionId, state = {}) {
+    const me = await currentUserId();
+    const id = String(sessionId || "");
+    if (!id) throw new Error("缺少会话");
+    const body = {
+      updated_by: me,
+      updated_at: new Date().toISOString()
+    };
+    if (typeof state.playing === "boolean") body.playing = state.playing;
+    if (Number.isFinite(Number(state.positionMs))) {
+      body.position_ms = Math.max(0, Math.round(Number(state.positionMs)));
+    }
+    if (state.bumpSeek) {
+      body.seek_seq = Math.max(0, Math.round(Number(state.seekSeq) || 0)) + 1;
+    } else if (Number.isFinite(Number(state.seekSeq))) {
+      body.seek_seq = Math.max(0, Math.round(Number(state.seekSeq)));
+    }
+    if (state.songTitle != null) body.song_title = String(state.songTitle).slice(0, 120);
+    if (state.songArtist != null) body.song_artist = String(state.songArtist).slice(0, 120);
+    if (state.songCover != null) body.song_cover = String(state.songCover).slice(0, 2000);
+    if (state.audioUrl != null) body.audio_url = String(state.audioUrl).slice(0, 2000);
+    if (state.songKey != null) body.song_key = String(state.songKey);
+    if (state.cloudSongId != null) body.cloud_song_id = state.cloudSongId || null;
+    try {
+      const patched = await rest(
+        `listen_together_sessions?id=eq.${encodeURIComponent(id)}&status=eq.active&or=(host_id.eq.${encodeURIComponent(me)},guest_id.eq.${encodeURIComponent(me)})`,
+        {
+          method: "PATCH",
+          body,
+          prefer: "return=representation"
+        }
+      );
+      const row = Array.isArray(patched) ? patched[0] : patched;
+      return mapListenTogetherSession(row);
+    } catch (err) {
+      throw new Error(listenTogetherMissingHint(err));
+    }
+  }
+
   global.LudongCloud = {
     enabled: cloudEnabled,
     avatarPresets: AVATAR_PRESETS,
@@ -2756,6 +2958,11 @@
     uploadCloudSong,
     deleteCloudSong,
     fetchCloudListenAcl,
-    saveCloudListenAcl
+    saveCloudListenAcl,
+    listListenTogetherSessions,
+    inviteListenTogether,
+    cancelListenTogether,
+    respondListenTogether,
+    pushListenTogetherState
   };
 })(window);

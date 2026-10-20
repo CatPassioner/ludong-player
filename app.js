@@ -380,6 +380,8 @@ function resetAccountScopedUi() {
   stopChatPoll();
   stopChatInboxPoll();
   stopPresenceHeartbeat();
+  stopListenTogetherPoll();
+  clearListenTogetherLocal();
   updateChatEntryBadge();
   updateChatPeerStatus();
   try {
@@ -6395,6 +6397,7 @@ function commitSeek(percent) {
     setSeekVisual(p);
     els.currentTime.textContent = formatTime(media.currentTime || time);
     unlockSeekUi();
+    pushListenTogetherPlayback({ bumpSeek: true });
   };
 
   media.addEventListener("seeked", finish);
@@ -7736,11 +7739,13 @@ audio.addEventListener("play", () => {
     return;
   }
   setPlaying(true);
+  pushListenTogetherPlayback();
 });
 audio.addEventListener("pause", () => {
   if (mvReady()) return;
   setPlaying(false);
   saveResume();
+  pushListenTogetherPlayback();
 });
 audio.addEventListener("ended", () => {
   if (mvReady()) return;
@@ -7753,6 +7758,9 @@ audio.addEventListener("timeupdate", () => {
   if (now - resumeSavedAt > 2000) {
     resumeSavedAt = now;
     saveResume();
+  }
+  if (listenTogetherActive && !listenTogetherApplying && !audio.paused && now - listenTogetherLastPushAt > 5000) {
+    pushListenTogetherPlayback();
   }
 });
 audio.addEventListener("loadedmetadata", syncProgress);
@@ -8301,6 +8309,7 @@ function enterAppAfterAuth() {
   window.LudongCloud?.fetchMyProfile?.().then(() => refreshAccountLabel()).catch(() => {});
   initPlayer();
   startChatInboxPoll();
+  startListenTogetherPoll();
 }
 
 /** 断网或不想登录：直接进播放器听本机私人库 / 本地文件 */
@@ -8653,6 +8662,7 @@ els.logoutBtn?.addEventListener("click", () => {
   stopChatPoll?.();
   stopChatInboxPoll?.();
   stopPresenceHeartbeat?.();
+  stopListenTogetherPoll?.();
   window.LudongCloud?.signOut?.();
   resetAccountScopedUi();
   setHint("已退出登录");
@@ -9412,6 +9422,420 @@ document.getElementById("playerQueueList")?.addEventListener("click", (e) => {
   if (index >= 0) playAt(index);
 });
 
+let listenTogetherTimer = 0;
+let listenTogetherActive = null;
+let listenTogetherPending = [];
+let listenTogetherShownInviteId = "";
+let listenTogetherApplying = false;
+let listenTogetherLastPushAt = 0;
+let listenTogetherFriendCache = [];
+let listenTogetherLastSeekSeq = -1;
+
+function clearListenTogetherLocal() {
+  listenTogetherActive = null;
+  listenTogetherPending = [];
+  listenTogetherShownInviteId = "";
+  listenTogetherLastSeekSeq = -1;
+  listenTogetherFriendCache = [];
+  const bar = document.getElementById("listenTogetherBar");
+  if (bar) bar.hidden = true;
+  document.getElementById("listenTogetherBtn")?.classList.remove("is-on");
+  const inviteLayer = document.getElementById("listenTogetherInviteLayer");
+  if (inviteLayer) {
+    inviteLayer.hidden = true;
+    inviteLayer.setAttribute("aria-hidden", "true");
+  }
+  const pick = document.getElementById("listenTogetherPickLayer");
+  if (pick) pick.hidden = true;
+}
+
+function stopListenTogetherPoll() {
+  if (listenTogetherTimer) {
+    clearInterval(listenTogetherTimer);
+    listenTogetherTimer = 0;
+  }
+}
+
+function startListenTogetherPoll() {
+  stopListenTogetherPoll();
+  if (!window.LudongCloud?.enabled?.() || !window.LudongCloud?.isLoggedIn?.()) return;
+  refreshListenTogetherInbox().catch(() => {});
+  listenTogetherTimer = setInterval(() => {
+    refreshListenTogetherInbox().catch(() => {});
+  }, 2500);
+}
+
+function listenTogetherPeerName(session) {
+  const me = window.LudongCloud?.getActiveUserId?.() || "";
+  const peerId = me && session?.hostId === me ? session.guestId : session?.hostId;
+  const hit = listenTogetherFriendCache.find((f) => f.id === peerId);
+  return hit?.remark || hit?.name || "好友";
+}
+
+function updateListenTogetherBar() {
+  const bar = document.getElementById("listenTogetherBar");
+  const text = document.getElementById("listenTogetherBarText");
+  const btn = document.getElementById("listenTogetherBtn");
+  const active = listenTogetherActive;
+  if (btn) btn.classList.toggle("is-on", !!(active || listenTogetherPending.some((s) => s.hostId === (window.LudongCloud?.getActiveUserId?.() || ""))));
+  if (!bar || !text) return;
+  if (!active) {
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  text.textContent = `正在和 ${listenTogetherPeerName(active)} 一起听 · ${active.songTitle || "歌曲"}`;
+}
+
+async function ensureListenTogetherSong(session) {
+  if (!session?.audioUrl) throw new Error("邀请里没有可播放地址");
+  const key = session.songKey || (session.cloudSongId ? `cloud-${session.cloudSongId}` : `lt-${session.id}`);
+  let idx = playlist.findIndex(
+    (s) =>
+      String(s.id) === key ||
+      (session.cloudSongId && String(s.cloudId || "") === String(session.cloudSongId))
+  );
+  if (idx < 0) {
+    const song = {
+      id: key,
+      cloudId: session.cloudSongId || "",
+      title: session.songTitle || "未命名",
+      artist: session.songArtist || "未知歌手",
+      cover: session.songCover || "./logo.jpg",
+      url: session.audioUrl,
+      cloud: !!session.cloudSongId,
+      local: false,
+      duration: 0,
+      listenTogether: true
+    };
+    playlist.push(song);
+    idx = playlist.length - 1;
+  } else if (!playlist[idx].url) {
+    playlist[idx].url = session.audioUrl;
+  }
+  return idx;
+}
+
+async function applyListenTogetherSession(session, { forceSeek = false } = {}) {
+  if (!session || session.status !== "active") return;
+  const me = window.LudongCloud?.getActiveUserId?.() || "";
+  if (session.updatedBy && session.updatedBy === me && !forceSeek) {
+    listenTogetherActive = session;
+    updateListenTogetherBar();
+    return;
+  }
+  listenTogetherApplying = true;
+  try {
+    const idx = await ensureListenTogetherSong(session);
+    const cur = playlist[currentIndex];
+    const same =
+      cur &&
+      (String(cur.id) === String(playlist[idx].id) ||
+        (session.cloudSongId && String(cur.cloudId || "") === String(session.cloudSongId)));
+    if (!same) await playAt(idx);
+    const target = (session.positionMs || 0) / 1000;
+    const needSeek =
+      forceSeek ||
+      session.seekSeq !== listenTogetherLastSeekSeq ||
+      Math.abs((audio.currentTime || 0) - target) > 1.6;
+    if (needSeek && Number.isFinite(target)) {
+      try {
+        audio.currentTime = Math.max(0, target);
+      } catch {
+        /* ignore */
+      }
+    }
+    listenTogetherLastSeekSeq = session.seekSeq;
+    if (session.playing) {
+      if (audio.paused) await audio.play().catch(() => {});
+      setPlaying(true);
+    } else {
+      if (!audio.paused) audio.pause();
+      setPlaying(false);
+    }
+    listenTogetherActive = session;
+    updateListenTogetherBar();
+  } finally {
+    window.setTimeout(() => {
+      listenTogetherApplying = false;
+    }, 400);
+  }
+}
+
+async function pushListenTogetherPlayback({ bumpSeek = false } = {}) {
+  const session = listenTogetherActive;
+  if (!session || session.status !== "active" || listenTogetherApplying) return;
+  if (!window.LudongCloud?.pushListenTogetherState) return;
+  const now = Date.now();
+  if (!bumpSeek && now - listenTogetherLastPushAt < 900) return;
+  listenTogetherLastPushAt = now;
+  try {
+    const next = await window.LudongCloud.pushListenTogetherState(session.id, {
+      playing: !audio.paused && !mvReady(),
+      positionMs: Math.round((audio.currentTime || 0) * 1000),
+      bumpSeek,
+      seekSeq: session.seekSeq
+    });
+    if (next) {
+      listenTogetherActive = next;
+      listenTogetherLastSeekSeq = next.seekSeq;
+      updateListenTogetherBar();
+    }
+  } catch {
+    /* 同步失败不打断本地播放 */
+  }
+}
+
+function showListenTogetherInvite(session) {
+  const layer = document.getElementById("listenTogetherInviteLayer");
+  const msg = document.getElementById("listenTogetherInviteMsg");
+  if (!layer || !msg || !session) return;
+  listenTogetherShownInviteId = session.id;
+  const host = listenTogetherFriendCache.find((f) => f.id === session.hostId);
+  const hostName = host?.remark || host?.name || "好友";
+  msg.textContent = `${hostName} 邀请你一起听「${session.songTitle || "歌曲"}」${
+    session.songArtist ? ` · ${session.songArtist}` : ""
+  }`;
+  layer.hidden = false;
+  layer.setAttribute("aria-hidden", "false");
+}
+
+function hideListenTogetherInvite() {
+  const layer = document.getElementById("listenTogetherInviteLayer");
+  if (!layer) return;
+  layer.hidden = true;
+  layer.setAttribute("aria-hidden", "true");
+}
+
+async function refreshListenTogetherInbox() {
+  if (!window.LudongCloud?.listListenTogetherSessions) return;
+  if (!window.LudongCloud?.isLoggedIn?.()) return;
+  const me = window.LudongCloud.getActiveUserId?.() || "";
+  if (!me) return;
+  if (!listenTogetherFriendCache.length && window.LudongCloud.listFriends) {
+    try {
+      listenTogetherFriendCache = await window.LudongCloud.listFriends();
+    } catch {
+      listenTogetherFriendCache = [];
+    }
+  }
+  const rows = await window.LudongCloud.listListenTogetherSessions();
+  const pendingToMe = rows.filter((s) => s.status === "pending" && s.guestId === me);
+  const pendingFromMe = rows.filter((s) => s.status === "pending" && s.hostId === me);
+  const active = rows.find((s) => s.status === "active") || null;
+  listenTogetherPending = [...pendingFromMe, ...pendingToMe];
+  if (active) {
+    const prev = listenTogetherActive;
+    const changed =
+      !prev ||
+      active.id !== prev.id ||
+      active.seekSeq !== prev.seekSeq ||
+      active.playing !== prev.playing ||
+      active.songKey !== prev.songKey ||
+      Math.abs((active.positionMs || 0) - (prev.positionMs || 0)) > 1200;
+    if (changed && active.updatedBy !== me) {
+      await applyListenTogetherSession(active, {
+        forceSeek: !prev || active.seekSeq !== listenTogetherLastSeekSeq
+      });
+    } else {
+      listenTogetherActive = active;
+      updateListenTogetherBar();
+    }
+  } else if (listenTogetherActive) {
+    listenTogetherActive = null;
+    listenTogetherLastSeekSeq = -1;
+    updateListenTogetherBar();
+  } else {
+    updateListenTogetherBar();
+  }
+  const invite = pendingToMe[0];
+  if (invite) {
+    if (listenTogetherShownInviteId !== invite.id) showListenTogetherInvite(invite);
+  } else if (listenTogetherShownInviteId) {
+    listenTogetherShownInviteId = "";
+    hideListenTogetherInvite();
+  }
+  const pick = document.getElementById("listenTogetherPickLayer");
+  if (pick && !pick.hidden) renderListenTogetherFriendList();
+}
+
+async function buildListenTogetherSongPayload() {
+  const song = playlist[currentIndex];
+  if (!song) throw new Error("请先选一首歌");
+  if (!song.cloud || !song.cloudId) {
+    throw new Error("一起听目前只支持云端歌曲");
+  }
+  const audioUrl = (await resolvePlayUrl(song)) || song.url || "";
+  if (!audioUrl || audioUrl.startsWith("blob:")) {
+    throw new Error("这首歌没有可分享给好友的地址");
+  }
+  return {
+    id: song.id,
+    songKey: song.id,
+    cloudSongId: song.cloudId,
+    cloudId: song.cloudId,
+    title: song.title,
+    artist: song.artist,
+    cover: song.cover,
+    audioUrl,
+    url: audioUrl,
+    playing: !audio.paused && !mvReady(),
+    positionMs: Math.round((audio.currentTime || 0) * 1000)
+  };
+}
+
+function renderListenTogetherFriendList() {
+  const list = document.getElementById("listenTogetherPickList");
+  const note = document.getElementById("listenTogetherPickNote");
+  if (!list) return;
+  const me = window.LudongCloud?.getActiveUserId?.() || "";
+  const friends = listenTogetherFriendCache || [];
+  if (note) {
+    note.textContent = friends.length
+      ? "点邀请发送，点取消可收回；对方同意后开始同步"
+      : "还没有好友，先去私聊里加好友";
+  }
+  if (!friends.length) {
+    list.innerHTML = `<div class="playlist-empty">暂无好友</div>`;
+    return;
+  }
+  list.innerHTML = friends
+    .map((f) => {
+      const pending = listenTogetherPending.find((s) => s.hostId === me && s.guestId === f.id);
+      const active =
+        listenTogetherActive &&
+        ((listenTogetherActive.hostId === me && listenTogetherActive.guestId === f.id) ||
+          (listenTogetherActive.guestId === me && listenTogetherActive.hostId === f.id));
+      let action = "邀请";
+      let kind = "invite";
+      if (active) {
+        action = "进行中";
+        kind = "busy";
+      } else if (pending) {
+        action = "取消";
+        kind = "cancel";
+      }
+      const name = escapeHtml(f.remark || f.name || "好友");
+      const sub = escapeHtml(f.userNoLabel || f.userNo || "");
+      return `<div class="listen-together-friend" data-friend-id="${escapeHtml(f.id)}">
+        <img src="${escapeHtml(f.avatarUrl || "./logo.jpg")}" alt="" />
+        <span class="listen-together-friend-meta">
+          <span class="listen-together-friend-name">${name}</span>
+          <span class="listen-together-friend-sub">${sub || "好友"}</span>
+        </span>
+        <button type="button" class="listen-together-friend-action${
+          kind === "cancel" ? " is-cancel" : kind === "busy" ? " is-busy" : ""
+        }" data-lt-action="${kind}" data-friend-id="${escapeHtml(f.id)}" ${
+        kind === "busy" ? "disabled" : ""
+      }>${action}</button>
+      </div>`;
+    })
+    .join("");
+}
+
+async function openListenTogetherPicker() {
+  if (!window.LudongCloud?.enabled?.() || !window.LudongCloud?.isLoggedIn?.()) {
+    setHint("登录后才能一起听", true);
+    return;
+  }
+  try {
+    await buildListenTogetherSongPayload();
+  } catch (err) {
+    setHint(err?.message || "当前歌曲不能一起听", true);
+    return;
+  }
+  try {
+    listenTogetherFriendCache = (await window.LudongCloud.listFriends()) || [];
+  } catch (err) {
+    setHint(err?.message || "好友列表加载失败", true);
+    return;
+  }
+  await refreshListenTogetherInbox().catch(() => {});
+  renderListenTogetherFriendList();
+  const layer = document.getElementById("listenTogetherPickLayer");
+  if (layer) layer.hidden = false;
+}
+
+document.getElementById("listenTogetherBtn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  openListenTogetherPicker().catch((err) => setHint(err?.message || "打不开一起听", true));
+});
+
+document.getElementById("listenTogetherPickCancel")?.addEventListener("click", () => {
+  const layer = document.getElementById("listenTogetherPickLayer");
+  if (layer) layer.hidden = true;
+});
+
+document.getElementById("listenTogetherPickList")?.addEventListener("click", async (e) => {
+  const btn = e.target.closest?.("[data-lt-action]");
+  if (!btn || btn.disabled) return;
+  e.stopPropagation();
+  const friendId = btn.dataset.friendId || "";
+  const action = btn.dataset.ltAction || "";
+  const me = window.LudongCloud?.getActiveUserId?.() || "";
+  try {
+    if (action === "invite") {
+      const payload = await buildListenTogetherSongPayload();
+      await window.LudongCloud.inviteListenTogether(friendId, payload);
+      setHint("已发送一起听邀请");
+    } else if (action === "cancel") {
+      const pending = listenTogetherPending.find((s) => s.hostId === me && s.guestId === friendId);
+      if (pending) await window.LudongCloud.cancelListenTogether(pending.id);
+      setHint("已取消邀请");
+    }
+    await refreshListenTogetherInbox();
+    renderListenTogetherFriendList();
+  } catch (err) {
+    setHint(err?.message || "操作失败", true);
+  }
+});
+
+document.getElementById("listenTogetherEndBtn")?.addEventListener("click", async () => {
+  const session = listenTogetherActive;
+  if (!session) return;
+  try {
+    await window.LudongCloud.cancelListenTogether(session.id);
+    listenTogetherActive = null;
+    updateListenTogetherBar();
+    setHint("已结束一起听");
+    await refreshListenTogetherInbox();
+  } catch (err) {
+    setHint(err?.message || "结束失败", true);
+  }
+});
+
+document.getElementById("listenTogetherAcceptBtn")?.addEventListener("click", async () => {
+  const id = listenTogetherShownInviteId;
+  if (!id) return;
+  try {
+    const session = await window.LudongCloud.respondListenTogether(id, true);
+    hideListenTogetherInvite();
+    listenTogetherShownInviteId = "";
+    if (session) await applyListenTogetherSession(session, { forceSeek: true });
+    setHint("已开始一起听");
+    await refreshListenTogetherInbox();
+  } catch (err) {
+    setHint(err?.message || "接受失败", true);
+  }
+});
+
+document.getElementById("listenTogetherRejectBtn")?.addEventListener("click", async () => {
+  const id = listenTogetherShownInviteId;
+  if (!id) return;
+  try {
+    await window.LudongCloud.respondListenTogether(id, false);
+    hideListenTogetherInvite();
+    listenTogetherShownInviteId = "";
+    setHint("已拒绝一起听");
+    await refreshListenTogetherInbox();
+  } catch (err) {
+    setHint(err?.message || "拒绝失败", true);
+  }
+});
+
+document.getElementById("listenTogetherInviteBackdrop")?.addEventListener("click", () => {
+  /* 点遮罩不自动拒绝，避免误触 */
+});
 
 let wishTab = "open";
 let wishRows = [];
