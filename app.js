@@ -6400,7 +6400,7 @@ function commitSeek(percent) {
     setSeekVisual(p);
     els.currentTime.textContent = formatTime(media.currentTime || time);
     unlockSeekUi();
-    pushListenTogetherPlayback({ bumpSeek: true });
+    pushListenTogetherPlayback({ bumpSeek: true, transport: true });
   };
 
   media.addEventListener("seeked", finish);
@@ -7742,13 +7742,13 @@ audio.addEventListener("play", () => {
     return;
   }
   setPlaying(true);
-  pushListenTogetherPlayback();
+  pushListenTogetherPlayback({ transport: true });
 });
 audio.addEventListener("pause", () => {
   if (mvReady()) return;
   setPlaying(false);
   saveResume();
-  pushListenTogetherPlayback();
+  pushListenTogetherPlayback({ transport: true });
 });
 audio.addEventListener("ended", () => {
   if (mvReady()) return;
@@ -7762,8 +7762,13 @@ audio.addEventListener("timeupdate", () => {
     resumeSavedAt = now;
     saveResume();
   }
-  if (listenTogetherActive && !listenTogetherApplying && !audio.paused && now - listenTogetherLastPushAt > 5000) {
-    pushListenTogetherPlayback();
+  if (
+    listenTogetherActive &&
+    !listenTogetherApplying &&
+    !audio.paused &&
+    now - listenTogetherLastPushAt > 8000
+  ) {
+    pushListenTogetherPlayback({ heartbeat: true });
   }
 });
 audio.addEventListener("loadedmetadata", syncProgress);
@@ -9434,6 +9439,9 @@ let listenTogetherApplying = false;
 let listenTogetherLastPushAt = 0;
 let listenTogetherFriendCache = [];
 let listenTogetherLastSeekSeq = -1;
+let listenTogetherLastPlaying = null;
+let listenTogetherClockOwner = "";
+let listenTogetherMuteUntil = 0;
 let listenTogetherStartedAtMs = 0;
 let listenTogetherClockSessionId = "";
 
@@ -9442,6 +9450,9 @@ function clearListenTogetherLocal() {
   listenTogetherPending = [];
   listenTogetherShownInviteId = "";
   listenTogetherLastSeekSeq = -1;
+  listenTogetherLastPlaying = null;
+  listenTogetherClockOwner = "";
+  listenTogetherMuteUntil = 0;
   listenTogetherFriendCache = [];
   listenTogetherStartedAtMs = 0;
   listenTogetherClockSessionId = "";
@@ -9522,7 +9533,7 @@ function startListenTogetherPoll() {
   refreshListenTogetherInbox().catch(() => {});
   listenTogetherTimer = setInterval(() => {
     refreshListenTogetherInbox().catch(() => {});
-  }, 2500);
+  }, 1400);
 }
 
 function listenTogetherPeerName(session) {
@@ -9591,15 +9602,55 @@ async function ensureListenTogetherSong(session) {
   return idx;
 }
 
+function listenTogetherLocalPlaying() {
+  return !audio.paused && !mvReady();
+}
+
+function softSeekListenTogether(targetSec) {
+  if (!Number.isFinite(targetSec)) return false;
+  const next = Math.max(0, targetSec);
+  try {
+    if (Math.abs((audio.currentTime || 0) - next) < 0.12) return false;
+    audio.currentTime = next;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function applyListenTogetherSession(session, { forceSeek = false } = {}) {
   if (!session || session.status !== "active") return;
   const me = window.LudongCloud?.getActiveUserId?.() || "";
-  if (session.updatedBy && session.updatedBy === me && !forceSeek) {
+  if (Date.now() < listenTogetherMuteUntil && session.updatedBy === me) {
     listenTogetherActive = session;
+    listenTogetherLastPlaying = session.playing;
+    listenTogetherLastSeekSeq = session.seekSeq;
     updateListenTogetherBar();
     return;
   }
+  if (session.updatedBy && session.updatedBy === me && !forceSeek) {
+    listenTogetherActive = session;
+    listenTogetherLastPlaying = session.playing;
+    listenTogetherLastSeekSeq = session.seekSeq;
+    if (session.updatedBy) listenTogetherClockOwner = session.updatedBy;
+    updateListenTogetherBar();
+    return;
+  }
+  const prev = listenTogetherActive;
+  const songChanged =
+    !prev ||
+    session.songKey !== prev.songKey ||
+    session.cloudSongId !== prev.cloudSongId;
+  const seekBumped = forceSeek || session.seekSeq !== listenTogetherLastSeekSeq;
+  const playChanged =
+    listenTogetherLastPlaying === null
+      ? session.playing !== listenTogetherLocalPlaying()
+      : session.playing !== listenTogetherLastPlaying;
+  const target = (session.positionMs || 0) / 1000;
+  const drift = Math.abs((audio.currentTime || 0) - target);
+
   listenTogetherApplying = true;
+  listenTogetherMuteUntil = Date.now() + 700;
   try {
     const idx = await ensureListenTogetherSong(session);
     const cur = playlist[currentIndex];
@@ -9607,46 +9658,64 @@ async function applyListenTogetherSession(session, { forceSeek = false } = {}) {
       cur &&
       (String(cur.id) === String(playlist[idx].id) ||
         (session.cloudSongId && String(cur.cloudId || "") === String(session.cloudSongId)));
-    if (!same) await playAt(idx);
-    const target = (session.positionMs || 0) / 1000;
-    const needSeek =
-      forceSeek ||
-      session.seekSeq !== listenTogetherLastSeekSeq ||
-      Math.abs((audio.currentTime || 0) - target) > 1.6;
-    if (needSeek && Number.isFinite(target)) {
-      try {
-        audio.currentTime = Math.max(0, target);
-      } catch {
-        /* ignore */
-      }
+    if (!same || songChanged) {
+      await playAt(idx);
+      softSeekListenTogether(target);
+      listenTogetherLastSeekSeq = session.seekSeq;
+    } else if (seekBumped) {
+      softSeekListenTogether(target);
+      listenTogetherLastSeekSeq = session.seekSeq;
+    } else if (playChanged) {
+      // 播放/暂停优先对齐，只有明显错拍才拉进度，避免来回顿
+      if (drift > 0.85) softSeekListenTogether(target + (session.playing ? 0.12 : 0));
+    } else if (session.playing && listenTogetherLocalPlaying() && drift > 2.8) {
+      // 心跳校正：偏差大才轻轻对齐一次
+      softSeekListenTogether(target + 0.18);
     }
-    listenTogetherLastSeekSeq = session.seekSeq;
+
     if (session.playing) {
       if (audio.paused) await audio.play().catch(() => {});
       setPlaying(true);
-    } else {
-      if (!audio.paused) audio.pause();
+    } else if (!audio.paused) {
+      audio.pause();
       setPlaying(false);
     }
+
     listenTogetherActive = session;
+    listenTogetherLastPlaying = session.playing;
+    listenTogetherLastSeekSeq = session.seekSeq;
+    if (session.updatedBy) listenTogetherClockOwner = session.updatedBy;
     updateListenTogetherBar();
   } finally {
     window.setTimeout(() => {
       listenTogetherApplying = false;
-    }, 400);
+    }, 280);
   }
 }
 
-async function pushListenTogetherPlayback({ bumpSeek = false } = {}) {
+async function pushListenTogetherPlayback({ bumpSeek = false, transport = false, heartbeat = false } = {}) {
   const session = listenTogetherActive;
   if (!session || session.status !== "active" || listenTogetherApplying) return;
   if (!window.LudongCloud?.pushListenTogetherState) return;
+  const me = window.LudongCloud?.getActiveUserId?.() || "";
   const now = Date.now();
-  if (!bumpSeek && now - listenTogetherLastPushAt < 900) return;
+  if (heartbeat) {
+    const leader = listenTogetherClockOwner || session.hostId;
+    if (me && leader && me !== leader) return;
+    if (now - listenTogetherLastPushAt < 7000) return;
+  } else if (!bumpSeek && !transport && now - listenTogetherLastPushAt < 900) {
+    return;
+  } else if (transport && now - listenTogetherLastPushAt < 180) {
+    return;
+  }
   listenTogetherLastPushAt = now;
+  if (transport || bumpSeek) listenTogetherClockOwner = me;
+  listenTogetherMuteUntil = now + 900;
+  const playing = listenTogetherLocalPlaying();
+  listenTogetherLastPlaying = playing;
   try {
     const next = await window.LudongCloud.pushListenTogetherState(session.id, {
-      playing: !audio.paused && !mvReady(),
+      playing,
       positionMs: Math.round((audio.currentTime || 0) * 1000),
       bumpSeek,
       seekSeq: session.seekSeq
@@ -9654,6 +9723,8 @@ async function pushListenTogetherPlayback({ bumpSeek = false } = {}) {
     if (next) {
       listenTogetherActive = next;
       listenTogetherLastSeekSeq = next.seekSeq;
+      listenTogetherLastPlaying = next.playing;
+      if (next.updatedBy) listenTogetherClockOwner = next.updatedBy;
       updateListenTogetherBar();
     }
   } catch {
@@ -9674,7 +9745,11 @@ async function pushListenTogetherSongChange(song) {
     setHint("这首歌没有可同步的地址", true);
     return;
   }
+  const me = window.LudongCloud?.getActiveUserId?.() || "";
   listenTogetherLastPushAt = Date.now();
+  listenTogetherClockOwner = me;
+  listenTogetherMuteUntil = Date.now() + 1200;
+  listenTogetherLastPlaying = true;
   try {
     const next = await window.LudongCloud.pushListenTogetherState(session.id, {
       songKey: song.id,
@@ -9691,6 +9766,7 @@ async function pushListenTogetherSongChange(song) {
     if (next) {
       listenTogetherActive = next;
       listenTogetherLastSeekSeq = next.seekSeq;
+      listenTogetherLastPlaying = next.playing;
       updateListenTogetherBar();
     }
   } catch (err) {
