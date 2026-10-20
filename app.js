@@ -4007,6 +4007,9 @@ function openDiaryLayer() {
   const layer = document.getElementById("diaryLayer");
   if (!layer) return;
   if (els.viewHome) els.viewHome.hidden = true;
+  closeEmbeddedView(document.getElementById("playlistDetailLayer"));
+  playlistDetailState = null;
+  closeEmbeddedView(els.likesLayer || document.getElementById("likesLayer"));
   openEmbeddedView(layer);
   renderListenDiary();
 }
@@ -4722,6 +4725,7 @@ function openPlaylistDetail({ kind, listId = "" } = {}) {
   }
   playlistDetailState = { kind: bundle.kind, listId: bundle.listId || "" };
   if (els.viewHome) els.viewHome.hidden = true;
+  closeEmbeddedView(document.getElementById("diaryLayer"));
   closeEmbeddedView(els.likesLayer || document.getElementById("likesLayer"));
   closeEmbeddedView(els.chatLayer || document.getElementById("chatLayer"));
   closeEmbeddedView(document.getElementById("wishLayer"));
@@ -9188,6 +9192,8 @@ function setMainView(view = "home") {
 
   closeEmbeddedView(els.likesLayer || document.getElementById("likesLayer"));
   closeEmbeddedView(document.getElementById("diaryLayer"));
+  closeEmbeddedView(document.getElementById("playlistDetailLayer"));
+  if (next !== "likes" && next !== "playlistDetail") playlistDetailState = null;
   closeEmbeddedView(els.chatLayer || document.getElementById("chatLayer"));
   closeEmbeddedView(document.getElementById("wishLayer"));
   closeEmbeddedView(els.profileLayer || document.getElementById("profileLayer"));
@@ -9199,8 +9205,6 @@ function setMainView(view = "home") {
   } else if (next === "diary") {
     openDiaryLayer();
   } else {
-    closeEmbeddedView(document.getElementById("playlistDetailLayer"));
-    playlistDetailState = null;
     if (els.viewHome) els.viewHome.hidden = next !== "home";
     if (next === "home") refreshMoodRadioCard();
   }
