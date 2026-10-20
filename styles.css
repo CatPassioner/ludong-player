@@ -5992,12 +5992,13 @@ html[data-bg-light="1"] .confirm-backdrop {
   z-index: 1;
 }
 
+/* 歌名/歌手：顶栏下左上（上红框） */
 .player-window.is-view-theater .info {
   position: absolute;
-  left: clamp(8px, 1.4vw, 24px);
-  top: clamp(8px, 1.6vh, 18px);
-  z-index: 5;
-  width: min(46vw, 480px);
+  left: 18px;
+  top: 6px;
+  z-index: 8;
+  width: min(42vw, 420px);
   margin: 0;
   text-align: left;
   pointer-events: none;

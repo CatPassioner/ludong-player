@@ -5406,14 +5406,25 @@ function dockTheaterChrome(on) {
   const controls = document.getElementById("playerControls");
   const player = document.querySelector("#playerBoard .player");
   const modes = document.getElementById("modes");
+  const lyricsView = document.getElementById("lyricsView");
+  const lyricsSide = document.getElementById("lyricsSide");
   if (!dock || !progress || !controls || !player || !modes) return;
   if (on) {
+    // 挂到 .player 下，才能按红框对齐左上/左中，不被歌词层挤歪
+    if (dock.parentElement !== player) {
+      player.insertBefore(dock, player.firstChild);
+    }
     dock.appendChild(progress);
     dock.appendChild(controls);
     dock.classList.add("has-chrome");
-  } else if (progress.parentElement === dock || controls.parentElement === dock) {
-    player.insertBefore(progress, modes);
-    player.insertBefore(controls, modes.nextSibling);
+  } else {
+    if (progress.parentElement === dock || controls.parentElement === dock) {
+      player.insertBefore(progress, modes);
+      player.insertBefore(controls, modes.nextSibling);
+    }
+    if (lyricsView && dock.parentElement !== lyricsView) {
+      lyricsView.insertBefore(dock, lyricsSide || null);
+    }
     dock.classList.remove("has-chrome");
   }
   requestAnimationFrame(() => syncTheaterDockWidth());
