@@ -5955,7 +5955,8 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .player-window.is-view-theater .player-board {
-  width: min(1360px, 100%);
+  width: 100%;
+  max-width: none;
 }
 
 /* 整幅封面作背景（自定义封面同步） */
@@ -5993,10 +5994,10 @@ html[data-bg-light="1"] .confirm-backdrop {
 
 .player-window.is-view-theater .info {
   position: absolute;
-  left: clamp(4px, 0.8vw, 12px);
-  top: clamp(10px, 2vh, 22px);
+  left: clamp(16px, 2.2vw, 36px);
+  top: clamp(8px, 1.6vh, 18px);
   z-index: 5;
-  width: min(42vw, 440px);
+  width: min(46vw, 480px);
   margin: 0;
   text-align: left;
   pointer-events: none;
@@ -6098,39 +6099,43 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 
 /* 舞台铺满；左侧坞与右侧歌词绝对定位 */
 .player-window.is-view-theater .stage.is-lyrics .lyrics-view {
-  width: 100%;
-  max-width: none;
+  width: 100% !important;
+  max-width: none !important;
   height: 100%;
   max-height: none;
   display: block;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
   background: transparent;
   border-radius: 0;
+  left: 0;
+  right: 0;
 }
 
 .player-window.is-view-theater .lyrics-ambient {
   display: none;
 }
 
-/* 封面+唱片+频谱+进度+控件：更靠左、略靠下 */
+/* 封面+唱片+控件：贴左下，吃掉大片空白 */
 .player-window.is-view-theater .theater-stage-left {
   position: absolute;
-  left: clamp(4px, 0.8vw, 12px);
-  top: 58%;
-  bottom: auto;
+  left: clamp(16px, 2.2vw, 36px) !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: clamp(28px, 6vh, 56px) !important;
   z-index: 6;
   width: max-content;
-  max-width: min(520px, 50vw);
+  max-width: min(520px, 48vw);
   height: auto;
   min-height: 0;
-  margin: 0;
+  margin: 0 !important;
   padding: 0;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
   gap: 12px;
   pointer-events: auto;
-  transform: translateY(-50%);
+  transform: none !important;
 }
 
 .player-window.is-view-theater .theater-art-row {
@@ -6441,16 +6446,17 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 
 @media (max-width: 900px) {
   .player-window.is-view-theater .theater-stage-left {
-    left: 4px;
-    top: 58%;
-    max-width: min(400px, calc(100vw - 12px));
-    transform: translateY(-50%);
+    left: 12px !important;
+    bottom: 20px !important;
+    top: auto !important;
+    max-width: min(400px, calc(100vw - 20px));
+    transform: none !important;
   }
 
   .player-window.is-view-theater .lyrics-side {
     left: 48%;
     right: 0;
-    top: 50%;
+    top: 46%;
     height: min(56vh, 420px);
     transform: translateY(-50%) perspective(820px) rotateZ(14deg) rotateX(8deg);
   }
