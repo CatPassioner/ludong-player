@@ -5384,11 +5384,29 @@ function refreshSongFocus() {
     .join("");
 }
 
+let theaterRestoreLyrics = false;
+
+function currentPlayerView() {
+  const win = document.getElementById("playerWindow");
+  if (win?.classList.contains("is-view-theater")) return "theater";
+  if (win?.classList.contains("is-view-immerse")) return "immerse";
+  if (win?.classList.contains("is-view-song")) return "song";
+  return "listen";
+}
+
+function paintTheaterMotion(playing) {
+  const on = !!playing;
+  document.getElementById("theaterVinyl")?.classList.toggle("is-spinning", on);
+  document.getElementById("theaterViz")?.classList.toggle("is-on", on);
+}
+
 function setPlayerView(view) {
   const win = document.getElementById("playerWindow");
   if (!win) return;
-  const next = view === "immerse" || view === "song" ? view : "listen";
-  win.classList.remove("is-view-immerse", "is-view-listen", "is-view-song");
+  const prev = currentPlayerView();
+  const next =
+    view === "immerse" || view === "song" || view === "theater" ? view : "listen";
+  win.classList.remove("is-view-immerse", "is-view-listen", "is-view-song", "is-view-theater");
   win.classList.add(`is-view-${next}`);
   document.querySelectorAll("[data-player-view]").forEach((btn) => {
     const on = btn.dataset.playerView === next;
@@ -5397,6 +5415,14 @@ function setPlayerView(view) {
   });
   const focus = document.getElementById("songFocus");
   if (focus) focus.hidden = true;
+  if (next === "theater") {
+    if (prev !== "theater") theaterRestoreLyrics = showLyrics;
+    if (showMv) setMvMode(false);
+    setLyricsMode(true);
+    paintTheaterMotion(!audio.paused);
+  } else if (prev === "theater" && next === "listen" && !theaterRestoreLyrics) {
+    setLyricsMode(false);
+  }
   if (next === "song") showPlayerComments();
   else if (commentsDocked) undockCommentsPanel();
   try {
@@ -5406,6 +5432,7 @@ function setPlayerView(view) {
   }
   requestAnimationFrame(() => {
     if (typeof fitPlayerBoard === "function") fitPlayerBoard();
+    if (showLyrics) syncLyrics();
   });
 }
 
@@ -5558,6 +5585,7 @@ function applyLyricsSideCover(song) {
   };
   paint(els.lyricsBgImg);
   paint(els.lyricsAmbientImg);
+  paint(document.getElementById("theaterVinylCover"));
   if (url) applyPlayerAtmosphere(url);
 }
 
@@ -6433,6 +6461,7 @@ function setPlaying(playing) {
   const on = !!playing;
   syncAmbientMv(on);
   els.disc.classList.toggle("spinning", on);
+  paintTheaterMotion(on);
   els.nowToggle.classList.toggle("playing", on);
   els.playBtn.classList.toggle("is-playing", on);
   els.playBtn.setAttribute("aria-label", on ? "暂停播放" : "开始播放");
@@ -8236,6 +8265,7 @@ els.lyricsView?.addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest(".lyrics-side")) return;
+  if (currentPlayerView() === "theater") return;
   setLyricsMode(false);
 });
 
