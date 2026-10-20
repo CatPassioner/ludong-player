@@ -5993,10 +5993,10 @@ html[data-bg-light="1"] .confirm-backdrop {
 
 .player-window.is-view-theater .info {
   position: absolute;
-  left: clamp(28px, 4.5vw, 64px);
-  top: clamp(12px, 2.4vh, 28px);
+  left: clamp(4px, 0.8vw, 12px);
+  top: clamp(10px, 2vh, 22px);
   z-index: 5;
-  width: min(38vw, 420px);
+  width: min(42vw, 440px);
   margin: 0;
   text-align: left;
   pointer-events: none;
@@ -6112,15 +6112,15 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   display: none;
 }
 
-/* 封面+唱片+频谱+进度+控件：再放大，靠近歌名 */
+/* 封面+唱片+频谱+进度+控件：更靠左、略靠下 */
 .player-window.is-view-theater .theater-stage-left {
   position: absolute;
-  left: clamp(24px, 4vw, 64px);
-  top: clamp(78px, 12vh, 108px);
+  left: clamp(4px, 0.8vw, 12px);
+  top: 58%;
   bottom: auto;
   z-index: 6;
   width: max-content;
-  max-width: min(520px, 52vw);
+  max-width: min(520px, 50vw);
   height: auto;
   min-height: 0;
   margin: 0;
@@ -6130,6 +6130,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   justify-content: flex-start;
   gap: 12px;
   pointer-events: auto;
+  transform: translateY(-50%);
 }
 
 .player-window.is-view-theater .theater-art-row {
@@ -6308,19 +6309,19 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
  */
 .player-window.is-view-theater .lyrics-side {
   position: absolute;
-  left: 58%;
-  right: 0.5%;
-  top: 8%;
-  bottom: 10%;
+  left: 54%;
+  right: 1%;
+  top: 50%;
+  bottom: auto;
   width: auto;
-  height: auto;
+  height: min(70vh, 540px);
   margin: 0;
   padding: 8px 2px 8px 8px;
   background: transparent;
   border: 0;
   backdrop-filter: none;
-  transform: perspective(920px) rotateZ(17deg) rotateX(10deg);
-  transform-origin: 35% 50%;
+  transform: translateY(-50%) perspective(920px) rotateZ(16deg) rotateX(9deg);
+  transform-origin: 40% 50%;
   z-index: 4;
   overflow: hidden;
 }
@@ -6440,17 +6441,18 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 
 @media (max-width: 900px) {
   .player-window.is-view-theater .theater-stage-left {
-    left: 14px;
-    top: 72px;
-    max-width: min(400px, calc(100vw - 28px));
+    left: 4px;
+    top: 58%;
+    max-width: min(400px, calc(100vw - 12px));
+    transform: translateY(-50%);
   }
 
   .player-window.is-view-theater .lyrics-side {
-    left: 52%;
+    left: 48%;
     right: 0;
-    top: 6%;
-    bottom: 8%;
-    transform: perspective(820px) rotateZ(14deg) rotateX(8deg);
+    top: 50%;
+    height: min(56vh, 420px);
+    transform: translateY(-50%) perspective(820px) rotateZ(14deg) rotateX(8deg);
   }
 
   .player-window.is-view-theater .lyrics-art,
