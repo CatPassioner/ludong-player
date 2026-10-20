@@ -6117,16 +6117,16 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   display: none;
 }
 
-/* 封面+唱片+控件：上一版基础上略再靠左 */
+/* 封面+唱片+控件：左侧中部，再靠左 */
 .player-window.is-view-theater .theater-stage-left {
-  position: absolute;
-  left: clamp(8px, 1.4vw, 24px) !important;
+  position: absolute !important;
+  left: 4px !important;
   right: auto !important;
-  top: auto !important;
-  bottom: clamp(28px, 6vh, 56px) !important;
-  z-index: 6;
+  top: 46% !important;
+  bottom: auto !important;
+  z-index: 8;
   width: max-content;
-  max-width: min(520px, 48vw);
+  max-width: min(480px, 46vw);
   height: auto;
   min-height: 0;
   margin: 0 !important;
@@ -6136,7 +6136,8 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   justify-content: flex-start;
   gap: 12px;
   pointer-events: auto;
-  transform: none !important;
+  transform: translateY(-50%) !important;
+  grid-column: auto;
 }
 
 .player-window.is-view-theater .theater-art-row {
@@ -6485,12 +6486,17 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 @media (max-width: 900px) {
+  .player-window.is-view-theater .info {
+    left: 12px;
+    top: 4px;
+  }
+
   .player-window.is-view-theater .theater-stage-left {
-    left: 8px !important;
-    bottom: 20px !important;
-    top: auto !important;
-    max-width: min(400px, calc(100vw - 16px));
-    transform: none !important;
+    left: 2px !important;
+    top: 48% !important;
+    bottom: auto !important;
+    max-width: min(400px, calc(100vw - 8px));
+    transform: translateY(-50%) !important;
   }
 
   .player-window.is-view-theater .lyrics-side {
