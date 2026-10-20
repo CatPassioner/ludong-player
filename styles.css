@@ -6021,6 +6021,52 @@ html[data-bg-light="1"] .confirm-backdrop {
   display: none !important;
 }
 
+/* 剧场进度条：始终用默认主题细条+表情滑块（不用漫画分格） */
+.player-window.is-view-theater .seek-wrap,
+html.theme-manga .player-window.is-view-theater .seek-wrap {
+  height: 36px !important;
+  outline: none;
+}
+
+.player-window.is-view-theater .seek-track,
+html.theme-manga .player-window.is-view-theater .seek-track {
+  display: block !important;
+  top: 50% !important;
+  bottom: auto !important;
+  height: 6px !important;
+  margin-top: -3px;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.player-window.is-view-theater .seek-fill,
+html.theme-manga .player-window.is-view-theater .seek-fill {
+  display: block !important;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--cover-accent, #f0b45e),
+    var(--cover-accent-deep, var(--accent-deep))
+  ) !important;
+}
+
+.player-window.is-view-theater .seek-thumb,
+html.theme-manga .player-window.is-view-theater .seek-thumb {
+  top: 50% !important;
+  width: 26px !important;
+  height: 26px !important;
+  margin-top: -13px !important;
+  margin-left: -13px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .player-window.is-view-theater .modes {
   display: none !important;
 }
@@ -6049,15 +6095,15 @@ html[data-bg-light="1"] .confirm-backdrop {
   display: none;
 }
 
-/* 封面+唱片+频谱+进度+控件：靠近歌名，略上移 */
+/* 封面+唱片+频谱+进度+控件：再放大，靠近歌名 */
 .player-window.is-view-theater .theater-stage-left {
   position: absolute;
-  left: clamp(28px, 4.5vw, 72px);
-  top: clamp(86px, 14vh, 118px);
+  left: clamp(24px, 4vw, 64px);
+  top: clamp(78px, 12vh, 108px);
   bottom: auto;
   z-index: 6;
   width: max-content;
-  max-width: min(420px, 46vw);
+  max-width: min(520px, 52vw);
   height: auto;
   min-height: 0;
   margin: 0;
@@ -6065,7 +6111,7 @@ html[data-bg-light="1"] .confirm-backdrop {
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 10px;
+  gap: 12px;
   pointer-events: auto;
 }
 
@@ -6078,10 +6124,10 @@ html[data-bg-light="1"] .confirm-backdrop {
 .player-window.is-view-theater .lyrics-art {
   position: relative;
   z-index: 2;
-  width: clamp(132px, 22vh, 200px);
-  height: clamp(132px, 22vh, 200px);
+  width: clamp(168px, 28vh, 260px);
+  height: clamp(168px, 28vh, 260px);
   flex: 0 0 auto;
-  border-radius: 18px;
+  border-radius: 20px;
   margin: 0;
   box-shadow:
     0 16px 36px rgba(0, 0, 0, 0.45),
@@ -6092,9 +6138,9 @@ html[data-bg-light="1"] .confirm-backdrop {
   position: relative;
   z-index: 1;
   flex: 0 0 auto;
-  width: clamp(132px, 22vh, 200px);
-  height: clamp(132px, 22vh, 200px);
-  margin-left: calc(clamp(132px, 22vh, 200px) * -0.46);
+  width: clamp(168px, 28vh, 260px);
+  height: clamp(168px, 28vh, 260px);
+  margin-left: calc(clamp(168px, 28vh, 260px) * -0.46);
   border-radius: 50%;
   transform: none;
 }
@@ -6245,19 +6291,19 @@ html[data-bg-light="1"] .confirm-backdrop {
  */
 .player-window.is-view-theater .lyrics-side {
   position: absolute;
-  left: 50%;
-  right: clamp(1%, 2vw, 4%);
-  top: 10%;
-  bottom: 12%;
+  left: 58%;
+  right: 0.5%;
+  top: 8%;
+  bottom: 10%;
   width: auto;
   height: auto;
   margin: 0;
-  padding: 8px 4px 8px 12px;
+  padding: 8px 2px 8px 8px;
   background: transparent;
   border: 0;
   backdrop-filter: none;
   transform: perspective(920px) rotateZ(17deg) rotateX(10deg);
-  transform-origin: 40% 50%;
+  transform-origin: 35% 50%;
   z-index: 4;
   overflow: hidden;
 }
@@ -6377,27 +6423,27 @@ html[data-bg-light="1"] .confirm-backdrop {
 
 @media (max-width: 900px) {
   .player-window.is-view-theater .theater-stage-left {
-    left: 16px;
-    top: 78px;
-    max-width: min(360px, calc(100vw - 32px));
+    left: 14px;
+    top: 72px;
+    max-width: min(400px, calc(100vw - 28px));
   }
 
   .player-window.is-view-theater .lyrics-side {
-    left: 42%;
-    right: 2%;
-    top: 8%;
-    bottom: 10%;
+    left: 52%;
+    right: 0;
+    top: 6%;
+    bottom: 8%;
     transform: perspective(820px) rotateZ(14deg) rotateX(8deg);
   }
 
   .player-window.is-view-theater .lyrics-art,
   .player-window.is-view-theater .theater-vinyl {
-    width: clamp(112px, 20vh, 160px);
-    height: clamp(112px, 20vh, 160px);
+    width: clamp(140px, 24vh, 200px);
+    height: clamp(140px, 24vh, 200px);
   }
 
   .player-window.is-view-theater .theater-vinyl {
-    margin-left: calc(clamp(112px, 20vh, 160px) * -0.46);
+    margin-left: calc(clamp(140px, 24vh, 200px) * -0.46);
   }
 }
 
