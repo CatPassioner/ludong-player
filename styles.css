@@ -8333,11 +8333,17 @@ body.is-auth-screen {
 }
 
 .auth-field.is-login-hidden {
-  display: none;
+  display: none !important;
 }
 
 .auth-email-wrap {
   position: relative;
+  width: 100%;
+}
+
+.auth-email-wrap input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .auth-email-suggest {

@@ -9355,6 +9355,11 @@ async function bootstrapApp() {
           : "当前无网络：可先听本地歌，联网后再登录",
         true
       );
+    } else {
+      setAuthHint(
+        "若刚还能用、刷新后卡住：多半是连不上 supabase.co。可先点下方「先听本地歌」，或开代理后再登录。",
+        true
+      );
     }
   }
 }

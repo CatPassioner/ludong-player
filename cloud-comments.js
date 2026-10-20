@@ -318,11 +318,11 @@
     return raw;
   }
 
-  async function fetchWithRetry(url, options, retries = 2) {
+  async function fetchWithRetry(url, options, retries = 2, timeoutMs = 18000) {
     let lastErr;
     for (let i = 0; i <= retries; i += 1) {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 18000);
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
       try {
         const res = await fetch(url, { ...options, signal: ctrl.signal });
         clearTimeout(timer);
@@ -331,7 +331,7 @@
         clearTimeout(timer);
         lastErr = err;
         if (i < retries) {
-          await new Promise((r) => setTimeout(r, 600 * (i + 1)));
+          await new Promise((r) => setTimeout(r, 400 * (i + 1)));
         }
       }
     }
@@ -348,16 +348,23 @@
     }
     // 新版 publishable key 不是 JWT，未登录时不要塞进 Authorization
     if (token) headers.Authorization = `Bearer ${token}`;
+    // 登录/刷新：快速失败，避免按钮转圈几十秒像「卡死」
+    const isAuthToken = String(path || "").includes("/auth/v1/token");
     let res;
     try {
-      res = await fetchWithRetry(`${c.url}${path}`, {
-        method,
-        headers,
-        body:
-          body == null || method === "GET" || method === "HEAD"
-            ? undefined
-            : JSON.stringify(body)
-      });
+      res = await fetchWithRetry(
+        `${c.url}${path}`,
+        {
+          method,
+          headers,
+          body:
+            body == null || method === "GET" || method === "HEAD"
+              ? undefined
+              : JSON.stringify(body)
+        },
+        isAuthToken ? 1 : 2,
+        isAuthToken ? 8000 : 18000
+      );
     } catch (err) {
       throw new Error(friendlyAuthError(err));
     }
@@ -384,9 +391,21 @@
       });
       return normalizeSession({ ...data, user: data.user || old.user });
     } catch (err) {
-      // 断网时不要清掉本地会话，免得既登不进又播不了私人库
+      // 断网 / 超时：必须保留本地会话，否则一刷新就卡死在登录页
+      // 即便 refresh_token 作废，也留下 access_token + user，至少能进本地私人库
       if (!isNetworkAuthError(err)) {
-        writeSession(null);
+        const kept = hydrateSessionUser(readSession());
+        if (kept?.user?.id) {
+          try {
+            writeSession({
+              ...kept,
+              refresh_token: "",
+              _refreshFailedAt: Date.now()
+            });
+          } catch {
+            /* ignore */
+          }
+        }
       }
       return null;
     }
@@ -411,8 +430,12 @@
   async function ensureAuthSession() {
     if (!cloudEnabled()) throw new Error("云端未配置");
     let session = hydrateSessionUser(readSession());
-    if (sessionValid(session) && session.user?.id) {
+    // 本地已有账号：立刻放行，不要同步死等 supabase（国内常被重置，一刷就卡登录页）
+    if (session?.user?.id) {
       setActiveUserId(session.user.id);
+      if (!sessionValid(session) && session.refresh_token) {
+        refreshSession().catch(() => {});
+      }
       return session;
     }
     if (session?.refresh_token) {
@@ -422,7 +445,6 @@
         return refreshed;
       }
     }
-    // 断网刷新失败时，本地仍留有账号 → 允许进播放器听私人库（云端功能暂不可用）
     session = hydrateSessionUser(readSession());
     if (session?.user?.id) {
       setActiveUserId(session.user.id);
