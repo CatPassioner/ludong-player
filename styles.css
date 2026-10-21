@@ -5790,11 +5790,39 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .player-ambient-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   transform: scale(1.28);
   filter: blur(52px) saturate(1.35) brightness(1.12);
+  opacity: 0;
+  z-index: 0;
+  transition: opacity 1s ease, transform 1.15s ease;
+}
+
+.player-ambient-img.is-front {
+  opacity: 1;
+  z-index: 1;
+}
+
+.player-ambient-img.is-front.is-leaving,
+.player-ambient-img.is-leaving,
+.player-ambient-img.is-out {
+  opacity: 0;
+}
+
+.player-ambient.is-instant .player-ambient-img {
+  transition: none;
+}
+
+.player-ambient[data-cover-move="drift"] .player-ambient-img:not(.is-front) {
+  transform: scale(1.32) translate3d(3%, 0, 0);
+}
+
+.player-ambient[data-cover-move="drift"] .player-ambient-img.is-out {
+  transform: scale(1.3) translate3d(-2%, 0, 0);
 }
 
 .player-ambient-img[hidden] {
@@ -5804,6 +5832,7 @@ html[data-bg-light="1"] .confirm-backdrop {
 .player-ambient-dim {
   position: absolute;
   inset: 0;
+  z-index: 2;
   background: linear-gradient(160deg, var(--bg-top) 0%, var(--bg) 45%, var(--bg-bottom) 100%);
   opacity: 0.72;
 }
@@ -7019,6 +7048,39 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   margin: 6px 0 12px;
   color: #5c6570;
   font-size: 0.82rem;
+}
+
+.cover-pick-rotate {
+  margin: 4px 0 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(60, 70, 80, 0.12);
+}
+
+.cover-pick-rotate .settings-row {
+  margin: 8px 0 6px;
+}
+
+.cover-pick-rotate .bg-hue-row {
+  margin-bottom: 8px;
+}
+
+.cover-pick-interval {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  color: #5c6570;
+  font-size: 0.82rem;
+}
+
+.cover-pick-interval input {
+  width: 64px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(60, 70, 80, 0.18);
+  background: #fff;
+  color: inherit;
 }
 
 .cover-pick-grid {

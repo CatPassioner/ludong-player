@@ -70,7 +70,9 @@ const els = {
   searchHint: document.getElementById("searchHint"),
   playerLayer: document.getElementById("playerLayer"),
   playerWindow: document.getElementById("playerWindow"),
+  playerAmbient: document.getElementById("playerAmbient"),
   playerAmbientImg: document.getElementById("playerAmbientImg"),
+  playerAmbientImgB: document.getElementById("playerAmbientImgB"),
   playerFit: document.getElementById("playerFit"),
   playerBoard: document.getElementById("playerBoard"),
   playerClose: document.getElementById("playerClose"),
@@ -439,6 +441,14 @@ function resetAccountScopedUi() {
     hydrateShellBackground();
   } catch {
     /* 背景图函数尚未就绪时忽略 */
+  }
+  try {
+    coverRotateMemory = null;
+    clearInterval(coverRotateTimer);
+    coverRotateTimer = 0;
+    loadCoverLibrary().catch(() => {});
+  } catch {
+    /* 封面库尚未就绪时忽略 */
   }
 }
 
@@ -5216,6 +5226,9 @@ function coverAccentTargets() {
   return list;
 }
 
+let coverShownUrl = "";
+let coverFadeTimer = 0;
+
 function clearPlayerAtmosphere() {
   for (const el of coverAccentTargets()) {
     el.style.removeProperty("--cover-accent");
@@ -5225,24 +5238,114 @@ function clearPlayerAtmosphere() {
     el.style.removeProperty("--lyric-glow");
     el.style.removeProperty("--lyric-wash");
   }
-  if (els.playerAmbientImg) {
-    els.playerAmbientImg.removeAttribute("src");
-    els.playerAmbientImg.hidden = true;
+  window.clearTimeout(coverFadeTimer);
+  coverFadeTimer = 0;
+  coverShownUrl = "";
+  const layer = els.playerAmbient;
+  if (layer) {
+    layer.classList.remove("is-instant", "is-moving");
+    layer.dataset.coverMove = "fade";
   }
+  [els.playerAmbientImg, els.playerAmbientImgB].forEach((img, i) => {
+    if (!img) return;
+    img.removeAttribute("src");
+    img.hidden = true;
+    img.classList.toggle("is-front", i === 0);
+    img.classList.remove("is-out", "is-leaving");
+  });
 }
 
-function applyPlayerAtmosphere(src) {
+function ambientFrontImg() {
+  return (
+    document.querySelector("#playerAmbient .player-ambient-img.is-front") ||
+    els.playerAmbientImg
+  );
+}
+
+function snapPlayerAtmosphere(url) {
+  const layer = els.playerAmbient;
+  const front = els.playerAmbientImg;
+  const back = els.playerAmbientImgB;
+  if (!front) return;
+  window.clearTimeout(coverFadeTimer);
+  coverFadeTimer = 0;
+  if (layer) {
+    layer.classList.add("is-instant");
+    layer.classList.remove("is-moving");
+  }
+  front.hidden = false;
+  front.classList.add("is-front");
+  front.classList.remove("is-out", "is-leaving");
+  if (front.getAttribute("src") !== url) front.src = url;
+  if (back) {
+    back.hidden = true;
+    back.classList.remove("is-front", "is-out", "is-leaving");
+    back.removeAttribute("src");
+  }
+  coverShownUrl = url;
+  window.requestAnimationFrame(() => layer?.classList.remove("is-instant"));
+}
+
+function crossfadePlayerAtmosphere(url, mode) {
+  const layer = els.playerAmbient;
+  const front = ambientFrontImg();
+  const back =
+    front?.id === "playerAmbientImgB" ? els.playerAmbientImg : els.playerAmbientImgB;
+  if (!layer || !front || !back) {
+    snapPlayerAtmosphere(url);
+    return;
+  }
+  if (front.getAttribute("src") === url && front.classList.contains("is-front") && !front.hidden) {
+    coverShownUrl = url;
+    return;
+  }
+  window.clearTimeout(coverFadeTimer);
+  coverFadeTimer = 0;
+  const move = ["fade", "veil", "drift"].includes(mode) ? mode : "fade";
+  back.hidden = false;
+  if (back.getAttribute("src") !== url) back.src = url;
+  layer.classList.add("is-instant");
+  layer.classList.remove("is-moving");
+  layer.dataset.coverMove = move;
+  back.classList.remove("is-front", "is-out", "is-leaving");
+  front.classList.remove("is-out", "is-leaving");
+  void layer.offsetWidth;
+  layer.classList.remove("is-instant");
+  void back.offsetWidth;
+  if (move === "veil") {
+    front.classList.add("is-leaving");
+    coverFadeTimer = window.setTimeout(() => {
+      back.classList.add("is-front");
+      coverFadeTimer = window.setTimeout(() => {
+        front.classList.remove("is-front", "is-leaving");
+        front.hidden = true;
+      }, 820);
+    }, 760);
+  } else {
+    layer.classList.add("is-moving");
+    front.classList.add("is-out");
+    back.classList.add("is-front");
+    coverFadeTimer = window.setTimeout(() => {
+      front.classList.remove("is-front", "is-out");
+      front.hidden = true;
+      layer.classList.remove("is-moving");
+    }, 1100);
+  }
+  coverShownUrl = url;
+}
+
+function applyPlayerAtmosphere(src, opts = {}) {
   const url = String(src || "").trim();
   const win = els.playerWindow;
   if (!url || !win) {
     clearPlayerAtmosphere();
     return;
   }
-  if (els.playerAmbientImg) {
-    els.playerAmbientImg.hidden = false;
-    if (els.playerAmbientImg.getAttribute("src") !== url) {
-      els.playerAmbientImg.src = url;
-    }
+  const motion = opts?.motion;
+  if (motion && coverShownUrl && coverShownUrl !== url) {
+    crossfadePlayerAtmosphere(url, motion);
+  } else {
+    snapPlayerAtmosphere(url);
   }
   const token = ++coverAccentToken;
   const img = new Image();
@@ -5775,12 +5878,138 @@ async function loadLyricsBackgrounds() {
 }
 
 const LYRICS_COVER_KEY = "ludong-lyrics-cover-v1";
+const COVER_ROTATE_KEY = "ludong-cover-rotate-v1";
 const LOCAL_COVER_DB = "ludong-cover-lib-idb";
 const LOCAL_COVER_STORE = "covers";
 let coverPickDraft = null;
 let coverLibraryItems = [];
 let localCoverItems = [];
 let localCoverUrls = new Map();
+let coverRotateTimer = 0;
+let coverRotateMemory = null;
+
+function emptyCoverRotate() {
+  return { rotate: "off", intervalMin: 5, transition: "fade" };
+}
+
+function normalizeCoverRotate(data) {
+  const rotate = ["off", "order", "random"].includes(data?.rotate) ? data.rotate : "off";
+  const transition = ["fade", "veil", "drift"].includes(data?.transition) ? data.transition : "fade";
+  let intervalMin = Number(data?.intervalMin);
+  if (!Number.isFinite(intervalMin)) intervalMin = 5;
+  intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
+  return { rotate, intervalMin, transition };
+}
+
+function readCoverRotate() {
+  if (coverRotateMemory) return coverRotateMemory;
+  try {
+    const raw = localStorage.getItem(scopedStorageKey(COVER_ROTATE_KEY));
+    coverRotateMemory = normalizeCoverRotate(raw ? JSON.parse(raw) : null);
+  } catch {
+    coverRotateMemory = emptyCoverRotate();
+  }
+  return coverRotateMemory;
+}
+
+function writeCoverRotate(next) {
+  const state = normalizeCoverRotate(next || emptyCoverRotate());
+  coverRotateMemory = state;
+  try {
+    localStorage.setItem(scopedStorageKey(COVER_ROTATE_KEY), JSON.stringify(state));
+  } catch {
+    /* ignore */
+  }
+  return state;
+}
+
+function uploadedCoverPool() {
+  return [
+    ...localCoverItems.map((item) => ({ mode: "local", id: String(item.id) })),
+    ...coverLibraryItems.map((item) => ({ mode: "library", id: String(item.id) }))
+  ].filter((item) => item.id);
+}
+
+function coverChoiceKey(choice) {
+  const c = choice || {};
+  if ((c.mode === "local" || c.mode === "library") && c.id) return `${c.mode}:${c.id}`;
+  return "";
+}
+
+function pickNextUploadedCover(pool, rotate, currentChoice) {
+  if (!pool.length) return null;
+  const curKey = coverChoiceKey(currentChoice);
+  const index = pool.findIndex((item) => `${item.mode}:${item.id}` === curKey);
+  if (rotate === "random") {
+    if (pool.length === 1) return pool[0];
+    const others = index >= 0 ? pool.filter((_, i) => i !== index) : pool;
+    return others[Math.floor(Math.random() * others.length)] || pool[0];
+  }
+  if (index < 0) return pool[0];
+  return pool[(index + 1) % pool.length];
+}
+
+function syncCoverRotatePickerUI(state = readCoverRotate()) {
+  const pool = uploadedCoverPool();
+  document.querySelectorAll("#coverPickRotateRow [data-cover-rotate]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.coverRotate === state.rotate);
+  });
+  const wrap = document.getElementById("coverPickIntervalWrap");
+  const interval = document.getElementById("coverPickInterval");
+  if (wrap) wrap.hidden = state.rotate === "off" || pool.length < 2;
+  if (interval && document.activeElement !== interval) {
+    interval.value = String(state.intervalMin);
+  }
+  const canMove = pool.length >= 2;
+  const motionRow = document.getElementById("coverPickMotionRow");
+  const motionPick = document.getElementById("coverPickMotionPick");
+  if (motionRow) motionRow.hidden = !canMove;
+  if (motionPick) motionPick.hidden = !canMove;
+  document.querySelectorAll("#coverPickMotionPick [data-cover-motion]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.coverMotion === (state.transition || "fade"));
+  });
+}
+
+function scheduleCoverRotate(state = readCoverRotate()) {
+  clearInterval(coverRotateTimer);
+  coverRotateTimer = 0;
+  const pool = uploadedCoverPool();
+  if (state.rotate === "off" || pool.length < 2) return;
+  const ms = Math.max(1, state.intervalMin) * 60 * 1000;
+  coverRotateTimer = setInterval(() => {
+    advanceCoverRotate();
+  }, ms);
+}
+
+function advanceCoverRotate(forceMotion) {
+  const state = readCoverRotate();
+  const pool = uploadedCoverPool();
+  if (pool.length < 2 || (state.rotate === "off" && !forceMotion)) return false;
+  const current = readLyricsCoverChoice();
+  const next = pickNextUploadedCover(pool, forceMotion ? "order" : state.rotate, current);
+  if (!next) return false;
+  if (coverChoiceKey(current) === `${next.mode}:${next.id}` && !forceMotion) return false;
+  writeLyricsCoverChoice(next);
+  if (coverPickDraft && !els.coverPickLayer?.hidden) {
+    coverPickDraft = { ...next };
+    renderCoverPicker();
+  }
+  const motion = forceMotion || state.transition || "fade";
+  applyLyricsSideCover(playlist[currentIndex], { motion });
+  return true;
+}
+
+function previewCoverRotateSwitch(transition) {
+  const state = readCoverRotate();
+  const pool = uploadedCoverPool();
+  if (pool.length < 2) {
+    setHint("至少两张上传封面才能看切换", true);
+    return;
+  }
+  const mode = ["fade", "veil", "drift"].includes(transition) ? transition : state.transition || "fade";
+  writeCoverRotate({ ...state, transition: mode });
+  advanceCoverRotate(mode);
+}
 
 function readLyricsCoverChoice() {
   try {
@@ -5966,12 +6195,12 @@ async function compressCoverFile(file, maxSide = 1280, quality = 0.84) {
   }
 }
 
-function applyLyricsSideCover(song) {
+function applyLyricsSideCover(song, opts = {}) {
   const current = song || playlist[currentIndex];
   const choice = readLyricsCoverChoice();
   if (choice.mode === "local" && choice.id && !localCoverUrls.has(choice.id)) {
     loadLocalCoverLibrary()
-      .then(() => applyLyricsSideCover(current))
+      .then(() => applyLyricsSideCover(current, opts))
       .catch(() => {});
     return;
   }
@@ -5989,7 +6218,8 @@ function applyLyricsSideCover(song) {
   paint(els.lyricsBgImg);
   paint(els.lyricsAmbientImg);
   paint(document.getElementById("theaterVinylCover"));
-  if (url) applyPlayerAtmosphere(url);
+  if (url) applyPlayerAtmosphere(url, opts);
+  else clearPlayerAtmosphere();
   if (currentPlayerView() === "theater") {
     requestAnimationFrame(() => syncTheaterDockWidth());
   }
@@ -6007,12 +6237,14 @@ async function loadCoverLibrary() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) {
       coverLibraryItems = [];
-      return;
+    } else {
+      coverLibraryItems = Array.isArray(data.items) ? data.items : [];
     }
-    coverLibraryItems = Array.isArray(data.items) ? data.items : [];
   } catch {
     coverLibraryItems = [];
   }
+  scheduleCoverRotate();
+  if (!els.coverPickLayer?.hidden) syncCoverRotatePickerUI();
 }
 
 function coverPickItemHtml(item, { selected = false, local = false } = {}) {
@@ -6075,6 +6307,7 @@ function renderCoverPicker() {
     "is-selected",
     draft.mode === "library" || draft.mode === "local" || draft.mode === "custom"
   );
+  syncCoverRotatePickerUI();
 }
 
 async function openCoverPicker() {
@@ -6092,6 +6325,7 @@ async function applyCoverDraftAndPersist() {
     return false;
   }
   applyLyricsSideCover(playlist[currentIndex]);
+  scheduleCoverRotate();
   return true;
 }
 
@@ -8854,8 +9088,51 @@ async function deleteCoverFromLibrary(id, kind) {
     await applyCoverDraftAndPersist();
   }
   renderCoverPicker();
+  scheduleCoverRotate();
   setHint("已删除封面");
 }
+
+document.getElementById("coverPickRotateRow")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-cover-rotate]");
+  if (!btn) return;
+  const rotate = btn.dataset.coverRotate || "off";
+  const pool = uploadedCoverPool();
+  if (rotate !== "off" && pool.length < 2) {
+    setHint("上传封面至少两张才能自动切换", true);
+    syncCoverRotatePickerUI();
+    return;
+  }
+  writeCoverRotate({ ...readCoverRotate(), rotate });
+  syncCoverRotatePickerUI();
+  scheduleCoverRotate();
+  if (rotate === "off") setHint("已关闭封面自动切换");
+  else setHint(rotate === "random" ? "封面将随机切换" : "封面将按顺序切换");
+});
+
+document.getElementById("coverPickMotionPick")?.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-cover-motion]");
+  if (!btn) return;
+  const transition = btn.dataset.coverMotion || "fade";
+  const pool = uploadedCoverPool();
+  if (pool.length < 2) {
+    setHint("至少两张上传封面才能看切换", true);
+    return;
+  }
+  writeCoverRotate({ ...readCoverRotate(), transition });
+  syncCoverRotatePickerUI();
+  previewCoverRotateSwitch(transition);
+  const label = transition === "veil" ? "淡过" : transition === "drift" ? "轻移" : "叠化";
+  setHint(`正在用「${label}」换到下一张`);
+});
+
+document.getElementById("coverPickInterval")?.addEventListener("change", (e) => {
+  let intervalMin = Number(e.target?.value);
+  if (!Number.isFinite(intervalMin)) intervalMin = 5;
+  intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
+  if (e.target) e.target.value = String(intervalMin);
+  writeCoverRotate({ ...readCoverRotate(), intervalMin });
+  scheduleCoverRotate();
+});
 
 els.coverPickUploadBtn?.addEventListener("click", (e) => {
   e.preventDefault();
@@ -12718,6 +12995,7 @@ document.addEventListener("visibilitychange", () => {
   syncShellFramePlayback();
 });
 hydrateShellBackground();
+loadCoverLibrary().catch(() => {});
 loadSeekEmojiPicker();
 bindWishPage();
 

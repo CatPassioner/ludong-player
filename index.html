@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03theater29" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03theater30" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -218,8 +218,9 @@
         <img class="cover-plane out" id="coverPlaneOut" alt="" />
         <img class="cover-plane in" id="coverPlaneIn" alt="" />
       </div>
-      <div class="player-ambient" aria-hidden="true">
-        <img class="player-ambient-img" id="playerAmbientImg" alt="" />
+      <div class="player-ambient" id="playerAmbient" aria-hidden="true" data-cover-move="fade">
+        <img class="player-ambient-img is-front" id="playerAmbientImg" alt="" />
+        <img class="player-ambient-img" id="playerAmbientImgB" alt="" hidden />
         <div class="player-ambient-dim"></div>
       </div>
       <div class="player-fit" id="playerFit">
@@ -466,8 +467,33 @@
       <div class="cover-pick-layer" id="coverPickLayer" hidden>
         <div class="cover-pick-card" role="dialog" aria-modal="true" aria-labelledby="coverPickTitle">
           <h3 class="cover-pick-title" id="coverPickTitle">自定义封面</h3>
-          <p class="cover-pick-note">可上传到「我上传的」并长期保存，也可删掉；剧场页会用作整幅背景与左侧封面。上传后会自动选用，也可再改选后点保存。</p>
+          <p class="cover-pick-note">可上传到「我上传的」并长期保存，也可删掉；剧场页会用作整幅背景与左侧封面。上传后会自动选用，也可再改选后点保存。自己上传的封面可像主页背景一样自动切换。</p>
           <div class="cover-pick-grid" id="coverPickGrid"></div>
+          <div class="cover-pick-rotate" id="coverPickRotateBlock">
+            <div class="settings-row">
+              <span class="settings-label">自动切换</span>
+              <span class="settings-hint">至少两张上传封面才会换</span>
+            </div>
+            <div class="bg-hue-row" id="coverPickRotateRow" role="group" aria-label="封面自动切换">
+              <button type="button" class="bg-hue is-active" data-cover-rotate="off">关闭</button>
+              <button type="button" class="bg-hue" data-cover-rotate="order">顺序</button>
+              <button type="button" class="bg-hue" data-cover-rotate="random">随机</button>
+            </div>
+            <label class="shell-bg-interval cover-pick-interval" id="coverPickIntervalWrap" hidden>
+              每隔
+              <input type="number" id="coverPickInterval" min="1" max="180" step="1" value="5" />
+              分钟换一张
+            </label>
+            <div class="settings-row" id="coverPickMotionRow" hidden>
+              <span class="settings-label">切换方式</span>
+              <span class="settings-hint">点一下看下一张</span>
+            </div>
+            <div class="bg-hue-row" id="coverPickMotionPick" hidden role="group" aria-label="封面切换方式">
+              <button type="button" class="bg-hue is-active" data-cover-motion="fade">叠化</button>
+              <button type="button" class="bg-hue" data-cover-motion="veil">淡过</button>
+              <button type="button" class="bg-hue" data-cover-motion="drift">轻移</button>
+            </div>
+          </div>
           <div class="cover-pick-extra">
             <button type="button" class="cover-pick-extra-btn" id="coverPickUploadBtn">上传封面</button>
             <button type="button" class="cover-pick-extra-btn" id="coverPickSongBtn">使用歌曲封面</button>
@@ -1198,6 +1224,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03asset1"></script>
-  <script src="app.js?v=2.0.03theater29"></script>
+  <script src="app.js?v=2.0.03theater30"></script>
 </body>
 </html>
