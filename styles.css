@@ -5799,11 +5799,13 @@ html[data-bg-light="1"] .confirm-backdrop {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scale(1.28);
+  transform: scale(1.28) translate3d(0, 0, 0);
   filter: blur(52px) saturate(1.35) brightness(1.12);
   opacity: 0;
   z-index: 0;
-  transition: opacity 0.55s ease;
+  transition:
+    opacity 1.15s cubic-bezier(0.33, 0.1, 0.2, 1),
+    transform 1.35s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .player-ambient-img.is-front {
@@ -5821,16 +5823,22 @@ html[data-bg-light="1"] .confirm-backdrop {
   transition: none;
 }
 
-.player-ambient[data-cover-move="drift"] .player-ambient-img {
-  transition: opacity 0.55s ease, transform 0.65s ease;
+/* 叠化：双图柔和交叠 */
+.player-ambient[data-cover-move="fade"] .player-ambient-img {
+  transition: opacity 1.2s cubic-bezier(0.33, 0.08, 0.18, 1);
 }
 
+/* 轻移：新图从右侧缓入，旧图轻推离场 */
 .player-ambient[data-cover-move="drift"] .player-ambient-img:not(.is-front) {
-  transform: scale(1.32) translate3d(3%, 0, 0);
+  transform: scale(1.3) translate3d(4.5%, 0, 0);
+}
+
+.player-ambient[data-cover-move="drift"] .player-ambient-img.is-front:not(.is-out):not(.is-leaving) {
+  transform: scale(1.28) translate3d(0, 0, 0);
 }
 
 .player-ambient[data-cover-move="drift"] .player-ambient-img.is-out {
-  transform: scale(1.3) translate3d(-2%, 0, 0);
+  transform: scale(1.26) translate3d(-3.2%, 0, 0);
 }
 
 .player-ambient-img[hidden] {
@@ -5845,36 +5853,19 @@ html[data-bg-light="1"] .confirm-backdrop {
   opacity: 0.72;
 }
 
-/* 轻量换场：只压一层遮罩，不叠两张全屏大图，叠化/淡过/轻移都走这里 */
+/* 淡过：柔光遮罩，不硬切 */
 .player-ambient-softveil {
   position: absolute;
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  background: #0b1018;
+  background: radial-gradient(120% 90% at 50% 42%, rgba(12, 16, 24, 0.2) 0%, rgba(8, 10, 16, 0.78) 72%);
   opacity: 0;
-  transition: opacity 0.32s ease;
+  transition: opacity 0.7s cubic-bezier(0.4, 0.05, 0.2, 1);
 }
 
 .player-ambient.is-veiling .player-ambient-softveil {
-  opacity: 0.42;
-}
-
-.player-ambient.is-veiling[data-cover-move="veil"] .player-ambient-softveil {
-  opacity: 0.72;
-}
-
-.player-ambient.is-veiling[data-cover-move="drift"] .player-ambient-softveil {
-  opacity: 0.36;
-}
-
-.player-ambient.is-veiling[data-cover-move="drift"] .player-ambient-img.is-front {
-  transform: scale(1.1) translate3d(-2%, 0, 0);
-  transition: transform 0.45s ease;
-}
-
-.player-window.is-view-theater .player-ambient.is-veiling[data-cover-move="drift"] .player-ambient-img.is-front {
-  transform: scale(1.08) translate3d(-1.8%, 0, 0);
+  opacity: 1;
 }
 
 .player-window.is-view-immerse .player-ambient-dim {
@@ -6122,10 +6113,10 @@ html[data-bg-light="1"] .confirm-backdrop {
   overflow: visible;
 }
 
-/* 整幅封面作背景：清晰可见；叠化只用 is-front / is-out，不用模糊 */
+/* 整幅封面作背景：清晰可见；叠化/轻移用缓动交叠 */
 .player-window.is-view-theater .player-ambient-img {
   filter: saturate(1.08) brightness(0.78);
-  transform: scale(1.04);
+  transform: scale(1.04) translate3d(0, 0, 0);
   object-fit: cover;
 }
 
@@ -6134,11 +6125,15 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .player-window.is-view-theater .player-ambient[data-cover-move="drift"] .player-ambient-img:not(.is-front) {
-  transform: scale(1.08) translate3d(2.5%, 0, 0);
+  transform: scale(1.08) translate3d(3.2%, 0, 0);
+}
+
+.player-window.is-view-theater .player-ambient[data-cover-move="drift"] .player-ambient-img.is-front:not(.is-out):not(.is-leaving) {
+  transform: scale(1.04) translate3d(0, 0, 0);
 }
 
 .player-window.is-view-theater .player-ambient[data-cover-move="drift"] .player-ambient-img.is-out {
-  transform: scale(1.06) translate3d(-2%, 0, 0);
+  transform: scale(1.03) translate3d(-2.4%, 0, 0);
 }
 
 .player-window.is-view-theater .player-ambient-dim,

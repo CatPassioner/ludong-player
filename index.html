@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03theater33" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03theater34" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -482,12 +482,12 @@
             </div>
             <label class="shell-bg-interval cover-pick-interval" id="coverPickIntervalWrap" hidden>
               每隔
-              <input type="number" id="coverPickInterval" min="10" max="10800" step="5" value="300" />
+              <input type="number" id="coverPickInterval" min="10" max="10800" step="5" value="60" />
               秒换一张
             </label>
             <div class="settings-row" id="coverPickMotionRow" hidden>
               <span class="settings-label">切换方式</span>
-              <span class="settings-hint">点一下预览 · 建议间隔 ≥30 秒</span>
+              <span class="settings-hint">点一下预览 · 默认 1 分钟</span>
             </div>
             <div class="bg-hue-row" id="coverPickMotionPick" hidden role="group" aria-label="封面切换方式">
               <button type="button" class="bg-hue is-active" data-cover-motion="fade">叠化</button>
@@ -669,7 +669,7 @@
           </div>
           <label class="shell-bg-interval" id="shellBgIntervalWrap" hidden>
             每隔
-            <input type="number" id="shellBgInterval" min="10" max="10800" step="5" value="300" />
+            <input type="number" id="shellBgInterval" min="10" max="10800" step="5" value="60" />
             秒换一张
           </label>
           <div class="settings-row" id="shellBgMotionRow" hidden>
@@ -1225,6 +1225,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03asset1"></script>
-  <script src="app.js?v=2.0.03theater33"></script>
+  <script src="app.js?v=2.0.03theater34"></script>
 </body>
 </html>

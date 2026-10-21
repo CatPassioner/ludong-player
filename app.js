@@ -5339,15 +5339,97 @@ function snapPlayerAtmosphere(url) {
 
 function waitMs(ms) {
   return new Promise((resolve) => {
-    coverFadeTimer = window.setTimeout(resolve, ms);
+    window.setTimeout(resolve, ms);
   });
 }
 
-/** 轻量换场：始终只显示一张全屏图，用遮罩做出叠化/淡过/轻移观感，避免双大图叠化卡顿 */
-async function softSwapPlayerAtmosphere(url, mode) {
+function nextFrames(n = 2) {
+  return new Promise((resolve) => {
+    const step = () => {
+      n -= 1;
+      if (n <= 0) resolve();
+      else window.requestAnimationFrame(step);
+    };
+    window.requestAnimationFrame(step);
+  });
+}
+
+/** 淡过：柔光遮罩下换图，比硬切柔和 */
+async function veilSwapPlayerAtmosphere(url, token) {
   const layer = els.playerAmbient;
   const front = els.playerAmbientImg;
   const probe = els.playerAmbientImgB;
+  if (!layer || !front) {
+    snapPlayerAtmosphere(url);
+    return;
+  }
+  if (probe) await whenImageReady(probe, url);
+  else await preloadImageUrl(url);
+  if (token !== coverFadeGen) return;
+
+  layer.dataset.coverMove = "veil";
+  layer.classList.remove("is-instant", "is-moving");
+  layer.classList.add("is-veiling");
+  await waitMs(720);
+  if (token !== coverFadeGen) return;
+
+  front.hidden = false;
+  front.classList.add("is-front");
+  front.classList.remove("is-out", "is-leaving");
+  if (front.getAttribute("src") !== url) front.src = url;
+  if (probe) {
+    probe.hidden = true;
+    probe.classList.remove("is-front", "is-out", "is-leaving");
+  }
+  coverShownUrl = url;
+  await waitMs(80);
+  if (token !== coverFadeGen) return;
+  layer.classList.remove("is-veiling");
+  await waitMs(720);
+}
+
+/** 叠化 / 轻移：预加载后双图缓动交叠（剧场无模糊，间隔约 1 分钟时足够顺） */
+async function blendSwapPlayerAtmosphere(url, mode, token) {
+  const layer = els.playerAmbient;
+  const front = ambientFrontImg();
+  const back =
+    front?.id === "playerAmbientImgB" ? els.playerAmbientImg : els.playerAmbientImgB;
+  if (!layer || !front || !back) {
+    snapPlayerAtmosphere(url);
+    return;
+  }
+  await whenImageReady(back, url);
+  if (token !== coverFadeGen) return;
+
+  const move = mode === "drift" ? "drift" : "fade";
+  layer.dataset.coverMove = move;
+  layer.classList.add("is-instant");
+  layer.classList.remove("is-moving", "is-veiling");
+  back.hidden = false;
+  back.classList.remove("is-front", "is-out", "is-leaving");
+  front.classList.remove("is-out", "is-leaving");
+  await nextFrames(2);
+  if (token !== coverFadeGen) return;
+
+  layer.classList.remove("is-instant");
+  await nextFrames(1);
+  if (token !== coverFadeGen) return;
+
+  layer.classList.add("is-moving");
+  front.classList.add("is-out");
+  back.classList.add("is-front");
+  coverShownUrl = url;
+  coverFadeTimer = window.setTimeout(() => {
+    if (token !== coverFadeGen) return;
+    front.classList.remove("is-front", "is-out");
+    front.hidden = true;
+    layer.classList.remove("is-moving");
+  }, move === "drift" ? 1400 : 1250);
+}
+
+async function transitionPlayerAtmosphere(url, mode) {
+  const layer = els.playerAmbient;
+  const front = ambientFrontImg() || els.playerAmbientImg;
   if (!layer || !front) {
     snapPlayerAtmosphere(url);
     return;
@@ -5360,41 +5442,11 @@ async function softSwapPlayerAtmosphere(url, mode) {
   coverFadeTimer = 0;
   const move = ["fade", "veil", "drift"].includes(mode) ? mode : "fade";
   const token = ++coverFadeGen;
-  const veilIn = move === "veil" ? 280 : move === "drift" ? 220 : 240;
-  const veilOut = move === "veil" ? 320 : 260;
-
-  if (probe) {
-    probe.hidden = true;
-    await whenImageReady(probe, url);
-  } else {
-    await preloadImageUrl(url);
+  if (move === "veil") {
+    await veilSwapPlayerAtmosphere(url, token);
+    return;
   }
-  if (token !== coverFadeGen) return;
-
-  layer.dataset.coverMove = move;
-  layer.classList.remove("is-instant", "is-moving");
-  layer.classList.add("is-veiling");
-  await waitMs(veilIn);
-  if (token !== coverFadeGen) return;
-
-  front.hidden = false;
-  front.classList.add("is-front");
-  front.classList.remove("is-out", "is-leaving");
-  if (front.getAttribute("src") !== url) front.src = url;
-  if (probe) {
-    probe.hidden = true;
-    probe.classList.remove("is-front", "is-out", "is-leaving");
-  }
-  coverShownUrl = url;
-
-  // 轻移：换图后再回正一点，遮罩下完成位移
-  if (move === "drift") {
-    void front.offsetWidth;
-  }
-  await waitMs(40);
-  if (token !== coverFadeGen) return;
-  layer.classList.remove("is-veiling");
-  await waitMs(veilOut);
+  await blendSwapPlayerAtmosphere(url, move, token);
 }
 
 function applyPlayerAtmosphere(src, opts = {}) {
@@ -5406,7 +5458,7 @@ function applyPlayerAtmosphere(src, opts = {}) {
   }
   const motion = opts?.motion;
   if (motion && coverShownUrl && coverShownUrl !== url) {
-    softSwapPlayerAtmosphere(url, motion);
+    transitionPlayerAtmosphere(url, motion);
   } else {
     snapPlayerAtmosphere(url);
   }
@@ -5951,13 +6003,13 @@ let localCoverUrls = new Map();
 let coverRotateTimer = 0;
 let coverRotateMemory = null;
 
-function clampRotateIntervalSec(raw, fallbackSec = 300) {
+function clampRotateIntervalSec(raw, fallbackSec = 60) {
   let sec = Number(raw);
   if (!Number.isFinite(sec)) sec = fallbackSec;
   return Math.max(10, Math.min(10800, Math.round(sec)));
 }
 
-function rotateIntervalSecFromSaved(data, fallbackSec = 300) {
+function rotateIntervalSecFromSaved(data, fallbackSec = 60) {
   const sec = Number(data?.intervalSec);
   if (Number.isFinite(sec)) return clampRotateIntervalSec(sec, fallbackSec);
   const mins = Number(data?.intervalMin);
@@ -5966,7 +6018,7 @@ function rotateIntervalSecFromSaved(data, fallbackSec = 300) {
 }
 
 function emptyCoverRotate() {
-  return { rotate: "off", intervalSec: 300, transition: "fade" };
+  return { rotate: "off", intervalSec: 60, transition: "fade" };
 }
 
 function normalizeCoverRotate(data) {
@@ -9200,7 +9252,7 @@ document.getElementById("coverPickMotionPick")?.addEventListener("click", (e) =>
 });
 
 document.getElementById("coverPickInterval")?.addEventListener("change", (e) => {
-  const intervalSec = clampRotateIntervalSec(e.target?.value, 300);
+  const intervalSec = clampRotateIntervalSec(e.target?.value, 60);
   if (e.target) e.target.value = String(intervalSec);
   writeCoverRotate({ ...readCoverRotate(), intervalSec });
   scheduleCoverRotate();
@@ -12199,7 +12251,7 @@ function shellLevelFromSaved(data) {
 }
 
 function emptyShellBackground() {
-  return { ids: [], images: {}, posters: {}, activeId: "", level: 55, rotate: "off", intervalSec: 300, transition: "fade" };
+  return { ids: [], images: {}, posters: {}, activeId: "", level: 55, rotate: "off", intervalSec: 60, transition: "fade" };
 }
 
 function isShellStill(src) {
@@ -13028,7 +13080,7 @@ document.getElementById("shellBgRotateRow")?.addEventListener("click", (e) => {
 });
 
 document.getElementById("shellBgInterval")?.addEventListener("change", (e) => {
-  const intervalSec = clampRotateIntervalSec(e.target?.value, 300);
+  const intervalSec = clampRotateIntervalSec(e.target?.value, 60);
   if (e.target) e.target.value = String(intervalSec);
   const state = readShellBackground();
   writeShellBackground({ ...state, intervalSec });
