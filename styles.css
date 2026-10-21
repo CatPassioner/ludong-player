@@ -6358,10 +6358,11 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
     var(--theater-dock-left) + var(--theater-dock-w, 320px) + clamp(20px, 2.8vw, 48px)
   );
   right: clamp(20px, 4vw, 56px);
-  top: 50%;
+  /* 整体上移：视觉焦点在偏上，避免歌词沉在下半屏 */
+  top: max(4vh, calc(42% - 2vh));
   bottom: auto;
   width: auto;
-  height: min(88vh, 780px);
+  height: min(84vh, 760px);
   margin: 0;
   padding: 0 8px;
   background: transparent !important;
@@ -6370,7 +6371,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  transform: translateY(-50%);
+  transform: translateY(-42%);
   transform-origin: center center;
   z-index: 4;
   overflow: hidden;
@@ -6384,15 +6385,15 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   content: "";
   position: absolute;
   left: 50%;
-  top: 50%;
-  width: min(92%, 520px);
-  height: clamp(52px, 9vh, 72px);
+  top: 38%;
+  width: min(94%, 560px);
+  height: clamp(64px, 11vh, 88px);
   transform: translate(-50%, -50%);
   border-radius: 999px;
   background: radial-gradient(
     ellipse at center,
-    rgba(255, 214, 150, 0.16) 0%,
-    rgba(255, 214, 150, 0.05) 42%,
+    rgba(255, 214, 150, 0.18) 0%,
+    rgba(255, 214, 150, 0.06) 42%,
     transparent 72%
   );
   pointer-events: none;
@@ -6410,8 +6411,8 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 .player-window.is-view-theater .lyrics-board {
-  --line-h: clamp(2.35rem, 4.4vh, 3.1rem);
-  --line-gap: clamp(0.4rem, 1vh, 0.75rem);
+  --line-h: clamp(2.7rem, 5.2vh, 3.55rem);
+  --line-gap: clamp(0.45rem, 1.15vh, 0.85rem);
   height: 100%;
 }
 
@@ -6516,25 +6517,25 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 .player-window.is-view-theater .lyric-line .lyric-karaoke {
-  font-size: clamp(0.95rem, 1.9vh, 1.18rem);
-  font-weight: 500;
+  font-size: clamp(1.1rem, 2.35vh, 1.4rem);
+  font-weight: 520;
   letter-spacing: 0.04em;
-  line-height: 1.32;
+  line-height: 1.34;
   white-space: normal;
 }
 
 .player-window.is-view-theater .lyric-line.is-mid .lyric-karaoke {
-  font-size: clamp(1.02rem, 2.1vh, 1.26rem);
+  font-size: clamp(1.2rem, 2.65vh, 1.55rem);
 }
 
 .player-window.is-view-theater .lyric-line.is-near .lyric-karaoke {
-  font-size: clamp(1.08rem, 2.35vh, 1.38rem);
+  font-size: clamp(1.32rem, 3vh, 1.72rem);
 }
 
 .player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
-  font-size: clamp(1.36rem, 3.2vh, 1.95rem);
-  font-weight: 760;
-  letter-spacing: 0.05em;
+  font-size: clamp(1.78rem, 4.4vh, 2.55rem);
+  font-weight: 780;
+  letter-spacing: 0.055em;
 }
 
 .player-window.is-view-theater .lyric-line:not(.is-active) .lyric-karaoke {

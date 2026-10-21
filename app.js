@@ -5489,25 +5489,22 @@ function ensureTheaterSurface() {
   if (els.lyricsArt) els.lyricsArt.hidden = false;
   dockTheaterChrome(true);
   const song = playlist[currentIndex];
+  const finish = () => {
+    startLyricsLoop();
+    paintTheaterMotion(!audio.paused);
+    requestAnimationFrame(() => {
+      syncTheaterDockWidth();
+      snapLyricsToPlaying({ instant: true });
+      // 布局稳定后再钉一次，避免打开时停在句首
+      requestAnimationFrame(() => snapLyricsToPlaying({ instant: true }));
+    });
+  };
   if (song) {
     applyLyricsSideCover(song);
-    loadLyricsForSong(song);
+    Promise.resolve(loadLyricsForSong(song)).finally(finish);
+  } else {
+    finish();
   }
-  startLyricsLoop();
-  paintTheaterMotion(!audio.paused);
-  requestAnimationFrame(() => {
-    syncTheaterDockWidth();
-    if (lyricLines.length) {
-      const t = mediaClock().currentTime || 0;
-      let idx = 0;
-      for (let i = 0; i < lyricLines.length; i++) {
-        if (lyricLines[i].time <= t + 0.28) idx = i;
-        else break;
-      }
-      scrollToLyric(idx, { instant: true });
-    }
-    syncLyrics();
-  });
 }
 
 function setPlayerView(view) {
@@ -6699,9 +6696,35 @@ function markLyricsManual(extended = false) {
   if (lyricsAutoScrolling) return;
   lyricsDetached = true;
   const theater = currentPlayerView() === "theater";
-  const hold = extended || theater ? 5200 : 1000;
+  // 剧场拖完后稍停再回正到当前句
+  const hold = extended || theater ? 1600 : 1000;
   lyricsManualUntil = Date.now() + hold;
   els.lyricsBoard?.classList.add("is-browsing");
+}
+
+function currentLyricIndexAt(time = mediaClock().currentTime || 0) {
+  if (!lyricLines.length) return 0;
+  const lead = time + 0.28;
+  const firstTime = lyricLines[0]?.time ?? 0;
+  if (lead + 0.08 < firstTime) return 0;
+  let idx = 0;
+  for (let i = 0; i < lyricLines.length; i++) {
+    if (lyricLines[i].time <= lead) idx = i;
+    else break;
+  }
+  return idx;
+}
+
+/** 跳到正在播放的歌词（打开播放器 / 拖动结束回正） */
+function snapLyricsToPlaying({ instant = true } = {}) {
+  lyricsManualUntil = 0;
+  lyricsDetached = false;
+  els.lyricsBoard?.classList.remove("is-browsing");
+  if (!lyricLines.length || !els.lyricsTrack?.children?.length) return;
+  const idx = currentLyricIndexAt();
+  activeLyricIndex = -1;
+  scrollToLyric(idx, { instant });
+  syncLyrics();
 }
 
 function scrollToLyric(index, { instant = false } = {}) {
@@ -6710,7 +6733,9 @@ function scrollToLyric(index, { instant = false } = {}) {
   const line = track?.children[index];
   if (!win || !line) return;
 
-  const pad = win.clientHeight / 2 - line.offsetHeight / 2;
+  // 剧场：当前句钉在偏上约 38%，配合整块上移，避免视觉沉底
+  const focusY = currentPlayerView() === "theater" ? 0.38 : 0.5;
+  const pad = win.clientHeight * focusY - line.offsetHeight / 2;
   const top = Math.max(0, line.offsetTop - pad);
 
   lyricsAutoScrolling = true;
@@ -6753,10 +6778,9 @@ function renderLyrics(lines, emptyMsg) {
         `</div>`
     )
     .join("");
-  // 立刻亮出第一句，避免先空屏再跳入
+  // 打开/换歌后直接落到正在播放的那句
   requestAnimationFrame(() => {
-    scrollToLyric(0, { instant: true });
-    syncLyrics();
+    snapLyricsToPlaying({ instant: true });
   });
 }
 
@@ -8939,9 +8963,18 @@ els.lyricsWindow?.addEventListener(
     if (pointerId != null && e?.pointerId != null && e.pointerId !== pointerId) {
       return;
     }
+    const wasDragging = dragging;
     dragging = false;
     pointerId = null;
     win.classList.remove("is-dragging");
+    if (wasDragging) {
+      markLyricsManual(true);
+      window.setTimeout(() => {
+        if (Date.now() >= lyricsManualUntil - 20) {
+          snapLyricsToPlaying({ instant: false });
+        }
+      }, 1650);
+    }
   };
   win.addEventListener("pointerup", endDrag);
   win.addEventListener("pointercancel", endDrag);
