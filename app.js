@@ -6731,8 +6731,8 @@ function scrollToLyric(index, { instant = false } = {}) {
   const line = track?.children[index];
   if (!win || !line) return;
 
-  // 剧场：当前句再上移约两句（焦点约 28%）
-  const focusY = currentPlayerView() === "theater" ? 0.28 : 0.5;
+  // 剧场：当前句钉在视口正中，上下歌词对称
+  const focusY = 0.5;
   const pad = win.clientHeight * focusY - line.offsetHeight / 2;
   const top = Math.max(0, line.offsetTop - pad);
 

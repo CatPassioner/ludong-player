@@ -6358,11 +6358,11 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
     var(--theater-dock-left) + var(--theater-dock-w, 320px) + clamp(20px, 2.8vw, 48px)
   );
   right: clamp(20px, 4vw, 56px);
-  /* 整体再上移约两句歌词的距离 */
-  top: max(2vh, calc(36% - 2vh));
+  /* 歌词舞台垂直居中：当前句在视口中线，上下对称，不顶出边界 */
+  top: 50%;
   bottom: auto;
   width: auto;
-  height: min(84vh, 760px);
+  height: min(78vh, 680px);
   margin: 0;
   padding: 0 8px;
   background: transparent !important;
@@ -6371,7 +6371,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  transform: translateY(-48%);
+  transform: translateY(-50%);
   transform-origin: center center;
   z-index: 4;
   overflow: hidden;
@@ -6385,7 +6385,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   content: "";
   position: absolute;
   left: 50%;
-  top: 32%;
+  top: 50%;
   width: min(94%, 560px);
   height: clamp(64px, 11vh, 88px);
   transform: translate(-50%, -50%);
