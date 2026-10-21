@@ -30,6 +30,15 @@
       .wrap { max-width: 720px; margin: 0 auto; }
       h1 { margin: 0; font-size: 1.35rem; letter-spacing: 0.04em; }
       .sub { margin: 8px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
+      .steps {
+        margin: 14px 0 0;
+        padding: 0 0 0 1.2em;
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.7;
+      }
+      .steps li { margin: 0 0 4px; }
+      .steps a { word-break: break-all; }
       .card {
         margin-top: 18px;
         padding: 18px;
@@ -92,9 +101,22 @@
   <body>
     <main class="wrap">
       <h1>逐字歌词转换</h1>
+      <ol class="steps">
+        <li>
+          先自行下载并安装 LDDC，用来给歌曲做逐字歌词对齐。
+          夸克网盘：
+          <a href="https://pan.quark.cn/s/55a0240eb1ac" target="_blank" rel="noopener"
+            >https://pan.quark.cn/s/55a0240eb1ac</a
+          >
+          ，提取码：GSkJ
+        </li>
+        <li>在 LDDC 里导出逐字 LRC 文件。</li>
+        <li>把文件拖到下方虚线框，或点击选择文件。</li>
+        <li>选好模式后，点「转换并下载」。</li>
+        <li>得到「歌名-歌手.lrc」后，上传到猫耳律动共同曲库即可。</li>
+      </ol>
       <p class="sub">
-        把 LDDC 等工具导出的逐字 LRC，整理成猫耳律动可直接用的格式（整句显示 + 保留逐字时间轴）。
-        <strong>猫耳律动本身已能直接读 LDDC 原文件</strong>；此工具用于改名、规范化，或导出「仅逐句」给其他软件。
+        猫耳律动也可以直接使用 LDDC 导出的原文件。本页主要用于改名整理，或导出仅逐句给其他播放器。
       </p>
 
       <section class="card">
@@ -108,15 +130,15 @@
           <label class="mode">
             <input type="radio" name="mode" value="enhanced" checked />
             <div>
-              <strong>猫耳律动用（推荐）</strong>
-              <span>保留每个字的时间轴，整理成标准增强 LRC；按「歌名-歌手.lrc」命名下载。</span>
+              <strong>猫耳律动用 · 推荐</strong>
+              <span>保留每个字的时间轴，整理成标准增强 LRC，并按「歌名-歌手.lrc」命名下载。</span>
             </div>
           </label>
           <label class="mode">
             <input type="radio" name="mode" value="line" />
             <div>
-              <strong>仅逐句（给别的播放器）</strong>
-              <span>每句只留一个时间戳，会失去逐字对齐精度。</span>
+              <strong>仅逐句 · 给其他播放器</strong>
+              <span>每句只留一个时间戳，不再保留逐字对齐。</span>
             </div>
           </label>
         </div>
@@ -126,7 +148,7 @@
           <button type="button" id="previewBtn" disabled>预览</button>
         </div>
         <p class="status" id="status"></p>
-        <p class="hint">批量：可一次选多个文件，会分别下载。</p>
+        <p class="hint">可一次选多个文件，会分别下载。</p>
         <pre id="preview" hidden></pre>
       </section>
 
