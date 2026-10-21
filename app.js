@@ -6338,7 +6338,8 @@ function finishTimedLyricLines(timedEvents) {
         time: ev.time,
         text: ev.text,
         end: ev.end != null ? ev.end : null,
-        endLocked: ev.end != null
+        endLocked: ev.end != null,
+        words: Array.isArray(ev.words) && ev.words.length ? ev.words : null
       });
     } else if (lines.length) {
       const prev = lines[lines.length - 1];
@@ -6356,6 +6357,19 @@ function finishTimedLyricLines(timedEvents) {
     }
   }
   return lines;
+}
+
+function parseLrcClock(min, sec, frac) {
+  const ms = Number(String(frac || "0").padEnd(3, "0").slice(0, 3));
+  return Number(min) * 60 + Number(sec) + ms / 1000;
+}
+
+/** 逐字/逐词增强 LRC：整句显示，用字级时间轴驱动高亮速度 */
+function isEnhancedLrcSegments(segs) {
+  const content = segs.filter((s) => String(s.text || "").length > 0);
+  if (content.length < 2) return false;
+  const shortN = content.filter((s) => String(s.text).trim().length <= 2).length;
+  return shortN >= Math.ceil(content.length * 0.6);
 }
 
 function parseSrt(text) {
@@ -6399,23 +6413,45 @@ function parseLrc(text) {
   String(text)
     .split(/\r?\n/)
     .forEach((raw) => {
-      let matched = false;
-      let m;
       const row = raw.trim();
       if (!row) return;
+      if (/^\[(ti|ar|al|by|offset|from|length|tool):/i.test(row)) return;
+
+      const segs = [];
       re.lastIndex = 0;
+      let m;
       while ((m = re.exec(row))) {
-        matched = true;
-        const min = Number(m[1]);
-        const sec = Number(m[2]);
-        const frac = m[3] || "0";
-        const ms = Number(frac.padEnd(3, "0").slice(0, 3));
-        const time = min * 60 + sec + ms / 1000;
-        const content = m[4].trim();
-        events.push({ time, text: content });
+        segs.push({
+          time: parseLrcClock(m[1], m[2], m[3]),
+          text: m[4] == null ? "" : String(m[4])
+        });
       }
-      if (!matched && !/^\[(ti|ar|al|by|offset|from|length):/i.test(row)) {
-        events.push({ time: -1, text: row.replace(/^\[[^\]]*\]/, "").trim() });
+
+      if (!segs.length) {
+        if (!/^\[/.test(row)) {
+          events.push({ time: -1, text: row });
+        }
+        return;
+      }
+
+      if (isEnhancedLrcSegments(segs)) {
+        const words = segs
+          .filter((s) => String(s.text || "").length > 0)
+          .map((s) => ({ time: s.time, text: s.text }));
+        if (!words.length) return;
+        const trailing = segs.filter((s) => !String(s.text || "").length);
+        const end = trailing.length ? trailing[trailing.length - 1].time : null;
+        events.push({
+          time: words[0].time,
+          text: words.map((w) => w.text).join(""),
+          words,
+          end: end != null ? end : undefined
+        });
+        return;
+      }
+
+      for (const s of segs) {
+        events.push({ time: s.time, text: String(s.text || "").trim() });
       }
     });
 
@@ -6432,7 +6468,8 @@ function parseLrc(text) {
     time: i * step,
     text: l.text,
     end: (i + 1) * step,
-    endLocked: true
+    endLocked: true,
+    words: null
   }));
 }
 
@@ -6495,7 +6532,42 @@ function calibrateKaraokeTempo(lines) {
 
 let karaokeTempo = { secPerUnit: 0.34, normalSpanMax: 6.5 };
 
+/** 按逐字时间轴算高亮进度（整句仍一次显示，光标按字走） */
+function wordTimedFillProgress(line, nextLine, t) {
+  const words = line?.words;
+  if (!words?.length) return null;
+  const n = words.length;
+  const weights = words.map((w) => Math.max(lyricWeight(w.text), 0.35));
+  const totalW = weights.reduce((a, b) => a + b, 0) || n;
+  const lineEnd =
+    line.end ??
+    nextLine?.time ??
+    words[n - 1].time + Math.max(0.35, weights[n - 1] * 0.35);
+
+  if (t <= words[0].time) return 0;
+  if (t >= lineEnd) return 1;
+
+  let i = 0;
+  for (let k = 0; k < n; k++) {
+    if (words[k].time <= t) i = k;
+    else break;
+  }
+  const wStart = words[i].time;
+  const wEnd = i + 1 < n ? words[i + 1].time : lineEnd;
+  const frac = Math.min(
+    1,
+    Math.max(0, (t - wStart) / Math.max(wEnd - wStart, 0.01))
+  );
+  let passed = 0;
+  for (let k = 0; k < i; k++) passed += weights[k];
+  passed += weights[i] * frac;
+  return Math.min(1, Math.max(0, passed / totalW));
+}
+
 function lineFillProgress(line, nextLine, t) {
+  const wordP = wordTimedFillProgress(line, nextLine, t);
+  if (wordP != null) return wordP;
+
   const start = line?.time ?? 0;
   const nextT = nextLine?.time;
   const locked = !!line?.endLocked;
