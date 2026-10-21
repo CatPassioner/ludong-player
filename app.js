@@ -293,6 +293,17 @@ let lyricsAutoScrolling = false;
 const MV_EXTS = [".mp4", ".webm", ".mkv", ".mov", ".m4v", ".acc"];
 const mvProbeCache = new Map(); // song.id -> url | ""
 const lyricsCache = new Map();
+/** 歌词解析版本：增强 LRC 逻辑变更时递增，避免沿用旧的一字一行缓存 */
+const LYRICS_PARSE_VER = "w3";
+
+function lyricsCacheKey(song) {
+  if (!song) return "";
+  return [
+    song.id || playStatKey(song) || "",
+    LYRICS_PARSE_VER,
+    song.lrcUrl || song.lrcFile || ""
+  ].join("::");
+}
 let lyricsBgList = [];
 let playRanking = [];
 let lastCountedPlayKey = "";
@@ -4132,7 +4143,7 @@ function pickDiaryLyricCandidate(lines) {
 
 async function loadDiaryLyricLines(song) {
   if (!song) return [];
-  const cacheId = song.id || playStatKey(song);
+  const cacheId = lyricsCacheKey(song);
   if (cacheId && lyricsCache.has(cacheId)) {
     const cached = lyricsCache.get(cacheId);
     if (Array.isArray(cached) && cached.length) return cached;
@@ -6372,6 +6383,78 @@ function isEnhancedLrcSegments(segs) {
   return shortN >= Math.ceil(content.length * 0.6);
 }
 
+/** LDDC / A2：`[句首]<00:01.00>字<00:01.20>字` */
+function parseAngleWordSegments(row) {
+  const re = /<(\d{1,2}):(\d{1,2})(?:\.(\d{1,3}))?>([^<]*)/g;
+  const words = [];
+  let end = null;
+  let m;
+  while ((m = re.exec(row))) {
+    const time = parseLrcClock(m[1], m[2], m[3]);
+    const text = m[4] == null ? "" : String(m[4]);
+    if (text.length) words.push({ time, text });
+    else end = time;
+  }
+  if (words.length < 2) return null;
+  return {
+    time: words[0].time,
+    text: words.map((w) => w.text).join(""),
+    words,
+    end: end != null ? end : undefined
+  };
+}
+
+/**
+ * 若文件被拆成「一字一行」，按字间隔收成整句，并保留 words 时间轴。
+ */
+function coalesceEnhancedCharEvents(events) {
+  const items = (events || []).filter((e) => e && e.time >= 0 && e.text);
+  if (items.length < 10) return events;
+  if (items.some((e) => Array.isArray(e.words) && e.words.length >= 2)) {
+    return events;
+  }
+  const shortN = items.filter((e) => [...String(e.text)].length <= 2).length;
+  if (shortN < items.length * 0.8) return events;
+
+  const gaps = [];
+  for (let i = 1; i < items.length; i++) {
+    gaps.push(items[i].time - items[i - 1].time);
+  }
+  gaps.sort((a, b) => a - b);
+  const medianGap = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 0.3;
+  const breakGap = Math.max(0.95, medianGap * 2.8);
+
+  const out = [];
+  let cur = null;
+  for (const ev of items) {
+    const piece = String(ev.text);
+    if (!cur) {
+      cur = {
+        time: ev.time,
+        text: piece,
+        words: [{ time: ev.time, text: piece }]
+      };
+      continue;
+    }
+    const prevT = cur.words[cur.words.length - 1].time;
+    const gap = ev.time - prevT;
+    if (gap >= breakGap) {
+      cur.end = prevT + Math.min(Math.max(gap * 0.35, 0.25), 0.9);
+      out.push(cur);
+      cur = {
+        time: ev.time,
+        text: piece,
+        words: [{ time: ev.time, text: piece }]
+      };
+    } else {
+      cur.text += piece;
+      cur.words.push({ time: ev.time, text: piece });
+    }
+  }
+  if (cur) out.push(cur);
+  return out.length ? out : events;
+}
+
 function parseSrt(text) {
   if (!text) return [];
   const blocks = String(text).replace(/^\uFEFF/, "").split(/\r?\n\r?\n+/);
@@ -6417,6 +6500,15 @@ function parseLrc(text) {
       if (!row) return;
       if (/^\[(ti|ar|al|by|offset|from|length|tool):/i.test(row)) return;
 
+      // LDDC 增强格式：句首 [时间] + 逐字 <时间>
+      if (/<\d{1,2}:\d{1,2}/.test(row)) {
+        const enhanced = parseAngleWordSegments(row);
+        if (enhanced) {
+          events.push(enhanced);
+          return;
+        }
+      }
+
       const segs = [];
       re.lastIndex = 0;
       let m;
@@ -6434,10 +6526,15 @@ function parseLrc(text) {
         return;
       }
 
+      // 另一种逐字：一行里多个 [时间]字
       if (isEnhancedLrcSegments(segs)) {
         const words = segs
           .filter((s) => String(s.text || "").length > 0)
-          .map((s) => ({ time: s.time, text: s.text }));
+          .map((s) => ({
+            time: s.time,
+            text: String(s.text).replace(/<[^>]+>/g, "")
+          }))
+          .filter((w) => w.text.length);
         if (!words.length) return;
         const trailing = segs.filter((s) => !String(s.text || "").length);
         const end = trailing.length ? trailing[trailing.length - 1].time : null;
@@ -6451,13 +6548,17 @@ function parseLrc(text) {
       }
 
       for (const s of segs) {
-        events.push({ time: s.time, text: String(s.text || "").trim() });
+        const cleaned = String(s.text || "")
+          .replace(/<[^>]+>/g, "")
+          .trim();
+        events.push({ time: s.time, text: cleaned });
       }
     });
 
-  const timedEvents = events
+  let timedEvents = events
     .filter((e) => e.time >= 0)
     .sort((a, b) => a.time - b.time);
+  timedEvents = coalesceEnhancedCharEvents(timedEvents);
   if (timedEvents.length) return finishTimedLyricLines(timedEvents);
 
   const plain = events.filter((l) => l.text && !isCreditLyric(l.text));
@@ -6826,15 +6927,16 @@ async function loadLyricsForSong(song) {
     return;
   }
 
-  if (lyricsCache.has(song.id)) {
-    const cached = lyricsCache.get(song.id);
+  const cacheId = lyricsCacheKey(song);
+  if (cacheId && lyricsCache.has(cacheId)) {
+    const cached = lyricsCache.get(cacheId);
     // 空缓存可能是导入 srt 前留下的，允许再拉一次
     if (cached && cached.length) {
       renderLyrics(cached);
       syncLyrics();
       return;
     }
-    lyricsCache.delete(song.id);
+    lyricsCache.delete(cacheId);
   }
 
   renderLyrics([], "歌词加载中…");
@@ -6843,7 +6945,7 @@ async function loadLyricsForSong(song) {
   if (!text) text = await fetchOnlineLrc(song);
 
   const lines = parseLyricText(text, song.lrcUrl || "");
-  lyricsCache.set(song.id, lines);
+  if (cacheId) lyricsCache.set(cacheId, lines);
   if (lines.length) {
     renderLyrics(lines);
   } else {
@@ -8050,7 +8152,15 @@ async function deleteLocalSong(song) {
       }
       blobCache.delete(song.id);
     }
-    lyricsCache.delete(song.id);
+    for (const key of [...lyricsCache.keys()]) {
+      if (
+        key === song.id ||
+        String(key).startsWith(`${song.id}::`) ||
+        String(key).startsWith(`${playStatKey(song)}::`)
+      ) {
+        lyricsCache.delete(key);
+      }
+    }
 
     const wasCurrent = audio.getAttribute("data-id") === String(song.id);
     if (wasCurrent) {
