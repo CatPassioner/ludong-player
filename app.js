@@ -5467,6 +5467,7 @@ function syncTheaterDockWidth() {
   const art = dock?.querySelector(".theater-art-row");
   if (!win?.classList.contains("is-view-theater") || !dock || !art) {
     win?.style.removeProperty("--theater-lyrics-mid");
+    win?.style.removeProperty("--theater-lyrics-h");
     return;
   }
   const w = Math.ceil(art.getBoundingClientRect().width);
@@ -5477,32 +5478,33 @@ function syncTheaterDockWidth() {
   syncTheaterLyricsAlign();
 }
 
-/** 歌词舞台中线对齐左侧封面（正方形封面）上下中点 */
+/** 歌词中线 = 左侧封面图（#lyricsArt）上下正中，不含唱片旁白/进度条/播放键 */
 function syncTheaterLyricsAlign() {
   const win = document.getElementById("playerWindow");
   const cover = document.getElementById("lyricsArt");
-  const side = document.getElementById("lyricsSide");
-  if (!win?.classList.contains("is-view-theater") || !cover || !side) {
+  if (!win?.classList.contains("is-view-theater") || !cover) {
     win?.style.removeProperty("--theater-lyrics-mid");
+    win?.style.removeProperty("--theater-lyrics-h");
     return;
   }
   const coverRect = cover.getBoundingClientRect();
   if (coverRect.height < 8) return;
 
-  const parent = side.offsetParent || win;
-  const parentRect = parent.getBoundingClientRect();
-  if (parentRect.height < 8) return;
-
+  // 视口坐标下封面正方形的几何中心
   const coverMid = coverRect.top + coverRect.height / 2;
-  let top = coverMid - parentRect.top;
+  const pad = 12;
+  const maxH = Math.max(
+    240,
+    Math.min(
+      window.innerHeight * 0.78,
+      680,
+      2 * (coverMid - pad),
+      2 * (window.innerHeight - coverMid - pad)
+    )
+  );
 
-  // 整块歌词区保持在父级内，上下留边，不顶出边界
-  const sideH = side.getBoundingClientRect().height || Math.min(parentRect.height * 0.78, 680);
-  const half = sideH / 2;
-  const pad = 16;
-  top = Math.min(parentRect.height - half - pad, Math.max(half + pad, top));
-
-  win.style.setProperty("--theater-lyrics-mid", `${Math.round(top)}px`);
+  win.style.setProperty("--theater-lyrics-mid", `${Math.round(coverMid)}px`);
+  win.style.setProperty("--theater-lyrics-h", `${Math.round(maxH)}px`);
 }
 
 /** 剧场独立常驻面：封面+歌词始终在，不走「点封面切换歌词」 */
@@ -5565,6 +5567,7 @@ function setPlayerView(view) {
     if (prev === "theater") {
       dockTheaterChrome(false);
       win.style.removeProperty("--theater-lyrics-mid");
+      win.style.removeProperty("--theater-lyrics-h");
     }
     if (prev === "theater" && next === "listen" && !theaterRestoreLyrics) {
       setLyricsMode(false);

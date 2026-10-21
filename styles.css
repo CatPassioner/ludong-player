@@ -6353,16 +6353,16 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
  * 参考 Apple Music / karaoke 焦点：当前句钉在视口中线，远近景深虚化，无阶梯右移
  */
 .player-window.is-view-theater .lyrics-side {
-  position: absolute;
+  /* 与封面坞同属 fixed，锚点=封面正方形几何中心（不含进度条/按钮） */
+  position: fixed;
   left: calc(
     var(--theater-dock-left) + var(--theater-dock-w, 320px) + clamp(20px, 2.8vw, 48px)
   );
   right: clamp(20px, 4vw, 56px);
-  /* 垂直锚点由 JS 对齐左侧封面中心：--theater-lyrics-mid */
-  top: var(--theater-lyrics-mid, 50%);
+  top: var(--theater-lyrics-mid, 50vh);
   bottom: auto;
   width: auto;
-  height: min(78vh, 680px);
+  height: min(78vh, 680px, var(--theater-lyrics-h, 78vh));
   margin: 0;
   padding: 0 8px;
   background: transparent !important;
@@ -6373,7 +6373,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   -webkit-backdrop-filter: none !important;
   transform: translateY(-50%);
   transform-origin: center center;
-  z-index: 4;
+  z-index: 40;
   overflow: hidden;
   display: flex;
   align-items: stretch;
