@@ -5794,51 +5794,11 @@ html[data-bg-light="1"] .confirm-backdrop {
 }
 
 .player-ambient-img {
-  position: absolute;
-  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scale(1.28) translate3d(0, 0, 0);
+  transform: scale(1.28);
   filter: blur(52px) saturate(1.35) brightness(1.12);
-  opacity: 0;
-  z-index: 0;
-  transition:
-    opacity 1.15s cubic-bezier(0.33, 0.1, 0.2, 1),
-    transform 1.35s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
-.player-ambient-img.is-front {
-  opacity: 1;
-  z-index: 1;
-}
-
-.player-ambient-img.is-front.is-leaving,
-.player-ambient-img.is-leaving,
-.player-ambient-img.is-out {
-  opacity: 0;
-}
-
-.player-ambient.is-instant .player-ambient-img {
-  transition: none;
-}
-
-/* 叠化：双图柔和交叠 */
-.player-ambient[data-cover-move="fade"] .player-ambient-img {
-  transition: opacity 1.2s cubic-bezier(0.33, 0.08, 0.18, 1);
-}
-
-/* 轻移：新图从右侧缓入，旧图轻推离场 */
-.player-ambient[data-cover-move="drift"] .player-ambient-img:not(.is-front) {
-  transform: scale(1.3) translate3d(4.5%, 0, 0);
-}
-
-.player-ambient[data-cover-move="drift"] .player-ambient-img.is-front:not(.is-out):not(.is-leaving) {
-  transform: scale(1.28) translate3d(0, 0, 0);
-}
-
-.player-ambient[data-cover-move="drift"] .player-ambient-img.is-out {
-  transform: scale(1.26) translate3d(-3.2%, 0, 0);
 }
 
 .player-ambient-img[hidden] {
@@ -5848,24 +5808,8 @@ html[data-bg-light="1"] .confirm-backdrop {
 .player-ambient-dim {
   position: absolute;
   inset: 0;
-  z-index: 2;
   background: linear-gradient(160deg, var(--bg-top) 0%, var(--bg) 45%, var(--bg-bottom) 100%);
   opacity: 0.72;
-}
-
-/* 淡过：柔光遮罩，不硬切 */
-.player-ambient-softveil {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  background: radial-gradient(120% 90% at 50% 42%, rgba(12, 16, 24, 0.2) 0%, rgba(8, 10, 16, 0.78) 72%);
-  opacity: 0;
-  transition: opacity 0.7s cubic-bezier(0.4, 0.05, 0.2, 1);
-}
-
-.player-ambient.is-veiling .player-ambient-softveil {
-  opacity: 1;
 }
 
 .player-window.is-view-immerse .player-ambient-dim {
@@ -6113,31 +6057,14 @@ html[data-bg-light="1"] .confirm-backdrop {
   overflow: visible;
 }
 
-/* 整幅封面作背景：清晰可见；叠化/轻移用缓动交叠 */
 .player-window.is-view-theater .player-ambient-img {
   filter: saturate(1.08) brightness(0.78);
-  transform: scale(1.04) translate3d(0, 0, 0);
+  transform: scale(1.04);
+  opacity: 1;
   object-fit: cover;
 }
 
-.player-window.is-view-theater .player-ambient-img.is-front:not(.is-out):not(.is-leaving) {
-  opacity: 1;
-}
-
-.player-window.is-view-theater .player-ambient[data-cover-move="drift"] .player-ambient-img:not(.is-front) {
-  transform: scale(1.08) translate3d(3.2%, 0, 0);
-}
-
-.player-window.is-view-theater .player-ambient[data-cover-move="drift"] .player-ambient-img.is-front:not(.is-out):not(.is-leaving) {
-  transform: scale(1.04) translate3d(0, 0, 0);
-}
-
-.player-window.is-view-theater .player-ambient[data-cover-move="drift"] .player-ambient-img.is-out {
-  transform: scale(1.03) translate3d(-2.4%, 0, 0);
-}
-
-.player-window.is-view-theater .player-ambient-dim,
-.player-window.is-view-theater:has(.stage.is-lyrics) .player-ambient-dim {
+.player-window.is-view-theater .player-ambient-dim {
   opacity: 0.42;
   background: linear-gradient(
     120deg,
@@ -7097,38 +7024,6 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   font-size: 0.82rem;
 }
 
-.cover-pick-rotate {
-  margin: 4px 0 12px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(60, 70, 80, 0.12);
-}
-
-.cover-pick-rotate .settings-row {
-  margin: 8px 0 6px;
-}
-
-.cover-pick-rotate .bg-hue-row {
-  margin-bottom: 8px;
-}
-
-.cover-pick-interval {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 8px;
-  color: #5c6570;
-  font-size: 0.82rem;
-}
-
-.cover-pick-interval input {
-  width: 64px;
-  height: 30px;
-  padding: 0 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(60, 70, 80, 0.18);
-  background: #fff;
-  color: inherit;
-}
 
 .cover-pick-grid {
   display: flex;
@@ -9151,10 +9046,6 @@ html.theme-manga .lyrics-ambient-img {
   opacity: 0.35;
 }
 
-html.theme-manga .player-ambient-img.is-front:not(.is-out):not(.is-leaving) {
-  opacity: 0.35;
-}
-
 html.theme-manga .player-ambient-dim,
 html.theme-manga .lyrics-ambient-dim,
 html.theme-manga .player-window:has(.stage.is-lyrics) .player-ambient-dim {
@@ -9189,20 +9080,10 @@ html.theme-manga .player-window.is-view-theater .lyrics-side {
 
 html.theme-manga .player-window.is-view-theater .player-ambient-img {
   filter: saturate(0.9) brightness(0.72) !important;
-}
-
-html.theme-manga .player-window.is-view-theater .player-ambient-img.is-front:not(.is-out):not(.is-leaving) {
   opacity: 1 !important;
 }
 
-html.theme-manga .player-window.is-view-theater .player-ambient-img:not(.is-front),
-html.theme-manga .player-window.is-view-theater .player-ambient-img.is-out,
-html.theme-manga .player-window.is-view-theater .player-ambient-img.is-leaving {
-  opacity: 0 !important;
-}
-
-html.theme-manga .player-window.is-view-theater .player-ambient-dim,
-html.theme-manga .player-window.is-view-theater:has(.stage.is-lyrics) .player-ambient-dim {
+html.theme-manga .player-window.is-view-theater .player-ambient-dim {
   opacity: 0.4 !important;
   background: linear-gradient(
     120deg,

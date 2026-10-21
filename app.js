@@ -70,9 +70,7 @@ const els = {
   searchHint: document.getElementById("searchHint"),
   playerLayer: document.getElementById("playerLayer"),
   playerWindow: document.getElementById("playerWindow"),
-  playerAmbient: document.getElementById("playerAmbient"),
   playerAmbientImg: document.getElementById("playerAmbientImg"),
-  playerAmbientImgB: document.getElementById("playerAmbientImgB"),
   playerFit: document.getElementById("playerFit"),
   playerBoard: document.getElementById("playerBoard"),
   playerClose: document.getElementById("playerClose"),
@@ -441,14 +439,6 @@ function resetAccountScopedUi() {
     hydrateShellBackground();
   } catch {
     /* 背景图函数尚未就绪时忽略 */
-  }
-  try {
-    coverRotateMemory = null;
-    clearInterval(coverRotateTimer);
-    coverRotateTimer = 0;
-    loadCoverLibrary().catch(() => {});
-  } catch {
-    /* 封面库尚未就绪时忽略 */
   }
 }
 
@@ -5226,10 +5216,6 @@ function coverAccentTargets() {
   return list;
 }
 
-let coverShownUrl = "";
-let coverFadeTimer = 0;
-let coverFadeGen = 0;
-
 function clearPlayerAtmosphere() {
   for (const el of coverAccentTargets()) {
     el.style.removeProperty("--cover-accent");
@@ -5239,228 +5225,24 @@ function clearPlayerAtmosphere() {
     el.style.removeProperty("--lyric-glow");
     el.style.removeProperty("--lyric-wash");
   }
-  window.clearTimeout(coverFadeTimer);
-  coverFadeTimer = 0;
-  coverFadeGen += 1;
-  coverShownUrl = "";
-  const layer = els.playerAmbient;
-  if (layer) {
-    layer.classList.remove("is-instant", "is-moving", "is-veiling");
-    layer.dataset.coverMove = "fade";
+  if (els.playerAmbientImg) {
+    els.playerAmbientImg.removeAttribute("src");
+    els.playerAmbientImg.hidden = true;
   }
-  [els.playerAmbientImg, els.playerAmbientImgB].forEach((img, i) => {
-    if (!img) return;
-    img.removeAttribute("src");
-    img.hidden = true;
-    img.classList.toggle("is-front", i === 0);
-    img.classList.remove("is-out", "is-leaving");
-  });
 }
 
-function ambientFrontImg() {
-  return (
-    document.querySelector("#playerAmbient .player-ambient-img.is-front") ||
-    els.playerAmbientImg
-  );
-}
-
-function whenImageReady(img, url) {
-  return new Promise((resolve) => {
-    if (!img || !url) {
-      resolve();
-      return;
-    }
-    const done = () => resolve();
-    const decode = () => {
-      if (typeof img.decode === "function") {
-        img.decode().then(done, done);
-      } else {
-        done();
-      }
-    };
-    if (img.getAttribute("src") === url && img.complete && img.naturalWidth > 0) {
-      decode();
-      return;
-    }
-    const onLoad = () => {
-      img.removeEventListener("load", onLoad);
-      img.removeEventListener("error", onErr);
-      decode();
-    };
-    const onErr = () => {
-      img.removeEventListener("load", onLoad);
-      img.removeEventListener("error", onErr);
-      done();
-    };
-    img.addEventListener("load", onLoad);
-    img.addEventListener("error", onErr);
-    if (img.getAttribute("src") !== url) img.src = url;
-    else if (img.complete) onLoad();
-  });
-}
-
-function preloadImageUrl(url) {
-  return new Promise((resolve) => {
-    if (!url) {
-      resolve();
-      return;
-    }
-    const img = new Image();
-    img.onload = () => resolve();
-    img.onerror = () => resolve();
-    img.src = url;
-  });
-}
-
-function snapPlayerAtmosphere(url) {
-  const layer = els.playerAmbient;
-  const front = els.playerAmbientImg;
-  const back = els.playerAmbientImgB;
-  if (!front) return;
-  window.clearTimeout(coverFadeTimer);
-  coverFadeTimer = 0;
-  coverFadeGen += 1;
-  if (layer) {
-    layer.classList.add("is-instant");
-    layer.classList.remove("is-moving", "is-veiling");
-  }
-  front.hidden = false;
-  front.classList.add("is-front");
-  front.classList.remove("is-out", "is-leaving");
-  if (front.getAttribute("src") !== url) front.src = url;
-  if (back) {
-    back.hidden = true;
-    back.classList.remove("is-front", "is-out", "is-leaving");
-    back.removeAttribute("src");
-  }
-  coverShownUrl = url;
-  window.requestAnimationFrame(() => layer?.classList.remove("is-instant"));
-}
-
-function waitMs(ms) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
-
-function nextFrames(n = 2) {
-  return new Promise((resolve) => {
-    const step = () => {
-      n -= 1;
-      if (n <= 0) resolve();
-      else window.requestAnimationFrame(step);
-    };
-    window.requestAnimationFrame(step);
-  });
-}
-
-/** 淡过：柔光遮罩下换图，比硬切柔和 */
-async function veilSwapPlayerAtmosphere(url, token) {
-  const layer = els.playerAmbient;
-  const front = els.playerAmbientImg;
-  const probe = els.playerAmbientImgB;
-  if (!layer || !front) {
-    snapPlayerAtmosphere(url);
-    return;
-  }
-  if (probe) await whenImageReady(probe, url);
-  else await preloadImageUrl(url);
-  if (token !== coverFadeGen) return;
-
-  layer.dataset.coverMove = "veil";
-  layer.classList.remove("is-instant", "is-moving");
-  layer.classList.add("is-veiling");
-  await waitMs(720);
-  if (token !== coverFadeGen) return;
-
-  front.hidden = false;
-  front.classList.add("is-front");
-  front.classList.remove("is-out", "is-leaving");
-  if (front.getAttribute("src") !== url) front.src = url;
-  if (probe) {
-    probe.hidden = true;
-    probe.classList.remove("is-front", "is-out", "is-leaving");
-  }
-  coverShownUrl = url;
-  await waitMs(80);
-  if (token !== coverFadeGen) return;
-  layer.classList.remove("is-veiling");
-  await waitMs(720);
-}
-
-/** 叠化 / 轻移：预加载后双图缓动交叠（剧场无模糊，间隔约 1 分钟时足够顺） */
-async function blendSwapPlayerAtmosphere(url, mode, token) {
-  const layer = els.playerAmbient;
-  const front = ambientFrontImg();
-  const back =
-    front?.id === "playerAmbientImgB" ? els.playerAmbientImg : els.playerAmbientImgB;
-  if (!layer || !front || !back) {
-    snapPlayerAtmosphere(url);
-    return;
-  }
-  await whenImageReady(back, url);
-  if (token !== coverFadeGen) return;
-
-  const move = mode === "drift" ? "drift" : "fade";
-  layer.dataset.coverMove = move;
-  layer.classList.add("is-instant");
-  layer.classList.remove("is-moving", "is-veiling");
-  back.hidden = false;
-  back.classList.remove("is-front", "is-out", "is-leaving");
-  front.classList.remove("is-out", "is-leaving");
-  await nextFrames(2);
-  if (token !== coverFadeGen) return;
-
-  layer.classList.remove("is-instant");
-  await nextFrames(1);
-  if (token !== coverFadeGen) return;
-
-  layer.classList.add("is-moving");
-  front.classList.add("is-out");
-  back.classList.add("is-front");
-  coverShownUrl = url;
-  coverFadeTimer = window.setTimeout(() => {
-    if (token !== coverFadeGen) return;
-    front.classList.remove("is-front", "is-out");
-    front.hidden = true;
-    layer.classList.remove("is-moving");
-  }, move === "drift" ? 1400 : 1250);
-}
-
-async function transitionPlayerAtmosphere(url, mode) {
-  const layer = els.playerAmbient;
-  const front = ambientFrontImg() || els.playerAmbientImg;
-  if (!layer || !front) {
-    snapPlayerAtmosphere(url);
-    return;
-  }
-  if (front.getAttribute("src") === url && front.classList.contains("is-front") && !front.hidden) {
-    coverShownUrl = url;
-    return;
-  }
-  window.clearTimeout(coverFadeTimer);
-  coverFadeTimer = 0;
-  const move = ["fade", "veil", "drift"].includes(mode) ? mode : "fade";
-  const token = ++coverFadeGen;
-  if (move === "veil") {
-    await veilSwapPlayerAtmosphere(url, token);
-    return;
-  }
-  await blendSwapPlayerAtmosphere(url, move, token);
-}
-
-function applyPlayerAtmosphere(src, opts = {}) {
+function applyPlayerAtmosphere(src) {
   const url = String(src || "").trim();
   const win = els.playerWindow;
   if (!url || !win) {
     clearPlayerAtmosphere();
     return;
   }
-  const motion = opts?.motion;
-  if (motion && coverShownUrl && coverShownUrl !== url) {
-    transitionPlayerAtmosphere(url, motion);
-  } else {
-    snapPlayerAtmosphere(url);
+  if (els.playerAmbientImg) {
+    els.playerAmbientImg.hidden = false;
+    if (els.playerAmbientImg.getAttribute("src") !== url) {
+      els.playerAmbientImg.src = url;
+    }
   }
   const token = ++coverAccentToken;
   const img = new Image();
@@ -5520,6 +5302,20 @@ function applyPlayerAtmosphere(src, opts = {}) {
     clearPlayerAtmosphere();
   };
   img.src = url;
+}
+
+
+function preloadImageUrl(url) {
+  return new Promise((resolve) => {
+    if (!url) {
+      resolve();
+      return;
+    }
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = url;
+  });
 }
 
 function fitPlayerBoard() {
@@ -5993,15 +5789,12 @@ async function loadLyricsBackgrounds() {
 }
 
 const LYRICS_COVER_KEY = "ludong-lyrics-cover-v1";
-const COVER_ROTATE_KEY = "ludong-cover-rotate-v1";
 const LOCAL_COVER_DB = "ludong-cover-lib-idb";
 const LOCAL_COVER_STORE = "covers";
 let coverPickDraft = null;
 let coverLibraryItems = [];
 let localCoverItems = [];
 let localCoverUrls = new Map();
-let coverRotateTimer = 0;
-let coverRotateMemory = null;
 
 function clampRotateIntervalSec(raw, fallbackSec = 60) {
   let sec = Number(raw);
@@ -6015,126 +5808,6 @@ function rotateIntervalSecFromSaved(data, fallbackSec = 60) {
   const mins = Number(data?.intervalMin);
   if (Number.isFinite(mins)) return clampRotateIntervalSec(mins * 60, fallbackSec);
   return fallbackSec;
-}
-
-function emptyCoverRotate() {
-  return { rotate: "off", intervalSec: 60, transition: "fade" };
-}
-
-function normalizeCoverRotate(data) {
-  const rotate = ["off", "order", "random"].includes(data?.rotate) ? data.rotate : "off";
-  const transition = ["fade", "veil", "drift"].includes(data?.transition) ? data.transition : "fade";
-  return { rotate, intervalSec: rotateIntervalSecFromSaved(data), transition };
-}
-
-function readCoverRotate() {
-  if (coverRotateMemory) return coverRotateMemory;
-  try {
-    const raw = localStorage.getItem(scopedStorageKey(COVER_ROTATE_KEY));
-    coverRotateMemory = normalizeCoverRotate(raw ? JSON.parse(raw) : null);
-  } catch {
-    coverRotateMemory = emptyCoverRotate();
-  }
-  return coverRotateMemory;
-}
-
-function writeCoverRotate(next) {
-  const state = normalizeCoverRotate(next || emptyCoverRotate());
-  coverRotateMemory = state;
-  try {
-    localStorage.setItem(scopedStorageKey(COVER_ROTATE_KEY), JSON.stringify(state));
-  } catch {
-    /* ignore */
-  }
-  return state;
-}
-
-function uploadedCoverPool() {
-  return [
-    ...localCoverItems.map((item) => ({ mode: "local", id: String(item.id) })),
-    ...coverLibraryItems.map((item) => ({ mode: "library", id: String(item.id) }))
-  ].filter((item) => item.id);
-}
-
-function coverChoiceKey(choice) {
-  const c = choice || {};
-  if ((c.mode === "local" || c.mode === "library") && c.id) return `${c.mode}:${c.id}`;
-  return "";
-}
-
-function pickNextUploadedCover(pool, rotate, currentChoice) {
-  if (!pool.length) return null;
-  const curKey = coverChoiceKey(currentChoice);
-  const index = pool.findIndex((item) => `${item.mode}:${item.id}` === curKey);
-  if (rotate === "random") {
-    if (pool.length === 1) return pool[0];
-    const others = index >= 0 ? pool.filter((_, i) => i !== index) : pool;
-    return others[Math.floor(Math.random() * others.length)] || pool[0];
-  }
-  if (index < 0) return pool[0];
-  return pool[(index + 1) % pool.length];
-}
-
-function syncCoverRotatePickerUI(state = readCoverRotate()) {
-  const pool = uploadedCoverPool();
-  document.querySelectorAll("#coverPickRotateRow [data-cover-rotate]").forEach((btn) => {
-    btn.classList.toggle("is-active", btn.dataset.coverRotate === state.rotate);
-  });
-  const wrap = document.getElementById("coverPickIntervalWrap");
-  const interval = document.getElementById("coverPickInterval");
-  if (wrap) wrap.hidden = state.rotate === "off" || pool.length < 2;
-  if (interval && document.activeElement !== interval) {
-    interval.value = String(state.intervalSec);
-  }
-  const canMove = pool.length >= 2;
-  const motionRow = document.getElementById("coverPickMotionRow");
-  const motionPick = document.getElementById("coverPickMotionPick");
-  if (motionRow) motionRow.hidden = !canMove;
-  if (motionPick) motionPick.hidden = !canMove;
-  document.querySelectorAll("#coverPickMotionPick [data-cover-motion]").forEach((btn) => {
-    btn.classList.toggle("is-active", btn.dataset.coverMotion === (state.transition || "fade"));
-  });
-}
-
-function scheduleCoverRotate(state = readCoverRotate()) {
-  clearInterval(coverRotateTimer);
-  coverRotateTimer = 0;
-  const pool = uploadedCoverPool();
-  if (state.rotate === "off" || pool.length < 2) return;
-  const ms = clampRotateIntervalSec(state.intervalSec) * 1000;
-  coverRotateTimer = setInterval(() => {
-    advanceCoverRotate();
-  }, ms);
-}
-
-function advanceCoverRotate(forceMotion) {
-  const state = readCoverRotate();
-  const pool = uploadedCoverPool();
-  if (pool.length < 2 || (state.rotate === "off" && !forceMotion)) return false;
-  const current = readLyricsCoverChoice();
-  const next = pickNextUploadedCover(pool, forceMotion ? "order" : state.rotate, current);
-  if (!next) return false;
-  if (coverChoiceKey(current) === `${next.mode}:${next.id}` && !forceMotion) return false;
-  writeLyricsCoverChoice(next);
-  if (coverPickDraft && !els.coverPickLayer?.hidden) {
-    coverPickDraft = { ...next };
-    renderCoverPicker();
-  }
-  const motion = forceMotion || state.transition || "fade";
-  applyLyricsSideCover(playlist[currentIndex], { motion });
-  return true;
-}
-
-function previewCoverRotateSwitch(transition) {
-  const state = readCoverRotate();
-  const pool = uploadedCoverPool();
-  if (pool.length < 2) {
-    setHint("至少两张上传封面才能看切换", true);
-    return;
-  }
-  const mode = ["fade", "veil", "drift"].includes(transition) ? transition : state.transition || "fade";
-  writeCoverRotate({ ...state, transition: mode });
-  advanceCoverRotate(mode);
 }
 
 function readLyricsCoverChoice() {
@@ -6321,12 +5994,12 @@ async function compressCoverFile(file, maxSide = 1280, quality = 0.84) {
   }
 }
 
-function applyLyricsSideCover(song, opts = {}) {
+function applyLyricsSideCover(song) {
   const current = song || playlist[currentIndex];
   const choice = readLyricsCoverChoice();
   if (choice.mode === "local" && choice.id && !localCoverUrls.has(choice.id)) {
     loadLocalCoverLibrary()
-      .then(() => applyLyricsSideCover(current, opts))
+      .then(() => applyLyricsSideCover(current))
       .catch(() => {});
     return;
   }
@@ -6344,7 +6017,7 @@ function applyLyricsSideCover(song, opts = {}) {
   paint(els.lyricsBgImg);
   paint(els.lyricsAmbientImg);
   paint(document.getElementById("theaterVinylCover"));
-  if (url) applyPlayerAtmosphere(url, opts);
+  if (url) applyPlayerAtmosphere(url);
   else clearPlayerAtmosphere();
   if (currentPlayerView() === "theater") {
     requestAnimationFrame(() => syncTheaterDockWidth());
@@ -6363,14 +6036,12 @@ async function loadCoverLibrary() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) {
       coverLibraryItems = [];
-    } else {
-      coverLibraryItems = Array.isArray(data.items) ? data.items : [];
+      return;
     }
+    coverLibraryItems = Array.isArray(data.items) ? data.items : [];
   } catch {
     coverLibraryItems = [];
   }
-  scheduleCoverRotate();
-  if (!els.coverPickLayer?.hidden) syncCoverRotatePickerUI();
 }
 
 function coverPickItemHtml(item, { selected = false, local = false } = {}) {
@@ -6433,7 +6104,6 @@ function renderCoverPicker() {
     "is-selected",
     draft.mode === "library" || draft.mode === "local" || draft.mode === "custom"
   );
-  syncCoverRotatePickerUI();
 }
 
 async function openCoverPicker() {
@@ -6451,7 +6121,6 @@ async function applyCoverDraftAndPersist() {
     return false;
   }
   applyLyricsSideCover(playlist[currentIndex]);
-  scheduleCoverRotate();
   return true;
 }
 
@@ -9214,49 +8883,8 @@ async function deleteCoverFromLibrary(id, kind) {
     await applyCoverDraftAndPersist();
   }
   renderCoverPicker();
-  scheduleCoverRotate();
   setHint("已删除封面");
 }
-
-document.getElementById("coverPickRotateRow")?.addEventListener("click", (e) => {
-  const btn = e.target.closest?.("[data-cover-rotate]");
-  if (!btn) return;
-  const rotate = btn.dataset.coverRotate || "off";
-  const pool = uploadedCoverPool();
-  if (rotate !== "off" && pool.length < 2) {
-    setHint("上传封面至少两张才能自动切换", true);
-    syncCoverRotatePickerUI();
-    return;
-  }
-  writeCoverRotate({ ...readCoverRotate(), rotate });
-  syncCoverRotatePickerUI();
-  scheduleCoverRotate();
-  if (rotate === "off") setHint("已关闭封面自动切换");
-  else setHint(rotate === "random" ? "封面将随机切换" : "封面将按顺序切换");
-});
-
-document.getElementById("coverPickMotionPick")?.addEventListener("click", (e) => {
-  const btn = e.target.closest?.("[data-cover-motion]");
-  if (!btn) return;
-  const transition = btn.dataset.coverMotion || "fade";
-  const pool = uploadedCoverPool();
-  if (pool.length < 2) {
-    setHint("至少两张上传封面才能看切换", true);
-    return;
-  }
-  writeCoverRotate({ ...readCoverRotate(), transition });
-  syncCoverRotatePickerUI();
-  previewCoverRotateSwitch(transition);
-  const label = transition === "veil" ? "淡过" : transition === "drift" ? "轻移" : "叠化";
-  setHint(`正在用「${label}」换到下一张`);
-});
-
-document.getElementById("coverPickInterval")?.addEventListener("change", (e) => {
-  const intervalSec = clampRotateIntervalSec(e.target?.value, 60);
-  if (e.target) e.target.value = String(intervalSec);
-  writeCoverRotate({ ...readCoverRotate(), intervalSec });
-  scheduleCoverRotate();
-});
 
 els.coverPickUploadBtn?.addEventListener("click", (e) => {
   e.preventDefault();
@@ -13118,7 +12746,6 @@ document.addEventListener("visibilitychange", () => {
   syncShellFramePlayback();
 });
 hydrateShellBackground();
-loadCoverLibrary().catch(() => {});
 loadSeekEmojiPicker();
 bindWishPage();
 
