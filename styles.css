@@ -117,7 +117,9 @@ html[data-shell-bg="1"] .shell-bg-layer:not([hidden]) {
   opacity: 0;
   transform: none;
   z-index: 0;
-  transition: opacity 1s ease, transform 1.15s ease;
+  transition: opacity 0.7s ease, transform 0.85s ease;
+  will-change: opacity, transform;
+  backface-visibility: hidden;
 }
 
 .shell-bg-frame.is-front {
@@ -5799,7 +5801,9 @@ html[data-bg-light="1"] .confirm-backdrop {
   filter: blur(52px) saturate(1.35) brightness(1.12);
   opacity: 0;
   z-index: 0;
-  transition: opacity 1s ease, transform 1.15s ease;
+  transition: opacity 0.7s ease, transform 0.85s ease;
+  will-change: opacity;
+  backface-visibility: hidden;
 }
 
 .player-ambient-img.is-front {
@@ -6082,12 +6086,20 @@ html[data-bg-light="1"] .confirm-backdrop {
   overflow: visible;
 }
 
-/* 整幅封面作背景（自定义封面同步） */
+/* 整幅封面作背景（自定义封面同步；透明度仍由 is-front / is-out 控制以便叠化） */
 .player-window.is-view-theater .player-ambient-img {
   filter: saturate(1.08) brightness(0.78);
   transform: scale(1.04);
-  opacity: 1;
   object-fit: cover;
+  will-change: opacity, transform;
+}
+
+.player-window.is-view-theater .player-ambient[data-cover-move="drift"] .player-ambient-img:not(.is-front) {
+  transform: scale(1.08) translate3d(2.5%, 0, 0);
+}
+
+.player-window.is-view-theater .player-ambient[data-cover-move="drift"] .player-ambient-img.is-out {
+  transform: scale(1.06) translate3d(-2%, 0, 0);
 }
 
 .player-window.is-view-theater .player-ambient-dim {
@@ -9138,7 +9150,6 @@ html.theme-manga .player-window.is-view-theater .lyrics-side {
 
 html.theme-manga .player-window.is-view-theater .player-ambient-img {
   filter: saturate(0.9) brightness(0.72) !important;
-  opacity: 1 !important;
 }
 
 html.theme-manga .player-window.is-view-theater .player-ambient-dim {

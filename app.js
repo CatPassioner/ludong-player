@@ -5228,6 +5228,7 @@ function coverAccentTargets() {
 
 let coverShownUrl = "";
 let coverFadeTimer = 0;
+let coverFadeGen = 0;
 
 function clearPlayerAtmosphere() {
   for (const el of coverAccentTargets()) {
@@ -5240,6 +5241,7 @@ function clearPlayerAtmosphere() {
   }
   window.clearTimeout(coverFadeTimer);
   coverFadeTimer = 0;
+  coverFadeGen += 1;
   coverShownUrl = "";
   const layer = els.playerAmbient;
   if (layer) {
@@ -5260,6 +5262,54 @@ function ambientFrontImg() {
     document.querySelector("#playerAmbient .player-ambient-img.is-front") ||
     els.playerAmbientImg
   );
+}
+
+function whenImageReady(img, url) {
+  return new Promise((resolve) => {
+    if (!img || !url) {
+      resolve();
+      return;
+    }
+    const done = () => resolve();
+    const decode = () => {
+      if (typeof img.decode === "function") {
+        img.decode().then(done, done);
+      } else {
+        done();
+      }
+    };
+    if (img.getAttribute("src") === url && img.complete && img.naturalWidth > 0) {
+      decode();
+      return;
+    }
+    const onLoad = () => {
+      img.removeEventListener("load", onLoad);
+      img.removeEventListener("error", onErr);
+      decode();
+    };
+    const onErr = () => {
+      img.removeEventListener("load", onLoad);
+      img.removeEventListener("error", onErr);
+      done();
+    };
+    img.addEventListener("load", onLoad);
+    img.addEventListener("error", onErr);
+    if (img.getAttribute("src") !== url) img.src = url;
+    else if (img.complete) onLoad();
+  });
+}
+
+function preloadImageUrl(url) {
+  return new Promise((resolve) => {
+    if (!url) {
+      resolve();
+      return;
+    }
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = url;
+  });
 }
 
 function snapPlayerAtmosphere(url) {
@@ -5286,24 +5336,7 @@ function snapPlayerAtmosphere(url) {
   window.requestAnimationFrame(() => layer?.classList.remove("is-instant"));
 }
 
-function crossfadePlayerAtmosphere(url, mode) {
-  const layer = els.playerAmbient;
-  const front = ambientFrontImg();
-  const back =
-    front?.id === "playerAmbientImgB" ? els.playerAmbientImg : els.playerAmbientImgB;
-  if (!layer || !front || !back) {
-    snapPlayerAtmosphere(url);
-    return;
-  }
-  if (front.getAttribute("src") === url && front.classList.contains("is-front") && !front.hidden) {
-    coverShownUrl = url;
-    return;
-  }
-  window.clearTimeout(coverFadeTimer);
-  coverFadeTimer = 0;
-  const move = ["fade", "veil", "drift"].includes(mode) ? mode : "fade";
-  back.hidden = false;
-  if (back.getAttribute("src") !== url) back.src = url;
+function runCoverCrossfade(front, back, layer, move) {
   layer.classList.add("is-instant");
   layer.classList.remove("is-moving");
   layer.dataset.coverMove = move;
@@ -5319,8 +5352,8 @@ function crossfadePlayerAtmosphere(url, mode) {
       coverFadeTimer = window.setTimeout(() => {
         front.classList.remove("is-front", "is-leaving");
         front.hidden = true;
-      }, 820);
-    }, 760);
+      }, 560);
+    }, 520);
   } else {
     layer.classList.add("is-moving");
     front.classList.add("is-out");
@@ -5329,8 +5362,31 @@ function crossfadePlayerAtmosphere(url, mode) {
       front.classList.remove("is-front", "is-out");
       front.hidden = true;
       layer.classList.remove("is-moving");
-    }, 1100);
+    }, 760);
   }
+}
+
+async function crossfadePlayerAtmosphere(url, mode) {
+  const layer = els.playerAmbient;
+  const front = ambientFrontImg();
+  const back =
+    front?.id === "playerAmbientImgB" ? els.playerAmbientImg : els.playerAmbientImgB;
+  if (!layer || !front || !back) {
+    snapPlayerAtmosphere(url);
+    return;
+  }
+  if (front.getAttribute("src") === url && front.classList.contains("is-front") && !front.hidden) {
+    coverShownUrl = url;
+    return;
+  }
+  window.clearTimeout(coverFadeTimer);
+  coverFadeTimer = 0;
+  const move = ["fade", "veil", "drift"].includes(mode) ? mode : "fade";
+  const token = ++coverFadeGen;
+  back.hidden = false;
+  await whenImageReady(back, url);
+  if (token !== coverFadeGen) return;
+  runCoverCrossfade(front, back, layer, move);
   coverShownUrl = url;
 }
 
@@ -5888,17 +5944,28 @@ let localCoverUrls = new Map();
 let coverRotateTimer = 0;
 let coverRotateMemory = null;
 
+function clampRotateIntervalSec(raw, fallbackSec = 300) {
+  let sec = Number(raw);
+  if (!Number.isFinite(sec)) sec = fallbackSec;
+  return Math.max(10, Math.min(10800, Math.round(sec)));
+}
+
+function rotateIntervalSecFromSaved(data, fallbackSec = 300) {
+  const sec = Number(data?.intervalSec);
+  if (Number.isFinite(sec)) return clampRotateIntervalSec(sec, fallbackSec);
+  const mins = Number(data?.intervalMin);
+  if (Number.isFinite(mins)) return clampRotateIntervalSec(mins * 60, fallbackSec);
+  return fallbackSec;
+}
+
 function emptyCoverRotate() {
-  return { rotate: "off", intervalMin: 5, transition: "fade" };
+  return { rotate: "off", intervalSec: 300, transition: "fade" };
 }
 
 function normalizeCoverRotate(data) {
   const rotate = ["off", "order", "random"].includes(data?.rotate) ? data.rotate : "off";
   const transition = ["fade", "veil", "drift"].includes(data?.transition) ? data.transition : "fade";
-  let intervalMin = Number(data?.intervalMin);
-  if (!Number.isFinite(intervalMin)) intervalMin = 5;
-  intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
-  return { rotate, intervalMin, transition };
+  return { rotate, intervalSec: rotateIntervalSecFromSaved(data), transition };
 }
 
 function readCoverRotate() {
@@ -5958,7 +6025,7 @@ function syncCoverRotatePickerUI(state = readCoverRotate()) {
   const interval = document.getElementById("coverPickInterval");
   if (wrap) wrap.hidden = state.rotate === "off" || pool.length < 2;
   if (interval && document.activeElement !== interval) {
-    interval.value = String(state.intervalMin);
+    interval.value = String(state.intervalSec);
   }
   const canMove = pool.length >= 2;
   const motionRow = document.getElementById("coverPickMotionRow");
@@ -5975,7 +6042,7 @@ function scheduleCoverRotate(state = readCoverRotate()) {
   coverRotateTimer = 0;
   const pool = uploadedCoverPool();
   if (state.rotate === "off" || pool.length < 2) return;
-  const ms = Math.max(1, state.intervalMin) * 60 * 1000;
+  const ms = clampRotateIntervalSec(state.intervalSec) * 1000;
   coverRotateTimer = setInterval(() => {
     advanceCoverRotate();
   }, ms);
@@ -9126,11 +9193,9 @@ document.getElementById("coverPickMotionPick")?.addEventListener("click", (e) =>
 });
 
 document.getElementById("coverPickInterval")?.addEventListener("change", (e) => {
-  let intervalMin = Number(e.target?.value);
-  if (!Number.isFinite(intervalMin)) intervalMin = 5;
-  intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
-  if (e.target) e.target.value = String(intervalMin);
-  writeCoverRotate({ ...readCoverRotate(), intervalMin });
+  const intervalSec = clampRotateIntervalSec(e.target?.value, 300);
+  if (e.target) e.target.value = String(intervalSec);
+  writeCoverRotate({ ...readCoverRotate(), intervalSec });
   scheduleCoverRotate();
 });
 
@@ -12127,7 +12192,7 @@ function shellLevelFromSaved(data) {
 }
 
 function emptyShellBackground() {
-  return { ids: [], images: {}, posters: {}, activeId: "", level: 55, rotate: "off", intervalMin: 5, transition: "fade" };
+  return { ids: [], images: {}, posters: {}, activeId: "", level: 55, rotate: "off", intervalSec: 300, transition: "fade" };
 }
 
 function isShellStill(src) {
@@ -12177,9 +12242,6 @@ function normalizeShellBackground(data) {
   const activeId = ids.includes(data?.activeId) ? data.activeId : ids[0] || "";
   const rotate = ["off", "order", "random"].includes(data?.rotate) ? data.rotate : "off";
   const transition = ["fade", "veil", "drift"].includes(data?.transition) ? data.transition : "fade";
-  let intervalMin = Number(data?.intervalMin);
-  if (!Number.isFinite(intervalMin)) intervalMin = 5;
-  intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
   return {
     ids,
     images,
@@ -12187,7 +12249,7 @@ function normalizeShellBackground(data) {
     activeId,
     level: shellLevelFromSaved(data || {}),
     rotate,
-    intervalMin,
+    intervalSec: rotateIntervalSecFromSaved(data),
     transition
   };
 }
@@ -12245,7 +12307,7 @@ async function migrateShellImagesToDb(raw) {
         activeId: state.activeId,
         level: state.level,
         rotate: state.rotate,
-        intervalMin: state.intervalMin
+        intervalSec: state.intervalSec
       })
     );
   }
@@ -12460,7 +12522,7 @@ function renderShellBackgroundPicker(state) {
   const interval = document.getElementById("shellBgInterval");
   if (wrap) wrap.hidden = state.rotate === "off" || state.ids.length < 2;
   if (interval && document.activeElement !== interval) {
-    interval.value = String(state.intervalMin);
+    interval.value = String(state.intervalSec);
   }
   const canMove = state.ids.length >= 2;
   const motionRow = document.getElementById("shellBgMotionRow");
@@ -12476,7 +12538,7 @@ function scheduleShellBackgroundRotate(state = readShellBackground()) {
   clearInterval(shellBgTimer);
   shellBgTimer = 0;
   if (state.rotate === "off" || state.ids.length < 2) return;
-  const ms = state.intervalMin * 60 * 1000;
+  const ms = clampRotateIntervalSec(state.intervalSec) * 1000;
   shellBgTimer = setInterval(() => {
     advanceShellBackground();
   }, ms);
@@ -12583,7 +12645,7 @@ function snapShellFrames(state) {
   window.requestAnimationFrame(() => layer.classList.remove("is-instant"));
 }
 
-function crossfadeShell(state, mode) {
+async function crossfadeShell(state, mode) {
   const layer = document.getElementById("shellBgLayer");
   const front = frontShellFrame();
   const back = front?.id === "shellBgFrameB"
@@ -12595,7 +12657,11 @@ function crossfadeShell(state, mode) {
   }
   window.clearTimeout(shellFadeTimer);
   const move = ["fade", "veil", "drift"].includes(mode) ? mode : "fade";
-  paintShellFrame(back, state, state.activeId);
+  const nextId = state.activeId || "";
+  const sample = shellPosterOf(state) || (isShellStill(shellImageOf(state)) ? shellImageOf(state) : "");
+  if (sample) await preloadImageUrl(sample);
+  if (readShellBackground().activeId !== nextId) return;
+  paintShellFrame(back, state, nextId);
   layer.classList.add("is-instant");
   layer.classList.remove("is-moving");
   layer.dataset.shellMove = move;
@@ -12613,8 +12679,8 @@ function crossfadeShell(state, mode) {
       shellFadeTimer = window.setTimeout(() => {
         front.classList.remove("is-front", "is-leaving");
         playShellFrame(front, false);
-      }, 820);
-    }, 760);
+      }, 560);
+    }, 520);
   } else {
     layer.classList.add("is-moving");
     front.classList.add("is-out");
@@ -12625,9 +12691,9 @@ function crossfadeShell(state, mode) {
       front.classList.remove("is-front", "is-out");
       layer.classList.remove("is-moving");
       playShellFrame(front, false);
-    }, 1150);
+    }, 760);
   }
-  shellShownId = state.activeId || "";
+  shellShownId = nextId;
 }
 
 function applyShellBackground(opts = {}) {
@@ -12955,12 +13021,10 @@ document.getElementById("shellBgRotateRow")?.addEventListener("click", (e) => {
 });
 
 document.getElementById("shellBgInterval")?.addEventListener("change", (e) => {
-  let intervalMin = Number(e.target?.value);
-  if (!Number.isFinite(intervalMin)) intervalMin = 5;
-  intervalMin = Math.max(1, Math.min(180, Math.round(intervalMin)));
-  if (e.target) e.target.value = String(intervalMin);
+  const intervalSec = clampRotateIntervalSec(e.target?.value, 300);
+  if (e.target) e.target.value = String(intervalSec);
   const state = readShellBackground();
-  writeShellBackground({ ...state, intervalMin });
+  writeShellBackground({ ...state, intervalSec });
   scheduleShellBackgroundRotate();
 });
 
