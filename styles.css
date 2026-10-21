@@ -6358,8 +6358,8 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
     var(--theater-dock-left) + var(--theater-dock-w, 320px) + clamp(20px, 2.8vw, 48px)
   );
   right: clamp(20px, 4vw, 56px);
-  /* 歌词舞台垂直居中：当前句在视口中线，上下对称，不顶出边界 */
-  top: 50%;
+  /* 垂直锚点由 JS 对齐左侧封面中心：--theater-lyrics-mid */
+  top: var(--theater-lyrics-mid, 50%);
   bottom: auto;
   width: auto;
   height: min(78vh, 680px);
