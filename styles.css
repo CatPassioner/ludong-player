@@ -117,9 +117,11 @@ html[data-shell-bg="1"] .shell-bg-layer:not([hidden]) {
   opacity: 0;
   transform: none;
   z-index: 0;
-  transition: opacity 0.7s ease, transform 0.85s ease;
-  will-change: opacity, transform;
-  backface-visibility: hidden;
+  transition: opacity 0.55s ease;
+}
+
+.shell-bg-layer[data-shell-move="drift"] .shell-bg-frame {
+  transition: opacity 0.55s ease, transform 0.65s ease;
 }
 
 .shell-bg-frame.is-front {
@@ -5801,9 +5803,7 @@ html[data-bg-light="1"] .confirm-backdrop {
   filter: blur(52px) saturate(1.35) brightness(1.12);
   opacity: 0;
   z-index: 0;
-  transition: opacity 0.7s ease, transform 0.85s ease;
-  will-change: opacity;
-  backface-visibility: hidden;
+  transition: opacity 0.55s ease;
 }
 
 .player-ambient-img.is-front {
@@ -5819,6 +5819,10 @@ html[data-bg-light="1"] .confirm-backdrop {
 
 .player-ambient.is-instant .player-ambient-img {
   transition: none;
+}
+
+.player-ambient[data-cover-move="drift"] .player-ambient-img {
+  transition: opacity 0.55s ease, transform 0.65s ease;
 }
 
 .player-ambient[data-cover-move="drift"] .player-ambient-img:not(.is-front) {
@@ -6086,12 +6090,15 @@ html[data-bg-light="1"] .confirm-backdrop {
   overflow: visible;
 }
 
-/* 整幅封面作背景（自定义封面同步；透明度仍由 is-front / is-out 控制以便叠化） */
+/* 整幅封面作背景：清晰可见；叠化只用 is-front / is-out，不用模糊 */
 .player-window.is-view-theater .player-ambient-img {
   filter: saturate(1.08) brightness(0.78);
   transform: scale(1.04);
   object-fit: cover;
-  will-change: opacity, transform;
+}
+
+.player-window.is-view-theater .player-ambient-img.is-front:not(.is-out):not(.is-leaving) {
+  opacity: 1;
 }
 
 .player-window.is-view-theater .player-ambient[data-cover-move="drift"] .player-ambient-img:not(.is-front) {
@@ -6102,7 +6109,8 @@ html[data-bg-light="1"] .confirm-backdrop {
   transform: scale(1.06) translate3d(-2%, 0, 0);
 }
 
-.player-window.is-view-theater .player-ambient-dim {
+.player-window.is-view-theater .player-ambient-dim,
+.player-window.is-view-theater:has(.stage.is-lyrics) .player-ambient-dim {
   opacity: 0.42;
   background: linear-gradient(
     120deg,
@@ -9116,6 +9124,10 @@ html.theme-manga .lyrics-ambient-img {
   opacity: 0.35;
 }
 
+html.theme-manga .player-ambient-img.is-front:not(.is-out):not(.is-leaving) {
+  opacity: 0.35;
+}
+
 html.theme-manga .player-ambient-dim,
 html.theme-manga .lyrics-ambient-dim,
 html.theme-manga .player-window:has(.stage.is-lyrics) .player-ambient-dim {
@@ -9152,7 +9164,18 @@ html.theme-manga .player-window.is-view-theater .player-ambient-img {
   filter: saturate(0.9) brightness(0.72) !important;
 }
 
-html.theme-manga .player-window.is-view-theater .player-ambient-dim {
+html.theme-manga .player-window.is-view-theater .player-ambient-img.is-front:not(.is-out):not(.is-leaving) {
+  opacity: 1 !important;
+}
+
+html.theme-manga .player-window.is-view-theater .player-ambient-img:not(.is-front),
+html.theme-manga .player-window.is-view-theater .player-ambient-img.is-out,
+html.theme-manga .player-window.is-view-theater .player-ambient-img.is-leaving {
+  opacity: 0 !important;
+}
+
+html.theme-manga .player-window.is-view-theater .player-ambient-dim,
+html.theme-manga .player-window.is-view-theater:has(.stage.is-lyrics) .player-ambient-dim {
   opacity: 0.4 !important;
   background: linear-gradient(
     120deg,

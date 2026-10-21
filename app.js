@@ -5319,6 +5319,7 @@ function snapPlayerAtmosphere(url) {
   if (!front) return;
   window.clearTimeout(coverFadeTimer);
   coverFadeTimer = 0;
+  coverFadeGen += 1;
   if (layer) {
     layer.classList.add("is-instant");
     layer.classList.remove("is-moving");
@@ -5340,6 +5341,7 @@ function runCoverCrossfade(front, back, layer, move) {
   layer.classList.add("is-instant");
   layer.classList.remove("is-moving");
   layer.dataset.coverMove = move;
+  back.hidden = false;
   back.classList.remove("is-front", "is-out", "is-leaving");
   front.classList.remove("is-out", "is-leaving");
   void layer.offsetWidth;
@@ -5352,8 +5354,8 @@ function runCoverCrossfade(front, back, layer, move) {
       coverFadeTimer = window.setTimeout(() => {
         front.classList.remove("is-front", "is-leaving");
         front.hidden = true;
-      }, 560);
-    }, 520);
+      }, 420);
+    }, 380);
   } else {
     layer.classList.add("is-moving");
     front.classList.add("is-out");
@@ -5362,7 +5364,7 @@ function runCoverCrossfade(front, back, layer, move) {
       front.classList.remove("is-front", "is-out");
       front.hidden = true;
       layer.classList.remove("is-moving");
-    }, 760);
+    }, 580);
   }
 }
 
@@ -5383,10 +5385,12 @@ async function crossfadePlayerAtmosphere(url, mode) {
   coverFadeTimer = 0;
   const move = ["fade", "veil", "drift"].includes(mode) ? mode : "fade";
   const token = ++coverFadeGen;
-  back.hidden = false;
+  back.hidden = true;
   await whenImageReady(back, url);
   if (token !== coverFadeGen) return;
-  runCoverCrossfade(front, back, layer, move);
+  // 剧场大图叠化只做透明度，避免位移加重卡顿
+  const theater = els.playerWindow?.classList.contains("is-view-theater");
+  runCoverCrossfade(front, back, layer, theater && move === "drift" ? "fade" : move);
   coverShownUrl = url;
 }
 
@@ -12679,8 +12683,8 @@ async function crossfadeShell(state, mode) {
       shellFadeTimer = window.setTimeout(() => {
         front.classList.remove("is-front", "is-leaving");
         playShellFrame(front, false);
-      }, 560);
-    }, 520);
+      }, 420);
+    }, 380);
   } else {
     layer.classList.add("is-moving");
     front.classList.add("is-out");
@@ -12691,7 +12695,7 @@ async function crossfadeShell(state, mode) {
       front.classList.remove("is-front", "is-out");
       layer.classList.remove("is-moving");
       playShellFrame(front, false);
-    }, 760);
+    }, 580);
   }
   shellShownId = nextId;
 }
