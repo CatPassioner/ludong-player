@@ -6692,10 +6692,9 @@ function lineFillProgress(line, nextLine, t) {
   return Math.min(1, Math.max(0, (t - start) / Math.max(singDur, 0.01)));
 }
 
-function markLyricsManual(extended = false) {
+function markLyricsManual(_extended = false) {
   if (lyricsAutoScrolling) return;
   lyricsDetached = true;
-  const theater = currentPlayerView() === "theater";
   // 拖完约 1 秒后回正到当前句
   lyricsManualUntil = Date.now() + 1000;
   els.lyricsBoard?.classList.add("is-browsing");
