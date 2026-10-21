@@ -6695,10 +6695,13 @@ function lineFillProgress(line, nextLine, t) {
   return Math.min(1, Math.max(0, (t - start) / Math.max(singDur, 0.01)));
 }
 
-function markLyricsManual() {
+function markLyricsManual(extended = false) {
   if (lyricsAutoScrolling) return;
   lyricsDetached = true;
-  lyricsManualUntil = Date.now() + 1000;
+  const theater = currentPlayerView() === "theater";
+  const hold = extended || theater ? 5200 : 1000;
+  lyricsManualUntil = Date.now() + hold;
+  els.lyricsBoard?.classList.add("is-browsing");
 }
 
 function scrollToLyric(index, { instant = false } = {}) {
@@ -6729,6 +6732,7 @@ function renderLyrics(lines, emptyMsg) {
   activeLyricIndex = -1;
   lyricsManualUntil = 0;
   lyricsDetached = false;
+  els.lyricsBoard?.classList.remove("is-browsing");
   karaokeTempo = calibrateKaraokeTempo(lyricLines);
   const has = lyricLines.length > 0;
   if (els.lyricsBoard) els.lyricsBoard.hidden = !has;
@@ -6817,8 +6821,12 @@ function syncLyrics() {
   if (follow && (lyricsDetached || idx !== activeLyricIndex)) {
     scrollToLyric(idx, { instant: true });
     lyricsDetached = false;
+    els.lyricsBoard?.classList.remove("is-browsing");
   } else if (follow && waiting && activeLyricIndex < 0) {
     scrollToLyric(0, { instant: true });
+    els.lyricsBoard?.classList.remove("is-browsing");
+  } else if (follow) {
+    els.lyricsBoard?.classList.remove("is-browsing");
   }
   activeLyricIndex = idx;
 
@@ -6829,8 +6837,9 @@ function syncLyrics() {
     const ad = Math.abs(dist);
     el.classList.toggle("is-active", i === idx);
     el.classList.toggle("is-near", ad === 1);
-    el.classList.toggle("is-far", theater ? ad === 2 : ad > 1);
-    el.classList.toggle("is-ghost", theater && ad > 2);
+    el.classList.toggle("is-mid", theater && ad === 2);
+    el.classList.toggle("is-far", theater ? ad >= 3 && ad <= 5 : ad > 1);
+    el.classList.toggle("is-ghost", theater ? ad > 5 : false);
     el.classList.toggle("is-past", dist < 0);
     el.classList.toggle("is-soon", dist > 0);
     el.classList.toggle("is-waiting", waiting && i === idx);
@@ -8883,20 +8892,60 @@ els.lyricsWindow?.addEventListener(
   "wheel",
   (e) => {
     e.stopPropagation();
-    markLyricsManual();
+    markLyricsManual(true);
   },
   { passive: true }
 );
 els.lyricsWindow?.addEventListener(
   "touchstart",
-  () => markLyricsManual(),
+  () => markLyricsManual(true),
   { passive: true }
 );
 els.lyricsWindow?.addEventListener(
   "scroll",
-  () => markLyricsManual(),
+  () => {
+    if (!lyricsAutoScrolling) markLyricsManual(true);
+  },
   { passive: true }
 );
+
+(() => {
+  const win = els.lyricsWindow;
+  if (!win) return;
+  let dragging = false;
+  let pointerId = null;
+  let startY = 0;
+  let startScroll = 0;
+  win.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    dragging = true;
+    pointerId = e.pointerId;
+    startY = e.clientY;
+    startScroll = win.scrollTop;
+    try {
+      win.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    win.classList.add("is-dragging");
+    markLyricsManual(true);
+  });
+  win.addEventListener("pointermove", (e) => {
+    if (!dragging || (pointerId != null && e.pointerId !== pointerId)) return;
+    win.scrollTop = startScroll - (e.clientY - startY);
+    markLyricsManual(true);
+  });
+  const endDrag = (e) => {
+    if (pointerId != null && e?.pointerId != null && e.pointerId !== pointerId) {
+      return;
+    }
+    dragging = false;
+    pointerId = null;
+    win.classList.remove("is-dragging");
+  };
+  win.addEventListener("pointerup", endDrag);
+  win.addEventListener("pointercancel", endDrag);
+})();
 
 const PLAY_MODE_KEY = "ludong-play-mode";
 

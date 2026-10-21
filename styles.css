@@ -6157,7 +6157,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   bottom: auto !important;
   z-index: 46;
   width: max-content;
-  max-width: min(480px, 46vw);
+  max-width: min(620px, 58vw);
   height: auto;
   min-height: 0;
   margin: 0 !important;
@@ -6165,7 +6165,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 14px;
   pointer-events: auto;
   transform: translateY(-50%) !important;
   grid-column: auto;
@@ -6187,13 +6187,13 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 .player-window.is-view-theater .lyrics-art {
   position: relative;
   z-index: 2;
-  width: clamp(168px, 28vh, 260px);
-  height: clamp(168px, 28vh, 260px);
+  width: clamp(210px, 36vh, 340px);
+  height: clamp(210px, 36vh, 340px);
   flex: 0 0 auto;
-  border-radius: 20px;
+  border-radius: 22px;
   margin: 0;
   box-shadow:
-    0 16px 36px rgba(0, 0, 0, 0.45),
+    0 18px 42px rgba(0, 0, 0, 0.48),
     0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
@@ -6201,9 +6201,9 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   position: relative;
   z-index: 1;
   flex: 0 0 auto;
-  width: clamp(168px, 28vh, 260px);
-  height: clamp(168px, 28vh, 260px);
-  margin-left: calc(clamp(168px, 28vh, 260px) * -0.46);
+  width: clamp(210px, 36vh, 340px);
+  height: clamp(210px, 36vh, 340px);
+  margin-left: calc(clamp(210px, 36vh, 340px) * -0.46);
   border-radius: 50%;
   transform: none;
 }
@@ -6355,13 +6355,13 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 .player-window.is-view-theater .lyrics-side {
   position: absolute;
   left: calc(
-    var(--theater-dock-left) + var(--theater-dock-w, 320px) + clamp(28px, 3.5vw, 56px)
+    var(--theater-dock-left) + var(--theater-dock-w, 320px) + clamp(20px, 2.8vw, 48px)
   );
-  right: clamp(28px, 5vw, 72px);
+  right: clamp(20px, 4vw, 56px);
   top: 50%;
   bottom: auto;
   width: auto;
-  height: min(78vh, 620px);
+  height: min(88vh, 780px);
   margin: 0;
   padding: 0 8px;
   background: transparent !important;
@@ -6377,6 +6377,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   display: flex;
   align-items: stretch;
   justify-content: center;
+  pointer-events: auto;
 }
 
 .player-window.is-view-theater .lyrics-side::before {
@@ -6409,28 +6410,35 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 .player-window.is-view-theater .lyrics-board {
-  --line-h: clamp(2.8rem, 5.4vh, 3.6rem);
-  --line-gap: clamp(0.55rem, 1.4vh, 1rem);
+  --line-h: clamp(2.35rem, 4.4vh, 3.1rem);
+  --line-gap: clamp(0.4rem, 1vh, 0.75rem);
   height: 100%;
 }
 
 .player-window.is-view-theater .lyrics-window {
   height: 100%;
   scrollbar-width: none;
+  touch-action: pan-y;
+  cursor: grab;
   mask-image: linear-gradient(
     180deg,
     transparent 0%,
-    #000 18%,
-    #000 82%,
+    #000 8%,
+    #000 92%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     180deg,
     transparent 0%,
-    #000 18%,
-    #000 82%,
+    #000 8%,
+    #000 92%,
     transparent 100%
   );
+}
+
+.player-window.is-view-theater .lyrics-window.is-dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .player-window.is-view-theater .lyrics-window::-webkit-scrollbar {
@@ -6453,30 +6461,51 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   will-change: transform, opacity, filter;
 }
 
-/* 远景几乎消失，避免「整页歌词一起糊在右边」 */
+/* 多行可见：近→中→远递减，拖动浏览时再抬整体可读性 */
+.player-window.is-view-theater .lyric-line.is-mid {
+  opacity: 0.34;
+  transform: translateY(0) scale(0.92);
+  filter: blur(0.35px);
+}
+
 .player-window.is-view-theater .lyric-line.is-far {
-  opacity: 0.1;
-  transform: translateY(0) scale(0.86);
-  filter: blur(2.2px);
+  opacity: 0.24;
+  transform: translateY(0) scale(0.9);
+  filter: blur(0.55px);
 }
 
 .player-window.is-view-theater .lyric-line.is-ghost {
-  opacity: 0;
-  transform: scale(0.8);
-  filter: blur(4px);
-  pointer-events: none;
+  opacity: 0.16;
+  transform: scale(0.88);
+  filter: blur(0.7px);
+  pointer-events: auto;
 }
 
 .player-window.is-view-theater .lyric-line.is-near.is-past {
-  opacity: 0.38;
-  transform: translateY(-6px) scale(0.94);
-  filter: blur(0.6px);
+  opacity: 0.48;
+  transform: translateY(-4px) scale(0.95);
+  filter: blur(0.25px);
 }
 
 .player-window.is-view-theater .lyric-line.is-near.is-soon {
-  opacity: 0.42;
-  transform: translateY(8px) scale(0.95);
-  filter: blur(0.4px);
+  opacity: 0.5;
+  transform: translateY(5px) scale(0.96);
+  filter: blur(0.2px);
+}
+
+.player-window.is-view-theater .lyrics-board.is-browsing .lyric-line {
+  opacity: 0.62;
+  filter: none;
+  transform: none;
+}
+
+.player-window.is-view-theater .lyrics-board.is-browsing .lyric-line.is-active {
+  opacity: 1;
+  transform: scale(1.03);
+}
+
+.player-window.is-view-theater .lyrics-board.is-browsing .lyric-line.is-near {
+  opacity: 0.78;
 }
 
 .player-window.is-view-theater .lyric-line.is-active {
@@ -6487,18 +6516,23 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 .player-window.is-view-theater .lyric-line .lyric-karaoke {
-  font-size: clamp(1.02rem, 2.2vh, 1.28rem);
+  font-size: clamp(0.95rem, 1.9vh, 1.18rem);
   font-weight: 500;
   letter-spacing: 0.04em;
-  line-height: 1.35;
+  line-height: 1.32;
+  white-space: normal;
+}
+
+.player-window.is-view-theater .lyric-line.is-mid .lyric-karaoke {
+  font-size: clamp(1.02rem, 2.1vh, 1.26rem);
 }
 
 .player-window.is-view-theater .lyric-line.is-near .lyric-karaoke {
-  font-size: clamp(1.12rem, 2.5vh, 1.42rem);
+  font-size: clamp(1.08rem, 2.35vh, 1.38rem);
 }
 
 .player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
-  font-size: clamp(1.48rem, 3.6vh, 2.15rem);
+  font-size: clamp(1.36rem, 3.2vh, 1.95rem);
   font-weight: 760;
   letter-spacing: 0.05em;
 }
