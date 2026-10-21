@@ -5245,7 +5245,7 @@ function clearPlayerAtmosphere() {
   coverShownUrl = "";
   const layer = els.playerAmbient;
   if (layer) {
-    layer.classList.remove("is-instant", "is-moving");
+    layer.classList.remove("is-instant", "is-moving", "is-veiling");
     layer.dataset.coverMove = "fade";
   }
   [els.playerAmbientImg, els.playerAmbientImgB].forEach((img, i) => {
@@ -5322,7 +5322,7 @@ function snapPlayerAtmosphere(url) {
   coverFadeGen += 1;
   if (layer) {
     layer.classList.add("is-instant");
-    layer.classList.remove("is-moving");
+    layer.classList.remove("is-moving", "is-veiling");
   }
   front.hidden = false;
   front.classList.add("is-front");
@@ -5337,43 +5337,18 @@ function snapPlayerAtmosphere(url) {
   window.requestAnimationFrame(() => layer?.classList.remove("is-instant"));
 }
 
-function runCoverCrossfade(front, back, layer, move) {
-  layer.classList.add("is-instant");
-  layer.classList.remove("is-moving");
-  layer.dataset.coverMove = move;
-  back.hidden = false;
-  back.classList.remove("is-front", "is-out", "is-leaving");
-  front.classList.remove("is-out", "is-leaving");
-  void layer.offsetWidth;
-  layer.classList.remove("is-instant");
-  void back.offsetWidth;
-  if (move === "veil") {
-    front.classList.add("is-leaving");
-    coverFadeTimer = window.setTimeout(() => {
-      back.classList.add("is-front");
-      coverFadeTimer = window.setTimeout(() => {
-        front.classList.remove("is-front", "is-leaving");
-        front.hidden = true;
-      }, 420);
-    }, 380);
-  } else {
-    layer.classList.add("is-moving");
-    front.classList.add("is-out");
-    back.classList.add("is-front");
-    coverFadeTimer = window.setTimeout(() => {
-      front.classList.remove("is-front", "is-out");
-      front.hidden = true;
-      layer.classList.remove("is-moving");
-    }, 580);
-  }
+function waitMs(ms) {
+  return new Promise((resolve) => {
+    coverFadeTimer = window.setTimeout(resolve, ms);
+  });
 }
 
-async function crossfadePlayerAtmosphere(url, mode) {
+/** 轻量换场：始终只显示一张全屏图，用遮罩做出叠化/淡过/轻移观感，避免双大图叠化卡顿 */
+async function softSwapPlayerAtmosphere(url, mode) {
   const layer = els.playerAmbient;
-  const front = ambientFrontImg();
-  const back =
-    front?.id === "playerAmbientImgB" ? els.playerAmbientImg : els.playerAmbientImgB;
-  if (!layer || !front || !back) {
+  const front = els.playerAmbientImg;
+  const probe = els.playerAmbientImgB;
+  if (!layer || !front) {
     snapPlayerAtmosphere(url);
     return;
   }
@@ -5385,13 +5360,41 @@ async function crossfadePlayerAtmosphere(url, mode) {
   coverFadeTimer = 0;
   const move = ["fade", "veil", "drift"].includes(mode) ? mode : "fade";
   const token = ++coverFadeGen;
-  back.hidden = true;
-  await whenImageReady(back, url);
+  const veilIn = move === "veil" ? 280 : move === "drift" ? 220 : 240;
+  const veilOut = move === "veil" ? 320 : 260;
+
+  if (probe) {
+    probe.hidden = true;
+    await whenImageReady(probe, url);
+  } else {
+    await preloadImageUrl(url);
+  }
   if (token !== coverFadeGen) return;
-  // 剧场大图叠化只做透明度，避免位移加重卡顿
-  const theater = els.playerWindow?.classList.contains("is-view-theater");
-  runCoverCrossfade(front, back, layer, theater && move === "drift" ? "fade" : move);
+
+  layer.dataset.coverMove = move;
+  layer.classList.remove("is-instant", "is-moving");
+  layer.classList.add("is-veiling");
+  await waitMs(veilIn);
+  if (token !== coverFadeGen) return;
+
+  front.hidden = false;
+  front.classList.add("is-front");
+  front.classList.remove("is-out", "is-leaving");
+  if (front.getAttribute("src") !== url) front.src = url;
+  if (probe) {
+    probe.hidden = true;
+    probe.classList.remove("is-front", "is-out", "is-leaving");
+  }
   coverShownUrl = url;
+
+  // 轻移：换图后再回正一点，遮罩下完成位移
+  if (move === "drift") {
+    void front.offsetWidth;
+  }
+  await waitMs(40);
+  if (token !== coverFadeGen) return;
+  layer.classList.remove("is-veiling");
+  await waitMs(veilOut);
 }
 
 function applyPlayerAtmosphere(src, opts = {}) {
@@ -5403,7 +5406,7 @@ function applyPlayerAtmosphere(src, opts = {}) {
   }
   const motion = opts?.motion;
   if (motion && coverShownUrl && coverShownUrl !== url) {
-    crossfadePlayerAtmosphere(url, motion);
+    softSwapPlayerAtmosphere(url, motion);
   } else {
     snapPlayerAtmosphere(url);
   }

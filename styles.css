@@ -5845,6 +5845,38 @@ html[data-bg-light="1"] .confirm-backdrop {
   opacity: 0.72;
 }
 
+/* 轻量换场：只压一层遮罩，不叠两张全屏大图，叠化/淡过/轻移都走这里 */
+.player-ambient-softveil {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: #0b1018;
+  opacity: 0;
+  transition: opacity 0.32s ease;
+}
+
+.player-ambient.is-veiling .player-ambient-softveil {
+  opacity: 0.42;
+}
+
+.player-ambient.is-veiling[data-cover-move="veil"] .player-ambient-softveil {
+  opacity: 0.72;
+}
+
+.player-ambient.is-veiling[data-cover-move="drift"] .player-ambient-softveil {
+  opacity: 0.36;
+}
+
+.player-ambient.is-veiling[data-cover-move="drift"] .player-ambient-img.is-front {
+  transform: scale(1.1) translate3d(-2%, 0, 0);
+  transition: transform 0.45s ease;
+}
+
+.player-window.is-view-theater .player-ambient.is-veiling[data-cover-move="drift"] .player-ambient-img.is-front {
+  transform: scale(1.08) translate3d(-1.8%, 0, 0);
+}
+
 .player-window.is-view-immerse .player-ambient-dim {
   opacity: 0.56;
 }
