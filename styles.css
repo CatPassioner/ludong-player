@@ -5862,6 +5862,22 @@ html[data-bg-light="1"] .confirm-backdrop {
   box-sizing: border-box;
 }
 
+/* 剧场 fixed 歌词/封面会盖住顶栏：顶栏始终可点 */
+.player-window.is-view-theater .player-window-bar {
+  position: relative;
+  z-index: 80;
+  pointer-events: auto;
+}
+
+.player-window.is-view-theater .player-views,
+.player-window.is-view-theater .player-view-btn,
+.player-window.is-view-theater .player-close,
+.player-window.is-view-theater .player-bar-tools {
+  pointer-events: auto;
+  position: relative;
+  z-index: 81;
+}
+
 .player-views {
   display: inline-flex;
   align-items: center;
@@ -6184,6 +6200,12 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   overflow: visible !important;
   isolation: auto;
   cursor: default;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.player-window.is-view-theater .stage {
+  pointer-events: none;
 }
 
 .player-window.is-view-theater .lyrics-ambient {
@@ -6421,6 +6443,13 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   display: flex;
   align-items: stretch;
   justify-content: center;
+  /* 空白区域不抢顶栏点击，仅歌词列表可拖 */
+  pointer-events: none;
+}
+
+.player-window.is-view-theater .lyrics-side .lyrics-board,
+.player-window.is-view-theater .lyrics-side .lyrics-window,
+.player-window.is-view-theater .lyrics-side .lyric-empty {
   pointer-events: auto;
 }
 
