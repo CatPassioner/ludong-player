@@ -6358,8 +6358,8 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
     var(--theater-dock-left) + var(--theater-dock-w, 320px) + clamp(20px, 2.8vw, 48px)
   );
   right: clamp(20px, 4vw, 56px);
-  /* 整体上移：视觉焦点在偏上，避免歌词沉在下半屏 */
-  top: max(4vh, calc(42% - 2vh));
+  /* 整体再上移约两句歌词的距离 */
+  top: max(2vh, calc(36% - 2vh));
   bottom: auto;
   width: auto;
   height: min(84vh, 760px);
@@ -6371,7 +6371,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  transform: translateY(-42%);
+  transform: translateY(-48%);
   transform-origin: center center;
   z-index: 4;
   overflow: hidden;
@@ -6385,7 +6385,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   content: "";
   position: absolute;
   left: 50%;
-  top: 38%;
+  top: 32%;
   width: min(94%, 560px);
   height: clamp(64px, 11vh, 88px);
   transform: translate(-50%, -50%);
@@ -6411,8 +6411,8 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 .player-window.is-view-theater .lyrics-board {
-  --line-h: clamp(2.7rem, 5.2vh, 3.55rem);
-  --line-gap: clamp(0.45rem, 1.15vh, 0.85rem);
+  --line-h: clamp(2.95rem, 5.6vh, 3.85rem);
+  --line-gap: clamp(0.5rem, 1.25vh, 0.95rem);
   height: 100%;
 }
 
@@ -6517,7 +6517,7 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 .player-window.is-view-theater .lyric-line .lyric-karaoke {
-  font-size: clamp(1.1rem, 2.35vh, 1.4rem);
+  font-size: clamp(1.22rem, 2.6vh, 1.55rem);
   font-weight: 520;
   letter-spacing: 0.04em;
   line-height: 1.34;
@@ -6525,15 +6525,15 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
 }
 
 .player-window.is-view-theater .lyric-line.is-mid .lyric-karaoke {
-  font-size: clamp(1.2rem, 2.65vh, 1.55rem);
+  font-size: clamp(1.34rem, 2.95vh, 1.72rem);
 }
 
 .player-window.is-view-theater .lyric-line.is-near .lyric-karaoke {
-  font-size: clamp(1.32rem, 3vh, 1.72rem);
+  font-size: clamp(1.48rem, 3.35vh, 1.92rem);
 }
 
 .player-window.is-view-theater .lyric-line.is-active .lyric-karaoke {
-  font-size: clamp(1.78rem, 4.4vh, 2.55rem);
+  font-size: clamp(1.95rem, 4.9vh, 2.85rem);
   font-weight: 780;
   letter-spacing: 0.055em;
 }

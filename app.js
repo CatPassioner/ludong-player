@@ -6696,9 +6696,8 @@ function markLyricsManual(extended = false) {
   if (lyricsAutoScrolling) return;
   lyricsDetached = true;
   const theater = currentPlayerView() === "theater";
-  // 剧场拖完后稍停再回正到当前句
-  const hold = extended || theater ? 1600 : 1000;
-  lyricsManualUntil = Date.now() + hold;
+  // 拖完约 1 秒后回正到当前句
+  lyricsManualUntil = Date.now() + 1000;
   els.lyricsBoard?.classList.add("is-browsing");
 }
 
@@ -6733,8 +6732,8 @@ function scrollToLyric(index, { instant = false } = {}) {
   const line = track?.children[index];
   if (!win || !line) return;
 
-  // 剧场：当前句钉在偏上约 38%，配合整块上移，避免视觉沉底
-  const focusY = currentPlayerView() === "theater" ? 0.38 : 0.5;
+  // 剧场：当前句再上移约两句（焦点约 28%）
+  const focusY = currentPlayerView() === "theater" ? 0.28 : 0.5;
   const pad = win.clientHeight * focusY - line.offsetHeight / 2;
   const top = Math.max(0, line.offsetTop - pad);
 
@@ -8973,7 +8972,7 @@ els.lyricsWindow?.addEventListener(
         if (Date.now() >= lyricsManualUntil - 20) {
           snapLyricsToPlaying({ instant: false });
         }
-      }, 1650);
+      }, 1000);
     }
   };
   win.addEventListener("pointerup", endDrag);
