@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03theater28" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03theater29" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -224,20 +224,43 @@
       </div>
       <div class="player-fit" id="playerFit">
         <div class="player-board" id="playerBoard">
-          <header class="player-window-bar">
-            <button type="button" class="player-close" id="playerClose" aria-label="返回歌单">
-              <span class="player-close-ico"></span>
-              返回歌单
+          <header class="player-window-bar" id="playerWindowBar">
+            <button
+              type="button"
+              class="player-bar-lock"
+              id="playerBarLockBtn"
+              aria-label="隐藏顶栏"
+              title="隐藏顶栏"
+              aria-pressed="false"
+            >
+              <span class="player-bar-lock-ico player-bar-lock-ico-open" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="11" width="14" height="10" rx="2"></rect>
+                  <path d="M8 11V8a4 4 0 0 1 7.2-2.4"></path>
+                </svg>
+              </span>
+              <span class="player-bar-lock-ico player-bar-lock-ico-closed" aria-hidden="true" hidden>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="11" width="14" height="10" rx="2"></rect>
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+                </svg>
+              </span>
             </button>
-            <div class="player-views" role="group" aria-label="播放界面">
-              <button type="button" class="player-view-btn" data-player-view="immerse">沉浸</button>
-              <button type="button" class="player-view-btn is-active" data-player-view="listen">听</button>
-              <button type="button" class="player-view-btn" data-player-view="theater">剧场</button>
-              <button type="button" class="player-view-btn" data-player-view="song">评论</button>
-            </div>
-            <div class="player-bar-tools">
-              <button type="button" class="player-cover-btn" id="mvToggleBtn" hidden>视频</button>
-              <button type="button" class="player-cover-btn" id="coverPickBtn">自定义封面</button>
+            <div class="player-window-bar-main">
+              <button type="button" class="player-close" id="playerClose" aria-label="返回歌单">
+                <span class="player-close-ico"></span>
+                返回歌单
+              </button>
+              <div class="player-views" role="group" aria-label="播放界面">
+                <button type="button" class="player-view-btn" data-player-view="immerse">沉浸</button>
+                <button type="button" class="player-view-btn is-active" data-player-view="listen">听</button>
+                <button type="button" class="player-view-btn" data-player-view="theater">剧场</button>
+                <button type="button" class="player-view-btn" data-player-view="song">评论</button>
+              </div>
+              <div class="player-bar-tools">
+                <button type="button" class="player-cover-btn" id="mvToggleBtn" hidden>视频</button>
+                <button type="button" class="player-cover-btn" id="coverPickBtn">自定义封面</button>
+              </div>
             </div>
           </header>
 
@@ -1175,6 +1198,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03asset1"></script>
-  <script src="app.js?v=2.0.03theater28"></script>
+  <script src="app.js?v=2.0.03theater29"></script>
 </body>
 </html>

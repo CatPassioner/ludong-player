@@ -74,6 +74,8 @@ const els = {
   playerFit: document.getElementById("playerFit"),
   playerBoard: document.getElementById("playerBoard"),
   playerClose: document.getElementById("playerClose"),
+  playerWindowBar: document.getElementById("playerWindowBar"),
+  playerBarLockBtn: document.getElementById("playerBarLockBtn"),
   mvToggleBtn: document.getElementById("mvToggleBtn"),
   mvView: document.getElementById("mvView"),
   mvVideo: document.getElementById("mvVideo"),
@@ -5608,6 +5610,56 @@ function setPlayerView(view) {
   });
 }
 
+const PLAYER_BAR_HIDE_KEY = "ludong-player-bar-hidden-v1";
+
+function setPlayerBarHidden(hidden, persist = true) {
+  const bar = els.playerWindowBar || document.getElementById("playerWindowBar");
+  const btn = els.playerBarLockBtn || document.getElementById("playerBarLockBtn");
+  if (!bar || !btn) return;
+  const on = !!hidden;
+  bar.classList.toggle("is-hidden", on);
+  btn.classList.toggle("is-locked", on);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.setAttribute("aria-label", on ? "显示顶栏" : "隐藏顶栏");
+  btn.title = on ? "显示顶栏" : "隐藏顶栏";
+  const openIco = btn.querySelector(".player-bar-lock-ico-open");
+  const closedIco = btn.querySelector(".player-bar-lock-ico-closed");
+  if (openIco) openIco.hidden = on;
+  if (closedIco) closedIco.hidden = !on;
+  if (persist) {
+    try {
+      localStorage.setItem(PLAYER_BAR_HIDE_KEY, on ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
+  if (currentPlayerView() === "theater") {
+    requestAnimationFrame(() => {
+      syncTheaterDockWidth();
+      syncTheaterLyricsAlign();
+    });
+  }
+}
+
+function bindPlayerBarLock() {
+  const btn = els.playerBarLockBtn || document.getElementById("playerBarLockBtn");
+  if (!btn || btn.dataset.bound === "1") return;
+  btn.dataset.bound = "1";
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const bar = els.playerWindowBar || document.getElementById("playerWindowBar");
+    const next = !bar?.classList.contains("is-hidden");
+    setPlayerBarHidden(next, true);
+  });
+  let saved = false;
+  try {
+    saved = localStorage.getItem(PLAYER_BAR_HIDE_KEY) === "1";
+  } catch {
+    saved = false;
+  }
+  setPlayerBarHidden(saved, false);
+}
+
 function bindPlayerViews() {
   document.querySelectorAll("[data-player-view]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -5619,6 +5671,7 @@ function bindPlayerViews() {
     e.stopPropagation();
     openCommentsLayer();
   });
+  bindPlayerBarLock();
   let saved = "listen";
   try {
     saved = localStorage.getItem(PLAYER_VIEW_KEY) || "listen";
