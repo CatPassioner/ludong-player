@@ -5478,33 +5478,53 @@ function syncTheaterDockWidth() {
   syncTheaterLyricsAlign();
 }
 
-/** 歌词中线 = 左侧封面图（#lyricsArt）上下正中，不含唱片旁白/进度条/播放键 */
+/** 歌词中线 = 封面图正中；高度取上下可伸展的较短边，保证不越过顶栏且上下对称 */
 function syncTheaterLyricsAlign() {
   const win = document.getElementById("playerWindow");
   const cover = document.getElementById("lyricsArt");
+  const bar = win?.querySelector(".player-window-bar");
   if (!win?.classList.contains("is-view-theater") || !cover) {
     win?.style.removeProperty("--theater-lyrics-mid");
     win?.style.removeProperty("--theater-lyrics-h");
+    clearTheaterLyricTrackPad();
     return;
   }
   const coverRect = cover.getBoundingClientRect();
   if (coverRect.height < 8) return;
 
-  // 视口坐标下封面正方形的几何中心
   const coverMid = coverRect.top + coverRect.height / 2;
-  const pad = 12;
-  const maxH = Math.max(
-    240,
-    Math.min(
-      window.innerHeight * 0.78,
-      680,
-      2 * (coverMid - pad),
-      2 * (window.innerHeight - coverMid - pad)
-    )
-  );
+  // 顶栏下沿为上边界，禁止歌词舞台越过
+  const topSafe = (bar ? bar.getBoundingClientRect().bottom : 56) + 8;
+  const bottomSafe = window.innerHeight - 16;
+  const upRoom = Math.max(0, coverMid - topSafe);
+  const downRoom = Math.max(0, bottomSafe - coverMid);
+  // 上下等距：只取较短一侧，当前句仍在封面中心
+  const half = Math.min(upRoom, downRoom);
+  const maxH = Math.max(180, Math.min(window.innerHeight * 0.7, 600, half * 2));
 
   win.style.setProperty("--theater-lyrics-mid", `${Math.round(coverMid)}px`);
   win.style.setProperty("--theater-lyrics-h", `${Math.round(maxH)}px`);
+  requestAnimationFrame(() => updateTheaterLyricTrackPad());
+}
+
+function clearTheaterLyricTrackPad() {
+  const track = els.lyricsTrack;
+  if (!track) return;
+  track.style.paddingTop = "";
+  track.style.paddingBottom = "";
+}
+
+/** 列表上下加等高内边距，当前句才能真正居中、上下歌词对称 */
+function updateTheaterLyricTrackPad() {
+  const win = els.lyricsWindow;
+  const track = els.lyricsTrack;
+  if (!win || !track || currentPlayerView() !== "theater") {
+    clearTheaterLyricTrackPad();
+    return;
+  }
+  const pad = Math.max(0, Math.floor(win.clientHeight / 2 - 8));
+  track.style.paddingTop = `${pad}px`;
+  track.style.paddingBottom = `${pad}px`;
 }
 
 /** 剧场独立常驻面：封面+歌词始终在，不走「点封面切换歌词」 */
@@ -5568,6 +5588,7 @@ function setPlayerView(view) {
       dockTheaterChrome(false);
       win.style.removeProperty("--theater-lyrics-mid");
       win.style.removeProperty("--theater-lyrics-h");
+      clearTheaterLyricTrackPad();
     }
     if (prev === "theater" && next === "listen" && !theaterRestoreLyrics) {
       setLyricsMode(false);
@@ -6773,7 +6794,11 @@ function scrollToLyric(index, { instant = false } = {}) {
   const line = track?.children[index];
   if (!win || !line) return;
 
-  // 剧场：当前句钉在视口正中，上下歌词对称
+  if (currentPlayerView() === "theater") {
+    updateTheaterLyricTrackPad();
+  }
+
+  // 当前句钉在歌词窗口正中 → 上下可见歌词对称（不是挪整块舞台）
   const focusY = 0.5;
   const pad = win.clientHeight * focusY - line.offsetHeight / 2;
   const top = Math.max(0, line.offsetTop - pad);

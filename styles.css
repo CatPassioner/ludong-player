@@ -6427,7 +6427,9 @@ html.theme-manga .player-window.is-view-theater .seek-thumb-gif {
   top: var(--theater-lyrics-mid, 50vh);
   bottom: auto;
   width: auto;
-  height: min(78vh, 680px, var(--theater-lyrics-h, 78vh));
+  /* 高度由 JS 按「顶栏下沿 ↔ 底边」对称裁切，禁止越过上面边界 */
+  height: var(--theater-lyrics-h, min(70vh, 560px));
+  max-height: calc(100vh - 96px);
   margin: 0;
   padding: 0 8px;
   background: transparent !important;
