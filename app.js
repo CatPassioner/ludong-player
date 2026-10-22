@@ -4286,7 +4286,9 @@ let diaryOpenDays = new Set();
 let diaryCalVisible = false;
 let diaryCalCursor = null;
 let diaryDayKeysCache = new Set();
+let diaryDaysByKey = new Map();
 let diaryFocusDayKey = "";
+let diaryCalSwipe = { x: 0, y: 0, active: false, locked: "" };
 
 function parseDiaryDayKey(key) {
   const parts = String(key || "").split("-").map(Number);
@@ -4336,6 +4338,16 @@ function renderDiaryDaySection(day, meta, quote, { open = false } = {}) {
   </section>`;
 }
 
+function shiftDiaryCalendarMonth(delta) {
+  if (!diaryCalCursor) diaryCalCursor = new Date();
+  diaryCalCursor = new Date(
+    diaryCalCursor.getFullYear(),
+    diaryCalCursor.getMonth() + delta,
+    1
+  );
+  renderDiaryCalendar();
+}
+
 function renderDiaryCalendar(dayKeys = diaryDayKeysCache) {
   const grid = document.getElementById("diaryCalGrid");
   const label = document.getElementById("diaryCalMonthLabel");
@@ -4353,28 +4365,102 @@ function renderDiaryCalendar(dayKeys = diaryDayKeysCache) {
   const todayKey = diaryLocalDayKey(now);
   const cells = [];
   for (let i = 0; i < startPad; i += 1) {
-    cells.push(`<span class="diary-cal-cell is-muted" aria-hidden="true"></span>`);
+    cells.push(`<span class="diary-cal-cell is-pad" aria-hidden="true"></span>`);
   }
   for (let d = 1; d <= daysInMonth; d += 1) {
     const key = diaryLocalDayKey(new Date(y, m, d));
-    const has = dayKeys.has(key);
+    const day = diaryDaysByKey.get(key);
+    const has = !!day || dayKeys.has(key);
+    const hero = day?.hero || null;
+    const cover = String(hero?.cover || "").trim();
+    const title = String(hero?.title || "").trim();
     const cls = [
       "diary-cal-cell",
       has ? "has-entry" : "is-muted",
+      cover ? "has-hero" : "",
       key === todayKey ? "is-today" : "",
       key === diaryFocusDayKey ? "is-focus" : ""
     ]
       .filter(Boolean)
       .join(" ");
+    const coverHtml = cover
+      ? `<img class="diary-cal-cover" src="${escapeHtml(cover)}" alt="" loading="lazy" draggable="false" />`
+      : has
+        ? `<span class="diary-cal-hero-dot" aria-hidden="true"></span>`
+        : "";
+    const labelText = title
+      ? `${y}年${m + 1}月${d}日 · 主角 ${title}`
+      : `${y}年${m + 1}月${d}日`;
     if (has) {
       cells.push(
-        `<button type="button" class="${cls}" data-diary-jump="${escapeHtml(key)}" aria-label="${y}年${m + 1}月${d}日">${d}</button>`
+        `<button type="button" class="${cls}" data-diary-jump="${escapeHtml(key)}" title="${escapeHtml(labelText)}" aria-label="${escapeHtml(labelText)}">
+          ${coverHtml}
+          <span class="diary-cal-num">${d}</span>
+        </button>`
       );
     } else {
-      cells.push(`<span class="${cls}">${d}</span>`);
+      cells.push(`<span class="${cls}"><span class="diary-cal-num">${d}</span></span>`);
     }
   }
   grid.innerHTML = cells.join("");
+}
+
+function bindDiaryCalendarSwipe() {
+  const panel = document.getElementById("diaryCalPanel");
+  if (!panel || panel.dataset.swipeBound === "1") return;
+  panel.dataset.swipeBound = "1";
+  const threshold = 48;
+  const onDown = (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    diaryCalSwipe = { x: e.clientX, y: e.clientY, active: true, locked: "" };
+    try {
+      panel.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+  const onMove = (e) => {
+    if (!diaryCalSwipe.active) return;
+    const dx = e.clientX - diaryCalSwipe.x;
+    const dy = e.clientY - diaryCalSwipe.y;
+    if (!diaryCalSwipe.locked) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      diaryCalSwipe.locked = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+    }
+    if (diaryCalSwipe.locked === "x") e.preventDefault();
+  };
+  const onUp = (e) => {
+    if (!diaryCalSwipe.active) return;
+    const dx = e.clientX - diaryCalSwipe.x;
+    const dy = e.clientY - diaryCalSwipe.y;
+    const locked = diaryCalSwipe.locked;
+    diaryCalSwipe.active = false;
+    try {
+      panel.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    if (locked === "x" && Math.abs(dx) >= threshold && Math.abs(dx) > Math.abs(dy)) {
+      shiftDiaryCalendarMonth(dx < 0 ? 1 : -1);
+    }
+  };
+  panel.addEventListener("pointerdown", onDown);
+  panel.addEventListener("pointermove", onMove, { passive: false });
+  panel.addEventListener("pointerup", onUp);
+  panel.addEventListener("pointercancel", onUp);
+  panel.addEventListener(
+    "wheel",
+    (e) => {
+      if (!diaryCalVisible) return;
+      if (Math.abs(e.deltaX) < 18 && Math.abs(e.deltaY) < 18) return;
+      const horizontal = Math.abs(e.deltaX) >= Math.abs(e.deltaY);
+      if (!horizontal && !e.shiftKey) return;
+      e.preventDefault();
+      const delta = horizontal ? e.deltaX : e.deltaY;
+      shiftDiaryCalendarMonth(delta > 0 ? 1 : -1);
+    },
+    { passive: false }
+  );
 }
 
 function syncDiaryCalPanel() {
@@ -4385,7 +4471,10 @@ function syncDiaryCalPanel() {
     btn.classList.toggle("is-active", diaryCalVisible);
     btn.setAttribute("aria-expanded", diaryCalVisible ? "true" : "false");
   }
-  if (diaryCalVisible) renderDiaryCalendar();
+  if (diaryCalVisible) {
+    bindDiaryCalendarSwipe();
+    renderDiaryCalendar();
+  }
 }
 
 function jumpToDiaryDay(dayKey) {
@@ -4444,12 +4533,14 @@ function renderListenDiary() {
   const entries = readListenDiary();
   const days = aggregateDiaryDays(entries);
   diaryDayKeysCache = new Set(days.map((d) => d.dayKey));
+  diaryDaysByKey = new Map(days.map((d) => [d.dayKey, d]));
   if (countEl) countEl.textContent = days.length ? `${days.length} 天` : "0 天";
   refreshDiaryEntrySub();
   if (!days.length) {
     body.innerHTML =
       `<p class="diary-empty" id="diaryEmpty">完整听完一首歌后，会按天写进日记：天气、一句歌词，还有今天的主角歌</p>`;
     diaryDayKeysCache = new Set();
+    diaryDaysByKey = new Map();
     syncDiaryCalPanel();
     return;
   }
@@ -8517,14 +8608,10 @@ document.getElementById("diaryCalToggle")?.addEventListener("click", () => {
   syncDiaryCalPanel();
 });
 document.getElementById("diaryCalPrev")?.addEventListener("click", () => {
-  if (!diaryCalCursor) diaryCalCursor = new Date();
-  diaryCalCursor = new Date(diaryCalCursor.getFullYear(), diaryCalCursor.getMonth() - 1, 1);
-  renderDiaryCalendar();
+  shiftDiaryCalendarMonth(-1);
 });
 document.getElementById("diaryCalNext")?.addEventListener("click", () => {
-  if (!diaryCalCursor) diaryCalCursor = new Date();
-  diaryCalCursor = new Date(diaryCalCursor.getFullYear(), diaryCalCursor.getMonth() + 1, 1);
-  renderDiaryCalendar();
+  shiftDiaryCalendarMonth(1);
 });
 document.getElementById("diaryCalGrid")?.addEventListener("click", (e) => {
   const cell = e.target.closest?.("[data-diary-jump]");

@@ -2705,6 +2705,8 @@ html[data-bg-light="0"] .novel-card {
     inset 0 1px 0 rgba(255, 255, 255, 0.65);
   color: #1a1612;
   backdrop-filter: blur(10px);
+  touch-action: pan-y;
+  user-select: none;
 }
 
 .diary-cal-panel[hidden] {
@@ -2748,7 +2750,7 @@ html[data-bg-light="0"] .novel-card {
 .diary-cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 5px;
+  gap: 6px;
 }
 
 .diary-cal-weekdays {
@@ -2764,45 +2766,92 @@ html[data-bg-light="0"] .novel-card {
 }
 
 .diary-cal-cell {
+  position: relative;
   aspect-ratio: 1;
-  min-height: 36px;
-  border-radius: 10px;
-  border: 1px solid rgba(26, 22, 18, 0.1);
-  background: rgba(255, 255, 255, 0.55);
-  color: rgba(26, 22, 18, 0.42);
+  min-height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(26, 22, 18, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  color: rgba(26, 22, 18, 0.48);
   font: inherit;
-  font-size: 0.84rem;
-  font-weight: 650;
+  font-size: 0.78rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
   cursor: default;
 }
 
+.diary-cal-cell.is-pad {
+  border: 0;
+  background: transparent;
+}
+
 .diary-cal-cell.is-muted {
-  opacity: 1;
-  color: rgba(26, 22, 18, 0.34);
-  background: rgba(255, 255, 255, 0.38);
-  border-color: rgba(26, 22, 18, 0.08);
+  color: rgba(26, 22, 18, 0.38);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.diary-cal-num {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  z-index: 2;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.diary-cal-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.diary-cal-hero-dot {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 85%, #c45a18);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
 }
 
 .diary-cal-cell.has-entry {
-  border-color: rgba(26, 22, 18, 0.42);
+  border-color: rgba(26, 22, 18, 0.5);
   background: #fff;
   color: #1a1612;
-  font-weight: 780;
   cursor: pointer;
-  box-shadow: 0 1px 0 rgba(26, 22, 18, 0.08);
+  box-shadow: 0 2px 0 rgba(26, 22, 18, 0.08);
+}
+
+.diary-cal-cell.has-hero .diary-cal-num {
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(255, 250, 242, 0.88);
+  color: #1a1612;
+  text-shadow: none;
 }
 
 .diary-cal-cell.has-entry:hover,
 .diary-cal-cell.is-focus {
-  border-color: color-mix(in srgb, var(--accent) 70%, #1a1612);
-  background: color-mix(in srgb, var(--accent) 28%, #fff);
-  color: #1a1612;
+  border-color: color-mix(in srgb, var(--accent) 75%, #1a1612);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .diary-cal-cell.is-today {
-  font-weight: 820;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 75%, #1a1612);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 80%, #1a1612);
+}
+
+.diary-cal-hint {
+  margin: 8px 2px 0;
+  font-size: 0.72rem;
+  color: rgba(26, 22, 18, 0.55);
 }
 
 html[data-shell-bg="1"] .diary-cal-panel {
@@ -3090,6 +3139,10 @@ html.theme-manga .diary-cal-cell.has-entry {
   color: #1a1612 !important;
   border: 2px solid #1a1612 !important;
   box-shadow: 1px 1px 0 #1a1612 !important;
+}
+
+html.theme-manga .diary-cal-cell.has-hero .diary-cal-num {
+  background: rgba(255, 253, 248, 0.92) !important;
 }
 
 html.theme-manga .diary-cal-cell.has-entry:hover,
