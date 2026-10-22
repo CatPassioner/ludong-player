@@ -593,6 +593,13 @@ html[data-shell-bg="1"][data-shell-ink="dark"] .app > .now-card {
   flex-shrink: 0;
 }
 
+.nav-footer-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .nav-settings-btn {
   display: inline-flex;
   align-items: center;
@@ -611,6 +618,30 @@ html[data-shell-bg="1"][data-shell-ink="dark"] .app > .now-card {
 .nav-settings-btn.is-active {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
   background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.nav-github {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-soft) 80%, transparent);
+  color: #24292f;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.nav-github:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: #000;
+}
+
+.github-mark {
+  display: block;
 }
 
 .nav-footer-hint {
@@ -8649,6 +8680,27 @@ body.is-auth-screen {
 .auth-local-btn:hover {
   background: #fff;
   border-color: rgba(40, 48, 62, 0.28);
+}
+
+.auth-github {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px auto 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(26, 22, 18, 0.14);
+  background: #fff;
+  color: #24292f;
+  text-decoration: none;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.auth-github:hover {
+  border-color: rgba(26, 22, 18, 0.28);
+  color: #000;
 }
 
 .auth-local-note {

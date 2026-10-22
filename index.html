@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03theater36" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03github1" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -66,6 +66,22 @@
           先听本地歌（无需网络）
         </button>
         <p class="auth-local-note">私人曲库在本机，断网也能播；云端/好友需登录后联网使用。</p>
+        <a
+          class="auth-github"
+          href="https://github.com/CatPassioner/ludong-player"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="GitHub"
+          aria-label="打开 GitHub"
+        >
+          <svg class="github-mark" viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+            />
+          </svg>
+          <span>GitHub</span>
+        </a>
       </form>
     </div>
   </div>
@@ -118,10 +134,27 @@
         </nav>
 
         <div class="nav-footer">
-          <button type="button" class="nav-settings-btn" data-nav="settings" id="settingsBtn">
-            <span aria-hidden="true">⚙</span>
-            <span>设置</span>
-          </button>
+          <div class="nav-footer-row">
+            <button type="button" class="nav-settings-btn" data-nav="settings" id="settingsBtn">
+              <span aria-hidden="true">⚙</span>
+              <span>设置</span>
+            </button>
+            <a
+              class="nav-github"
+              href="https://github.com/CatPassioner/ludong-player"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="GitHub"
+              aria-label="打开 GitHub"
+            >
+              <svg class="github-mark" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+                />
+              </svg>
+            </a>
+          </div>
           <span class="nav-footer-hint" id="accountNameLabel">未登录</span>
         </div>
       </aside>
@@ -1198,6 +1231,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03asset1"></script>
-  <script src="app.js?v=2.0.03theater36"></script>
+  <script src="app.js?v=2.0.03github1"></script>
 </body>
 </html>
