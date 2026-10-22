@@ -26,13 +26,13 @@ https://github.com/CatPassioner/ludong-player/releases
 
 ### 安装包
 
-1. 下载 猫耳律动-安装包.exe
+1. 下载 ludong-setup.exe
 2. 双击安装并选择程序目录与歌曲目录
 3. 需要 Windows 10 或 11以及 Edge 或 Chrome浏览器
 
 ### 便携版
 
-1. 下载 猫耳律动-便携版.zip
+1. 下载 ludong-portable.zip
 2. 解压后双击 猫耳律动.exe
 
 ### 从源码运行
