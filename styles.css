@@ -2675,27 +2675,36 @@ html[data-bg-light="0"] .novel-card {
 .diary-cal-toggle {
   padding: 5px 10px;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--bg-soft) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 22%, var(--line));
+  background: color-mix(in srgb, #fffaf2 88%, var(--bg));
   color: var(--text);
   font: inherit;
   font-size: 0.78rem;
+  font-weight: 650;
   cursor: pointer;
 }
 
 .diary-cal-toggle.is-active,
 .diary-cal-toggle:hover {
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  background: color-mix(in srgb, var(--accent) 22%, #fffaf2);
 }
 
 .diary-cal-panel {
+  position: relative;
+  z-index: 2;
   flex: 0 0 auto;
-  margin: 0 14px 8px;
-  padding: 12px;
+  margin: 0 14px 10px;
+  padding: 14px 14px 12px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--text) 10%, var(--line));
-  background: color-mix(in srgb, var(--bg) 42%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 28%, var(--line));
+  background:
+    linear-gradient(180deg, rgba(255, 250, 242, 0.96) 0%, rgba(245, 238, 226, 0.94) 100%);
+  box-shadow:
+    0 10px 28px rgba(20, 16, 12, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  color: #1a1612;
+  backdrop-filter: blur(10px);
 }
 
 .diary-cal-panel[hidden] {
@@ -2711,77 +2720,102 @@ html[data-bg-light="0"] .novel-card {
 }
 
 .diary-cal-month {
-  font-size: 0.9rem;
-  font-weight: 720;
+  font-size: 0.96rem;
+  font-weight: 780;
+  color: #1a1612;
+  letter-spacing: 0.02em;
 }
 
 .diary-cal-nav {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--bg-soft) 70%, transparent);
-  color: var(--text);
-  font-size: 1.1rem;
+  border: 1px solid rgba(26, 22, 18, 0.28);
+  background: rgba(255, 255, 255, 0.88);
+  color: #1a1612;
+  font-size: 1.15rem;
   line-height: 1;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .diary-cal-nav:hover {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-color: color-mix(in srgb, var(--accent) 55%, #1a1612);
+  background: #fff;
 }
 
 .diary-cal-weekdays,
 .diary-cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
+  gap: 5px;
 }
 
 .diary-cal-weekdays {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .diary-cal-weekdays span {
   text-align: center;
-  font-size: 0.68rem;
-  color: var(--dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(26, 22, 18, 0.62);
   padding: 2px 0;
 }
 
 .diary-cal-cell {
   aspect-ratio: 1;
-  min-height: 34px;
+  min-height: 36px;
   border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--dim);
+  border: 1px solid rgba(26, 22, 18, 0.1);
+  background: rgba(255, 255, 255, 0.55);
+  color: rgba(26, 22, 18, 0.42);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.84rem;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
   cursor: default;
 }
 
 .diary-cal-cell.is-muted {
-  opacity: 0.28;
+  opacity: 1;
+  color: rgba(26, 22, 18, 0.34);
+  background: rgba(255, 255, 255, 0.38);
+  border-color: rgba(26, 22, 18, 0.08);
 }
 
 .diary-cal-cell.has-entry {
-  border-color: color-mix(in srgb, var(--text) 12%, var(--line));
-  background: color-mix(in srgb, var(--bg) 48%, transparent);
-  color: var(--text);
+  border-color: rgba(26, 22, 18, 0.42);
+  background: #fff;
+  color: #1a1612;
+  font-weight: 780;
   cursor: pointer;
+  box-shadow: 0 1px 0 rgba(26, 22, 18, 0.08);
 }
 
 .diary-cal-cell.has-entry:hover,
 .diary-cal-cell.is-focus {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 70%, #1a1612);
+  background: color-mix(in srgb, var(--accent) 28%, #fff);
+  color: #1a1612;
 }
 
 .diary-cal-cell.is-today {
-  font-weight: 760;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+  font-weight: 820;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 75%, #1a1612);
+}
+
+html[data-shell-bg="1"] .diary-cal-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 250, 242, 0.98) 0%, rgba(242, 234, 220, 0.97) 100%) !important;
+  border-color: rgba(26, 22, 18, 0.4) !important;
+}
+
+html[data-shell-bg="1"] .diary-cal-month,
+html[data-shell-bg="1"] .diary-cal-weekdays span,
+html[data-shell-bg="1"] .diary-cal-cell.has-entry {
+  color: #1a1612 !important;
+  text-shadow: none !important;
 }
 
 .diary-body {
@@ -3038,11 +3072,38 @@ html.theme-manga .diary-entry {
   background: color-mix(in srgb, #ebe4d6 42%, transparent) !important;
 }
 
+html.theme-manga .diary-cal-panel {
+  background: #f7f1e4 !important;
+  color: #1a1612 !important;
+}
+
+html.theme-manga .diary-cal-cell {
+  border: 1px solid rgba(26, 22, 18, 0.22) !important;
+  background: #fffdf8 !important;
+  color: rgba(26, 22, 18, 0.45) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+html.theme-manga .diary-cal-cell.has-entry {
+  background: #fff !important;
+  color: #1a1612 !important;
+  border: 2px solid #1a1612 !important;
+  box-shadow: 1px 1px 0 #1a1612 !important;
+}
+
+html.theme-manga .diary-cal-cell.has-entry:hover,
+html.theme-manga .diary-cal-cell.is-focus {
+  background: #ffe8c8 !important;
+}
+
 html.theme-manga .diary-cal-toggle,
 html.theme-manga .diary-cal-nav {
   border: 2px solid #1a1612 !important;
   border-radius: 6px !important;
   box-shadow: 1px 1px 0 #1a1612;
+  background: #fffdf8 !important;
+  color: #1a1612 !important;
 }
 
 .rank-row {
