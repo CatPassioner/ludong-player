@@ -2690,11 +2690,17 @@ html[data-bg-light="0"] .novel-card {
   background: color-mix(in srgb, var(--accent) 22%, #fffaf2);
 }
 
+.diary-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .diary-cal-panel {
   position: relative;
   z-index: 2;
   flex: 0 0 auto;
-  margin: 0 14px 10px;
+  margin: 0;
   padding: 14px 14px 12px;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--text) 28%, var(--line));
@@ -2705,7 +2711,7 @@ html[data-bg-light="0"] .novel-card {
     inset 0 1px 0 rgba(255, 255, 255, 0.65);
   color: #1a1612;
   backdrop-filter: blur(10px);
-  touch-action: pan-y;
+  touch-action: manipulation;
   user-select: none;
 }
 
@@ -2750,7 +2756,7 @@ html[data-bg-light="0"] .novel-card {
 .diary-cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
 }
 
 .diary-cal-weekdays {
@@ -2768,14 +2774,15 @@ html[data-bg-light="0"] .novel-card {
 .diary-cal-cell {
   position: relative;
   aspect-ratio: 1;
-  min-height: 44px;
+  width: 100%;
+  min-height: 0;
   padding: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid rgba(26, 22, 18, 0.12);
   background: rgba(255, 255, 255, 0.72);
   color: rgba(26, 22, 18, 0.48);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   overflow: hidden;
@@ -2871,6 +2878,7 @@ html[data-shell-bg="1"] .diary-cal-cell.has-entry {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-bottom: 8px;
 }
 
 .diary-empty {

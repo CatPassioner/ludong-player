@@ -4409,54 +4409,42 @@ function bindDiaryCalendarSwipe() {
   const panel = document.getElementById("diaryCalPanel");
   if (!panel || panel.dataset.swipeBound === "1") return;
   panel.dataset.swipeBound = "1";
-  const threshold = 48;
+  const threshold = 56;
   const onDown = (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     diaryCalSwipe = { x: e.clientX, y: e.clientY, active: true, locked: "" };
-    try {
-      panel.setPointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
   };
   const onMove = (e) => {
     if (!diaryCalSwipe.active) return;
     const dx = e.clientX - diaryCalSwipe.x;
     const dy = e.clientY - diaryCalSwipe.y;
     if (!diaryCalSwipe.locked) {
-      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-      diaryCalSwipe.locked = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
+      // 上下优先交给外层滚动，只有明显横向才换月
+      diaryCalSwipe.locked = Math.abs(dx) > Math.abs(dy) * 1.25 ? "x" : "y";
     }
-    if (diaryCalSwipe.locked === "x") e.preventDefault();
   };
   const onUp = (e) => {
     if (!diaryCalSwipe.active) return;
     const dx = e.clientX - diaryCalSwipe.x;
-    const dy = e.clientY - diaryCalSwipe.y;
     const locked = diaryCalSwipe.locked;
     diaryCalSwipe.active = false;
-    try {
-      panel.releasePointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-    if (locked === "x" && Math.abs(dx) >= threshold && Math.abs(dx) > Math.abs(dy)) {
+    if (locked === "x" && Math.abs(dx) >= threshold) {
       shiftDiaryCalendarMonth(dx < 0 ? 1 : -1);
     }
   };
   panel.addEventListener("pointerdown", onDown);
-  panel.addEventListener("pointermove", onMove, { passive: false });
+  panel.addEventListener("pointermove", onMove);
   panel.addEventListener("pointerup", onUp);
   panel.addEventListener("pointercancel", onUp);
   panel.addEventListener(
     "wheel",
     (e) => {
       if (!diaryCalVisible) return;
-      if (Math.abs(e.deltaX) < 18 && Math.abs(e.deltaY) < 18) return;
-      const horizontal = Math.abs(e.deltaX) >= Math.abs(e.deltaY);
-      if (!horizontal && !e.shiftKey) return;
+      // 仅横向滚轮或按住 Shift 时换月，竖向交给页面上下滚动
+      if (Math.abs(e.deltaX) < 20 && !e.shiftKey) return;
+      const delta = Math.abs(e.deltaX) >= 20 ? e.deltaX : e.deltaY;
       e.preventDefault();
-      const delta = horizontal ? e.deltaX : e.deltaY;
       shiftDiaryCalendarMonth(delta > 0 ? 1 : -1);
     },
     { passive: false }

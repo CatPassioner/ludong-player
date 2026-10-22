@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+SC:wght@400;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0.03diary3" />
+  <link rel="stylesheet" href="styles.css?v=2.0.03diary4" />
   <script>
     try {
       if (localStorage.getItem("ludong-ui-style") === "manga") {
@@ -976,20 +976,22 @@
         <span class="likes-panel-count" id="diaryPanelCount">0 天</span>
       </div>
     </header>
-    <div class="diary-cal-panel" id="diaryCalPanel" hidden>
-      <div class="diary-cal-head">
-        <button type="button" class="diary-cal-nav" id="diaryCalPrev" aria-label="上个月">‹</button>
-        <span class="diary-cal-month" id="diaryCalMonthLabel">—</span>
-        <button type="button" class="diary-cal-nav" id="diaryCalNext" aria-label="下个月">›</button>
+    <div class="diary-scroll pane-view-body" id="diaryScroll">
+      <div class="diary-cal-panel" id="diaryCalPanel" hidden>
+        <div class="diary-cal-head">
+          <button type="button" class="diary-cal-nav" id="diaryCalPrev" aria-label="上个月">‹</button>
+          <span class="diary-cal-month" id="diaryCalMonthLabel">—</span>
+          <button type="button" class="diary-cal-nav" id="diaryCalNext" aria-label="下个月">›</button>
+        </div>
+        <div class="diary-cal-weekdays" aria-hidden="true">
+          <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+        </div>
+        <div class="diary-cal-grid" id="diaryCalGrid" role="grid" aria-label="听歌日历"></div>
+        <p class="diary-cal-hint">上下滑动可看全月 · 左右滑动换月 · 有听歌的日子显示当天主角</p>
       </div>
-      <div class="diary-cal-weekdays" aria-hidden="true">
-        <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+      <div class="diary-body" id="diaryBody">
+        <p class="diary-empty" id="diaryEmpty">完整听完一首歌后，会按天写进日记：天气、一句歌词，还有今天的主角歌</p>
       </div>
-      <div class="diary-cal-grid" id="diaryCalGrid" role="grid" aria-label="听歌日历"></div>
-      <p class="diary-cal-hint">左右滑动可换月 · 有听歌的日子会显示当天主角封面</p>
-    </div>
-    <div class="diary-body pane-view-body" id="diaryBody">
-      <p class="diary-empty" id="diaryEmpty">完整听完一首歌后，会按天写进日记：天气、一句歌词，还有今天的主角歌</p>
     </div>
   </div>
 
@@ -1248,6 +1250,6 @@
   </script>
   <script src="cloud-config.js"></script>
   <script src="cloud-comments.js?v=2.0.03asset1"></script>
-  <script src="app.js?v=2.0.03diary3"></script>
+  <script src="app.js?v=2.0.03diary4"></script>
 </body>
 </html>
