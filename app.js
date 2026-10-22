@@ -4282,17 +4282,46 @@ function diarySongButtonHtml(item, { hero = false } = {}) {
   </button>`;
 }
 
-function renderDiaryDaySection(day, meta, quote) {
+let diaryOpenDays = new Set();
+let diaryCalVisible = false;
+let diaryCalCursor = null;
+let diaryDayKeysCache = new Set();
+let diaryFocusDayKey = "";
+
+function parseDiaryDayKey(key) {
+  const parts = String(key || "").split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function diaryDayIsOpen(dayKey, days) {
+  if (diaryOpenDays.has(dayKey)) return true;
+  if (diaryOpenDays.size) return false;
+  const today = diaryLocalDayKey();
+  if (dayKey === today) return true;
+  return days[0]?.dayKey === dayKey;
+}
+
+function setDiaryDayOpen(dayKey, open) {
+  if (!dayKey) return;
+  if (open) diaryOpenDays.add(dayKey);
+  else diaryOpenDays.delete(dayKey);
+}
+
+function renderDiaryDaySection(day, meta, quote, { open = false } = {}) {
   const weather = diaryWeatherHtml(meta);
   const quoteText = quote?.quote || fallbackDiaryQuote(day.dayKey, day.hero).quote;
   const quoteFrom = quote?.quoteFrom || "";
-  const rest = day.songs.slice(1);
-  const restHtml = rest.map((item) => diarySongButtonHtml(item)).join("");
-  const heroHtml = day.hero ? diarySongButtonHtml(day.hero, { hero: true }) : "";
-  return `<section class="diary-day" data-day="${escapeHtml(day.dayKey)}">
-    <header class="diary-day-card">
+  const songsHtml = day.songs
+    .map((item, i) => diarySongButtonHtml(item, { hero: i === 0 }))
+    .join("");
+  return `<section class="diary-day${open ? " is-open" : ""}" data-day="${escapeHtml(day.dayKey)}" id="diary-day-${escapeHtml(day.dayKey)}">
+    <button type="button" class="diary-day-card" data-diary-toggle="${escapeHtml(day.dayKey)}" aria-expanded="${open ? "true" : "false"}">
       <div class="diary-day-top">
-        <span class="diary-day-title">${escapeHtml(day.label)}</span>
+        <span class="diary-day-title-wrap">
+          <span class="diary-day-chevron" aria-hidden="true"></span>
+          <span class="diary-day-title">${escapeHtml(day.label)}</span>
+        </span>
         ${weather}
       </div>
       <p class="diary-day-quote">「${escapeHtml(quoteText)}」</p>
@@ -4301,11 +4330,77 @@ function renderDiaryDaySection(day, meta, quote) {
           ? `<p class="diary-day-quote-from">—— ${escapeHtml(quoteFrom)}</p>`
           : ""
       }
-      <p class="diary-day-stat">${day.songs.length} 首 · 共 ${day.totalPlays} 次</p>
-    </header>
-    ${heroHtml}
-    ${restHtml ? `<div class="diary-song-list">${restHtml}</div>` : ""}
+      <p class="diary-day-stat">${day.songs.length} 首 · 共 ${day.totalPlays} 次 · 点开看歌曲</p>
+    </button>
+    <div class="diary-day-songs">${songsHtml}</div>
   </section>`;
+}
+
+function renderDiaryCalendar(dayKeys = diaryDayKeysCache) {
+  const grid = document.getElementById("diaryCalGrid");
+  const label = document.getElementById("diaryCalMonthLabel");
+  if (!grid) return;
+  const now = new Date();
+  if (!diaryCalCursor) {
+    diaryCalCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  const y = diaryCalCursor.getFullYear();
+  const m = diaryCalCursor.getMonth();
+  if (label) label.textContent = `${y}年${m + 1}月`;
+  const first = new Date(y, m, 1);
+  const startPad = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const todayKey = diaryLocalDayKey(now);
+  const cells = [];
+  for (let i = 0; i < startPad; i += 1) {
+    cells.push(`<span class="diary-cal-cell is-muted" aria-hidden="true"></span>`);
+  }
+  for (let d = 1; d <= daysInMonth; d += 1) {
+    const key = diaryLocalDayKey(new Date(y, m, d));
+    const has = dayKeys.has(key);
+    const cls = [
+      "diary-cal-cell",
+      has ? "has-entry" : "is-muted",
+      key === todayKey ? "is-today" : "",
+      key === diaryFocusDayKey ? "is-focus" : ""
+    ]
+      .filter(Boolean)
+      .join(" ");
+    if (has) {
+      cells.push(
+        `<button type="button" class="${cls}" data-diary-jump="${escapeHtml(key)}" aria-label="${y}年${m + 1}月${d}日">${d}</button>`
+      );
+    } else {
+      cells.push(`<span class="${cls}">${d}</span>`);
+    }
+  }
+  grid.innerHTML = cells.join("");
+}
+
+function syncDiaryCalPanel() {
+  const panel = document.getElementById("diaryCalPanel");
+  const btn = document.getElementById("diaryCalToggle");
+  if (panel) panel.hidden = !diaryCalVisible;
+  if (btn) {
+    btn.classList.toggle("is-active", diaryCalVisible);
+    btn.setAttribute("aria-expanded", diaryCalVisible ? "true" : "false");
+  }
+  if (diaryCalVisible) renderDiaryCalendar();
+}
+
+function jumpToDiaryDay(dayKey) {
+  if (!dayKey) return;
+  diaryFocusDayKey = dayKey;
+  setDiaryDayOpen(dayKey, true);
+  const section = document.getElementById(`diary-day-${dayKey}`) ||
+    document.querySelector(`.diary-day[data-day="${CSS.escape(dayKey)}"]`);
+  if (section) {
+    section.classList.add("is-open");
+    const toggle = section.querySelector("[data-diary-toggle]");
+    if (toggle) toggle.setAttribute("aria-expanded", "true");
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  renderDiaryCalendar();
 }
 
 function refreshDiaryEntrySub() {
@@ -4333,8 +4428,9 @@ async function enrichDiaryDaySections(days) {
         (el) => el.getAttribute("data-day") === day.dayKey
       );
       if (!section) return;
+      const open = section.classList.contains("is-open");
       const tmp = document.createElement("div");
-      tmp.innerHTML = renderDiaryDaySection(day, meta, quote);
+      tmp.innerHTML = renderDiaryDaySection(day, meta, quote, { open });
       const next = tmp.firstElementChild;
       if (next) section.replaceWith(next);
     })
@@ -4347,12 +4443,19 @@ function renderListenDiary() {
   if (!body) return;
   const entries = readListenDiary();
   const days = aggregateDiaryDays(entries);
+  diaryDayKeysCache = new Set(days.map((d) => d.dayKey));
   if (countEl) countEl.textContent = days.length ? `${days.length} 天` : "0 天";
   refreshDiaryEntrySub();
   if (!days.length) {
     body.innerHTML =
       `<p class="diary-empty" id="diaryEmpty">完整听完一首歌后，会按天写进日记：天气、一句歌词，还有今天的主角歌</p>`;
+    diaryDayKeysCache = new Set();
+    syncDiaryCalPanel();
     return;
+  }
+  if (!diaryCalCursor && days[0]) {
+    const first = parseDiaryDayKey(days[0].dayKey);
+    if (first) diaryCalCursor = new Date(first.getFullYear(), first.getMonth(), 1);
   }
   const metas = readListenDiaryMeta();
   body.innerHTML = days
@@ -4362,9 +4465,12 @@ function renderListenDiary() {
         meta.quote
           ? { quote: meta.quote, quoteFrom: meta.quoteFrom || "", quoteKey: meta.quoteKey || "" }
           : fallbackDiaryQuote(day.dayKey, day.hero);
-      return renderDiaryDaySection(day, meta, quote);
+      return renderDiaryDaySection(day, meta, quote, {
+        open: diaryDayIsOpen(day.dayKey, days)
+      });
     })
     .join("");
+  syncDiaryCalPanel();
   enrichDiaryDaySections(days).catch(() => {});
 }
 
@@ -8406,7 +8512,41 @@ async function deleteLocalSong(song) {
 els.likesBack?.addEventListener("click", () => setMainView("home"));
 els.likesBackdrop?.addEventListener("click", () => setMainView("home"));
 document.getElementById("diaryBack")?.addEventListener("click", () => setMainView("home"));
+document.getElementById("diaryCalToggle")?.addEventListener("click", () => {
+  diaryCalVisible = !diaryCalVisible;
+  syncDiaryCalPanel();
+});
+document.getElementById("diaryCalPrev")?.addEventListener("click", () => {
+  if (!diaryCalCursor) diaryCalCursor = new Date();
+  diaryCalCursor = new Date(diaryCalCursor.getFullYear(), diaryCalCursor.getMonth() - 1, 1);
+  renderDiaryCalendar();
+});
+document.getElementById("diaryCalNext")?.addEventListener("click", () => {
+  if (!diaryCalCursor) diaryCalCursor = new Date();
+  diaryCalCursor = new Date(diaryCalCursor.getFullYear(), diaryCalCursor.getMonth() + 1, 1);
+  renderDiaryCalendar();
+});
+document.getElementById("diaryCalGrid")?.addEventListener("click", (e) => {
+  const cell = e.target.closest?.("[data-diary-jump]");
+  if (!cell) return;
+  jumpToDiaryDay(cell.dataset.diaryJump || "");
+});
 document.getElementById("diaryBody")?.addEventListener("click", (e) => {
+  const toggle = e.target.closest?.("[data-diary-toggle]");
+  if (toggle) {
+    const dayKey = toggle.dataset.diaryToggle || "";
+    const section = toggle.closest?.(".diary-day");
+    if (!section || !dayKey) return;
+    const open = !section.classList.contains("is-open");
+    section.classList.toggle("is-open", open);
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    setDiaryDayOpen(dayKey, open);
+    if (open) {
+      diaryFocusDayKey = dayKey;
+      renderDiaryCalendar();
+    }
+    return;
+  }
   const btn = e.target.closest?.(".diary-entry");
   if (!btn) return;
   playFromRankItem({
